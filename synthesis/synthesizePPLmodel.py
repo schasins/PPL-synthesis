@@ -1,3 +1,5 @@
+import random
+
 # **********************************************************************
 # Data structures for representing structure hints
 # **********************************************************************
@@ -144,8 +146,16 @@ def main():
 
 	scriptStrings = AST.strings()
 
-	print scriptStrings
-	print "??".join(scriptStrings)
+	#print scriptStrings
+	#print "??".join(scriptStrings)
+
+	outputString = scriptStrings[0]
+	for string in scriptStrings[1:]:
+		outputString += str(random.random())
+		outputString += string
+
+	print outputString
+
 
 main()
 
