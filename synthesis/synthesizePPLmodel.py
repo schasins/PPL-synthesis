@@ -44,10 +44,10 @@ class ASTNode:
 		outputStrings = []
 		for child in self.children:
 			childStrings = child.strings()
-			outputStrings = combineNodeStringsToMaintainHoles(outputStrings, childStrings)
+			outputStrings = combineStrings([outputStrings, childStrings])
 		return outputStrings
 
-class VariableNode(ASTNode):
+class VariableDeclNode(ASTNode):
 	def __init__(self, name, varType, RHS):
 		ASTNode.__init__(self)
 		self.name = name
@@ -57,16 +57,38 @@ class VariableNode(ASTNode):
 	def strings(self):
 		s = ["\nrandom "+self.varType+" "+self.name+" ~ "]
 		RHSStrings = self.RHS.strings()
-		return combineNodeStringsToMaintainHoles(s, RHSStrings)
+		return combineStrings([s, RHSStrings, [";\n"]])
 
-class BooleanDistrib(ASTNode):
+class BooleanDistribNode(ASTNode):
 	def __init__(self):
 		ASTNode.__init__(self)
 
 	def strings(self):
 		return ["BooleanDistrib(", ")"]
 
-def combineNodeStringsToMaintainHoles(n1Strings, n2Strings):
+class IfNode(ASTNode):
+	def __init__(self, conditionNode, thenNode, elseNode):
+		self.conditionNode = conditionNode
+		self.thenNode = thenNode
+		self.elseNode = elseNode
+
+	def strings(self):
+		return combineStrings([["if "], self.conditionNode.strings(), ["\n\tthen "], self.thenNode.strings(), ["\n\telse "], self.elseNode.strings()])
+
+class VariableUseNode(ASTNode):
+	def __init__(self, name):
+		self.name = name
+
+	def strings(self):
+		return [self.name]
+
+def combineStrings(ls):
+	if len(ls) < 2:
+		return ls[0]
+	else:
+		return combineStrings([combineStringsTwo(ls[0], ls[1])] + ls[2:])
+
+def combineStringsTwo(n1Strings, n2Strings):
 	if len(n2Strings) < 1:
 		return n1Strings
 	if len(n1Strings) < 1:
@@ -89,14 +111,25 @@ nodesInDependencyOrder = g.getNodesInDependencyOrder()
 AST = ASTNode()
 for node in nodesInDependencyOrder:
 	print node.name
+	print len(node.parents)
 	if len(node.parents) == 0:
-		rhs = BooleanDistrib()
-		variableNode = VariableNode(node.name, "Boolean", rhs)
+		rhs = BooleanDistribNode()
+		variableNode = VariableDeclNode(node.name, "Boolean", rhs)
 		AST.children.append(variableNode)
+	elif len(node.parents) == 1:
+		conditionNode = VariableUseNode(node.parents[0].name)
+		thenNode = BooleanDistribNode()
+		elseNode = BooleanDistribNode()
+		ifNode = IfNode(conditionNode, thenNode, elseNode)
+		variableNode = VariableDeclNode(node.name, "Boolean", ifNode)
+		
+		AST.children.append(variableNode)
+
 
 scriptStrings = AST.strings()
 
 print scriptStrings
+print "??".join(scriptStrings)
 
 
 
