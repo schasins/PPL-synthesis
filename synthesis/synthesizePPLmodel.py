@@ -1,4 +1,5 @@
 import random
+from subprocess import call
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -159,6 +160,10 @@ def main():
 	f = open("output.blog", "w")
 	f.write(outputString)
 	f.close()
+
+	f = open("output.output", "w")
+	call(["blog", "output.blog", "--generate"], stdout=f)
+	call(["python", "blogOutputToCSV.py", "output.output", "output.csv"])
 
 
 main()
