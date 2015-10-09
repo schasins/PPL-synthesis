@@ -1,3 +1,7 @@
+# **********************************************************************
+# Data structures for representing structure hints
+# **********************************************************************
+
 class Graph:
 	def __init__(self):
 		self.nodes = []
@@ -35,6 +39,10 @@ class Node:
 		self.name = name
 		self.parents = []
 		self.children = []
+
+# **********************************************************************
+# Data structures for representing PPL ASTs
+# **********************************************************************
 
 class ASTNode:
 	def __init__(self):
@@ -82,6 +90,10 @@ class VariableUseNode(ASTNode):
 	def strings(self):
 		return [self.name]
 
+# **********************************************************************
+# Helper functions
+# **********************************************************************
+
 def combineStrings(ls):
 	if len(ls) < 2:
 		return ls[0]
@@ -96,40 +108,47 @@ def combineStringsTwo(n1Strings, n2Strings):
 	resStrings = n1Strings[:-1]	+ [n1Strings[-1]+n2Strings[0]] + n2Strings[1:]
 	return resStrings
 
-g = Graph()
-f = open("burglary.hints", "r")
-lines = f.readlines()
-for line in lines:
-	actors = line.strip().split(" -> ")
-	a1 = g.getNode(actors[0])
-	a2 = g.getNode(actors[1])
-	a1.children.append(a2)
-	a2.parents.append(a1)
+# **********************************************************************
+# Consume the structure hints, generate a program
+# **********************************************************************
 
-nodesInDependencyOrder = g.getNodesInDependencyOrder()
+def main():
+	g = Graph()
+	f = open("burglary.hints", "r")
+	lines = f.readlines()
+	for line in lines:
+		actors = line.strip().split(" -> ")
+		a1 = g.getNode(actors[0])
+		a2 = g.getNode(actors[1])
+		a1.children.append(a2)
+		a2.parents.append(a1)
 
-AST = ASTNode()
-for node in nodesInDependencyOrder:
-	print node.name
-	print len(node.parents)
-	if len(node.parents) == 0:
-		rhs = BooleanDistribNode()
-		variableNode = VariableDeclNode(node.name, "Boolean", rhs)
-		AST.children.append(variableNode)
-	elif len(node.parents) == 1:
-		conditionNode = VariableUseNode(node.parents[0].name)
-		thenNode = BooleanDistribNode()
-		elseNode = BooleanDistribNode()
-		ifNode = IfNode(conditionNode, thenNode, elseNode)
-		variableNode = VariableDeclNode(node.name, "Boolean", ifNode)
-		
-		AST.children.append(variableNode)
+	nodesInDependencyOrder = g.getNodesInDependencyOrder()
+
+	AST = ASTNode()
+	for node in nodesInDependencyOrder:
+		print node.name
+		print len(node.parents)
+		if len(node.parents) == 0:
+			rhs = BooleanDistribNode()
+			variableNode = VariableDeclNode(node.name, "Boolean", rhs)
+			AST.children.append(variableNode)
+		elif len(node.parents) == 1:
+			conditionNode = VariableUseNode(node.parents[0].name)
+			thenNode = BooleanDistribNode()
+			elseNode = BooleanDistribNode()
+			ifNode = IfNode(conditionNode, thenNode, elseNode)
+			variableNode = VariableDeclNode(node.name, "Boolean", ifNode)
+
+			AST.children.append(variableNode)
 
 
-scriptStrings = AST.strings()
+	scriptStrings = AST.strings()
 
-print scriptStrings
-print "??".join(scriptStrings)
+	print scriptStrings
+	print "??".join(scriptStrings)
+
+main()
 
 
 
