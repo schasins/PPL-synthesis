@@ -36,6 +36,44 @@ class Node:
 		self.parents = []
 		self.children = []
 
+class ASTNode:
+	def __init__(self):
+		self.children = []
+
+	def strings(self):
+		outputStrings = []
+		for child in self.children:
+			childStrings = child.strings()
+			outputStrings = combineNodeStringsToMaintainHoles(outputStrings, childStrings)
+		return outputStrings
+
+class VariableNode(ASTNode):
+	def __init__(self, name, varType, RHS):
+		ASTNode.__init__(self)
+		self.name = name
+		self.varType = varType
+		self.RHS = RHS
+
+	def strings(self):
+		s = ["\nrandom "+self.varType+" "+self.name+" ~ "]
+		RHSStrings = self.RHS.strings()
+		return combineNodeStringsToMaintainHoles(s, RHSStrings)
+
+class BooleanDistrib(ASTNode):
+	def __init__(self):
+		ASTNode.__init__(self)
+
+	def strings(self):
+		return ["BooleanDistrib(", ")"]
+
+def combineNodeStringsToMaintainHoles(n1Strings, n2Strings):
+	if len(n2Strings) < 1:
+		return n1Strings
+	if len(n1Strings) < 1:
+		return n2Strings
+	resStrings = n1Strings[:-1]	+ [n1Strings[-1]+n2Strings[0]] + n2Strings[1:]
+	return resStrings
+
 g = Graph()
 f = open("burglary.hints", "r")
 lines = f.readlines()
@@ -48,6 +86,17 @@ for line in lines:
 
 nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
+AST = ASTNode()
 for node in nodesInDependencyOrder:
 	print node.name
+	if len(node.parents) == 0:
+		rhs = BooleanDistrib()
+		variableNode = VariableNode(node.name, "Boolean", rhs)
+		AST.children.append(variableNode)
+
+scriptStrings = AST.strings()
+
+print scriptStrings
+
+
 
