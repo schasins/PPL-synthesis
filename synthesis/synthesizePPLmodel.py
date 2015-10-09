@@ -48,7 +48,7 @@ class ASTNode:
 	def __init__(self):
 		self.children = []
 
-	def strings(self):
+	def strings(self, tabs=0):
 		outputStrings = []
 		for child in self.children:
 			childStrings = child.strings()
@@ -62,7 +62,7 @@ class VariableDeclNode(ASTNode):
 		self.varType = varType
 		self.RHS = RHS
 
-	def strings(self):
+	def strings(self, tabs=0):
 		s = ["\nrandom "+self.varType+" "+self.name+" ~ "]
 		RHSStrings = self.RHS.strings()
 		return combineStrings([s, RHSStrings, [";\n"]])
@@ -71,7 +71,7 @@ class BooleanDistribNode(ASTNode):
 	def __init__(self):
 		ASTNode.__init__(self)
 
-	def strings(self):
+	def strings(self, tabs=0):
 		return ["BooleanDistrib(", ")"]
 
 class IfNode(ASTNode):
@@ -80,14 +80,15 @@ class IfNode(ASTNode):
 		self.thenNode = thenNode
 		self.elseNode = elseNode
 
-	def strings(self):
-		return combineStrings([["if "], self.conditionNode.strings(), ["\n\tthen "], self.thenNode.strings(), ["\n\telse "], self.elseNode.strings()])
+	def strings(self, tabs=0):
+		tabs = tabs + 1
+		return combineStrings([["\n"+"\t"*tabs+"if "], self.conditionNode.strings(tabs), ["\n"+"\t"*tabs+"then "], self.thenNode.strings(tabs), ["\n"+"\t"*tabs+"else "], self.elseNode.strings(tabs)])
 
 class VariableUseNode(ASTNode):
 	def __init__(self, name):
 		self.name = name
 
-	def strings(self):
+	def strings(self, tabs=0):
 		return [self.name]
 
 # **********************************************************************
@@ -129,19 +130,17 @@ def main():
 	for node in nodesInDependencyOrder:
 		print node.name
 		print len(node.parents)
-		if len(node.parents) == 0:
-			rhs = BooleanDistribNode()
-			variableNode = VariableDeclNode(node.name, "Boolean", rhs)
-			AST.children.append(variableNode)
-		elif len(node.parents) == 1:
-			conditionNode = VariableUseNode(node.parents[0].name)
-			thenNode = BooleanDistribNode()
-			elseNode = BooleanDistribNode()
-			ifNode = IfNode(conditionNode, thenNode, elseNode)
-			variableNode = VariableDeclNode(node.name, "Boolean", ifNode)
 
-			AST.children.append(variableNode)
+		parents = node.parents
+		internal = BooleanDistribNode()
+		for parent in parents:
+			conditionNode = VariableUseNode(parent.name)
+			thenNode = internal
+			elseNode = internal
+			internal = IfNode(conditionNode, thenNode, elseNode)
 
+		variableNode = VariableDeclNode(node.name, "Boolean", internal)
+		AST.children.append(variableNode)
 
 	scriptStrings = AST.strings()
 
