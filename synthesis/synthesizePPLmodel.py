@@ -156,6 +156,10 @@ def main():
 
 	print outputString
 
+	f = open("output.blog", "w")
+	f.write(outputString)
+	f.close()
+
 
 main()
 
