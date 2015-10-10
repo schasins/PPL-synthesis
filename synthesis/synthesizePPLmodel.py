@@ -113,6 +113,42 @@ def combineStringsTwo(n1Strings, n2Strings):
 	return resStrings
 
 # **********************************************************************
+# Evaluate generated programs' proximity to spec
+# **********************************************************************
+
+def summarizeDataset(fileName):
+	f = open(fileName, "r")
+	lines = f.readlines()
+
+	line = lines[0].strip()
+	lineItems = line.split(",")
+	sums = {}
+	names = {}
+	numItems = 0
+	for i in range(len(lineItems)):
+		lineItem = lineItems[i]
+		if lineItem != "":
+			sums[i] = 0
+			names[i] = lineItem
+			numItems = i
+
+	for line in lines[1:]:
+		entries = line.strip().split(",")
+		for i in range(numItems):
+			entry = entries[i]
+			if entry == "true":
+				entry = 1
+			else:
+				entry = 0
+			sums[i] = sums[i] + entry
+
+	numLines = len(lines) - 1
+	means = {}
+	for i in range(numItems):
+		means[names[i]] = float(sums[i])/numLines
+	return means
+
+# **********************************************************************
 # Consume the structure hints, generate a program
 # **********************************************************************
 
@@ -165,6 +201,11 @@ def main():
 	call(["blog", "output.blog", "--generate"], stdout=f)
 	call(["python", "blogOutputToCSV.py", "output.output", "output.csv"])
 
+	summaryTarget = summarizeDataset("burglary.csv")
+	summaryCandidate = summarizeDataset("output.csv")
+
+	print summaryTarget
+	print summaryCandidate
 
 main()
 
