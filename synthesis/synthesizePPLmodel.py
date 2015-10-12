@@ -72,11 +72,16 @@ class VariableDeclNode(ASTNode):
 		return combineStrings([s, RHSStrings, [";\n"]])
 
 class BooleanDistribNode(ASTNode):
-	def __init__(self):
+	def __init__(self, percentTrue=None):
 		ASTNode.__init__(self)
+		self.percentTrue = percentTrue
 
 	def strings(self, tabs=0):
-		return ["BooleanDistrib(", ")"]
+		components = ["BooleanDistrib(", ")"]
+		if self.percentTrue:
+			return [components[0]+str(self.percentTrue)+components[1]]
+		else:
+			return components
 
 class IfNode(ASTNode):
 	def __init__(self, conditionNode, thenNode, elseNode):
@@ -190,7 +195,7 @@ class PPLSynthesisProblem(Annealer):
 		f.close()
 
 		f = open("output.output", "w")
-		call(["blog", "output.blog", "--generate", "-n", "100"], stdout=f)
+		call(["blog", "output.blog", "--generate", "-n", "1000"], stdout=f)
 		call(["python", "blogOutputToCSV.py", "output.output", "output.csv"])
 
 		summaryCandidate = summarizeDataset("output.csv")
@@ -214,6 +219,9 @@ class PPLSynthesisProblem(Annealer):
 # **********************************************************************
 
 def main():
+
+	targetSummary = summarizeDataset("burglary.csv")
+
 	g = Graph()
 	f = open("burglary.hints", "r")
 	lines = f.readlines()
@@ -232,19 +240,23 @@ def main():
 		print len(node.parents)
 
 		parents = node.parents
-		internal = BooleanDistribNode()
-		for parent in parents:
-			conditionNode = VariableUseNode(parent.name)
-			thenNode = internal
-			elseNode = internal
-			internal = IfNode(conditionNode, thenNode, elseNode)
+		if len(parents) > 0:
+			internal = BooleanDistribNode()
+			for parent in parents:
+				conditionNode = VariableUseNode(parent.name)
+				thenNode = internal
+				elseNode = internal
+				internal = IfNode(conditionNode, thenNode, elseNode)
+		else:
+			# we don't need a hole, can just calculate the percent of time to give 1
+			percent = targetSummary[node.name]
+			print percent
+			internal = BooleanDistribNode(percent)
 
 		variableNode = VariableDeclNode(node.name, "Boolean", internal)
 		AST.children.append(variableNode)
 
 	scriptStrings = AST.strings()
-
-	targetSummary = summarizeDataset("burglary.csv")
 
 	initState = PPLSynthesisProblem.makeInitialState(scriptStrings)
 	saObj = PPLSynthesisProblem(initState)
