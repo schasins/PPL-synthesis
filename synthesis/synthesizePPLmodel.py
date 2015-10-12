@@ -175,14 +175,11 @@ class PPLSynthesisProblem(Annealer):
 	def move(self):
 		# changes the value in one hole of the program
 		# TODO: is this actually the way we want to do a move?
-		adjustment = random.uniform(-.1, .1)
-		a = random.randint(1, self.state[0])
-		newNum = self.state[a] + adjustment
-		if newNum < 0:
-			newNum = 0
-		elif newNum > 1:
-			newNum = 1
-		self.state[a] = newNum
+		numHoles = self.state[0]
+		holeFillers = []
+		for i in range(numHoles):
+			holeFillers.append(random.uniform(.000001, .999999))
+		self.state = [numHoles]+holeFillers
 
 	def energy(self):
 		# calculates the distance from the target distributions
@@ -204,7 +201,7 @@ class PPLSynthesisProblem(Annealer):
 		numHoles = len(programStrings) - 1
 		state = [numHoles]
 		for i in range(numHoles):
-			state.append(random.random())
+			state.append(random.uniform(.000001, .999999))
 		return state
 
 	def setNeeded(self, programStrings, targetSummary):
@@ -252,8 +249,8 @@ def main():
 	initState = PPLSynthesisProblem.makeInitialState(scriptStrings)
 	saObj = PPLSynthesisProblem(initState)
 	saObj.setNeeded(scriptStrings, targetSummary)
-	saObj.steps = 100 #how many iterations will we do?
-	saObj.updates = 100 # how many times will we print current status
+	saObj.steps = 1000 #how many iterations will we do?
+	saObj.updates = 1000 # how many times will we print current status
 	saObj.Tmax = (len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
 	print "---"
 	print saObj.Tmax
