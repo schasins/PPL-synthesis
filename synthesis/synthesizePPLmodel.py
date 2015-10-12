@@ -1,5 +1,6 @@
 import random
 from subprocess import call
+from simanneal import Annealer
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -112,6 +113,15 @@ def combineStringsTwo(n1Strings, n2Strings):
 	resStrings = n1Strings[:-1]	+ [n1Strings[-1]+n2Strings[0]] + n2Strings[1:]
 	return resStrings
 
+def makeProgram(scriptStrings, holes, numHoles):
+	outputString = scriptStrings[0]
+	for i in range(0, numHoles):
+		string = scriptStrings[i+1]
+		holeFiller = holes[i]
+		outputString += str(holeFiller)
+		outputString += string
+	return outputString
+
 # **********************************************************************
 # Evaluate generated programs' proximity to spec
 # **********************************************************************
@@ -148,6 +158,60 @@ def summarizeDataset(fileName):
 		means[names[i]] = float(sums[i])/numLines
 	return means
 
+def distance(summary1, summary2):
+	res = 0
+	for key in summary1:
+		v1 = summary1[key]
+		v2 = summary2[key]	
+		res += abs(v1 - v2)
+	return res
+
+# **********************************************************************
+# Simulated annealing
+# **********************************************************************
+
+class PPLSynthesisProblem(Annealer):
+
+	def move(self):
+		# changes the value in one hole of the program
+		# TODO: is this actually the way we want to do a move?
+		adjustment = random.uniform(-.1, .1)
+		a = random.randint(1, self.state[0])
+		newNum = self.state[a] + adjustment
+		if newNum < 0:
+			newNum = 0
+		elif newNum > 1:
+			newNum = 1
+		self.state[a] = newNum
+
+	def energy(self):
+		# calculates the distance from the target distributions
+		outputString = makeProgram(self.programStrings, self.state[1:], self.state[0])
+
+		f = open("output.blog", "w")
+		f.write(outputString)
+		f.close()
+
+		f = open("output.output", "w")
+		call(["blog", "output.blog", "--generate", "-n", "100"], stdout=f)
+		call(["python", "blogOutputToCSV.py", "output.output", "output.csv"])
+
+		summaryCandidate = summarizeDataset("output.csv")
+		return distance(summaryCandidate, self.targetSummary) # want to minimize this
+
+	@staticmethod
+	def makeInitialState(programStrings):
+		numHoles = len(programStrings) - 1
+		state = [numHoles]
+		for i in range(numHoles):
+			state.append(random.random())
+		return state
+
+	def setNeeded(self, programStrings, targetSummary):
+		self.programStrings = programStrings
+		self.targetSummary = targetSummary
+
+
 # **********************************************************************
 # Consume the structure hints, generate a program
 # **********************************************************************
@@ -183,29 +247,28 @@ def main():
 
 	scriptStrings = AST.strings()
 
-	#print scriptStrings
-	#print "??".join(scriptStrings)
+	targetSummary = summarizeDataset("burglary.csv")
 
-	outputString = scriptStrings[0]
-	for string in scriptStrings[1:]:
-		outputString += str(random.random())
-		outputString += string
+	initState = PPLSynthesisProblem.makeInitialState(scriptStrings)
+	saObj = PPLSynthesisProblem(initState)
+	saObj.setNeeded(scriptStrings, targetSummary)
+	saObj.steps = 100 #how many iterations will we do?
+	saObj.updates = 100 # how many times will we print current status
+	saObj.Tmax = (len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
+	print "---"
+	print saObj.Tmax
+	print (len(scriptStrings)-1)*.9
+	saObj.Tmin = .001 # how big an increase in distance are we willing to accept at the end?
 
+	state, distanceFromTargetSummary = saObj.anneal()
+	print state
+	print distanceFromTargetSummary
+	print scriptStrings
+	print
+	print "************"
+
+	outputString = makeProgram(scriptStrings, state[1:], state[0])
 	print outputString
-
-	f = open("output.blog", "w")
-	f.write(outputString)
-	f.close()
-
-	f = open("output.output", "w")
-	call(["blog", "output.blog", "--generate"], stdout=f)
-	call(["python", "blogOutputToCSV.py", "output.output", "output.csv"])
-
-	summaryTarget = summarizeDataset("burglary.csv")
-	summaryCandidate = summarizeDataset("output.csv")
-
-	print summaryTarget
-	print summaryCandidate
 
 main()
 
