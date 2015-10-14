@@ -2,7 +2,8 @@ import random
 from subprocess import call
 from simanneal import Annealer
 from copy import deepcopy
-#from scipy.stats.stats import pearsonr
+from scipy.stats.stats import pearsonr
+from itertools import combinations
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -30,6 +31,19 @@ class Graph:
 		for node in self.nodes:
 			Graph.addNodeToDepOrderLs(outputLs, node)
 		return outputLs
+
+	def isDescendedFrom(self, name1, name2):
+		n1 = self.getNode(name1)
+		n2 = self.getNode(name2)
+		frontier = []
+		for child in n1.children:
+			frontier.append(child)
+		while len(frontier) > 0:
+			node = frontier.pop(0)
+			if node == n2:
+				return True
+			for child in node.children:
+				frontier.append(child)
 
 	@staticmethod
 	def addNodeToDepOrderLs(ls, node):
@@ -91,6 +105,7 @@ class Dataset:
 				columns[i].append(entry)
 			rows.append(cells)
 
+		self.columns = columns
 		self.rows = rows
 
 	def makePathConditionFilter(self, pathCondition):
@@ -312,24 +327,41 @@ class PPLSynthesisProblem(Annealer):
 # Generate structures based on input dataset correlation
 # **********************************************************************
 
+def generatePotentialStructuresFromDataset(dataset):
+	columns = range(dataset.numColumns)
+	combos = combinations(columns, 2)
+	correlations = []
+	for combo in combos:
+		print dataset.indexesToNames[combo[0]], dataset.indexesToNames[combo[1]]
+		correlationPair = pearsonr(dataset.columns[combo[0]], dataset.columns[combo[1]])
+		correlations.append((combo, correlationPair))
+	sortedCorrelations = sorted(correlations, key=lambda x: x[1][1])
+
+	g = Graph()
+	for correlation in sortedCorrelations:
+		name1 = dataset.indexesToNames[correlation[0][0]]
+		name2 = dataset.indexesToNames[correlation[0][1]]
+		statisticalSignificance = correlation[1][1]
+		if statisticalSignificance > .05:
+			break
+		if not g.isDescendedFrom(name1, name2):
+			# we don't yet have an explanation from the connection between these two.  add one.
+			a1 = g.getNode(name1)
+			a2 = g.getNode(name2)
+			# for now we'll assume the causation goes from left to right in input dataset
+			# TODO: eventually should create multiple different prog structures from single dataset
+			a1.children.append(a2)
+			a2.parents.append(a1)
+			print name1, "->", name2, correlation[1]
+	return [g]
+
 # **********************************************************************
 # Consume the structure hints, generate a program
 # **********************************************************************
 
 def main():
 	dataset = Dataset("burglary.csv")
-	columns = range(dataset.numColumns)
-
-	
-	g = Graph()
-	f = open("burglary.hints", "r")
-	lines = f.readlines()
-	for line in lines:
-		actors = line.strip().split(" -> ")
-		a1 = g.getNode(actors[0])
-		a2 = g.getNode(actors[1])
-		a1.children.append(a2)
-		a2.parents.append(a1)
+	g = generatePotentialStructuresFromDataset(dataset)[0]
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
@@ -350,6 +382,8 @@ def main():
 	AST.fillHolesForConcretePathConditions(dataset)
 
 	scriptStrings = AST.strings()
+	output = open("outputDeterministic.blog", "w")
+	output.write(scriptStrings[0])
 	print scriptStrings[0]
 
 main()
