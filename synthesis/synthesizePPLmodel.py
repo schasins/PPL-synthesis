@@ -1,7 +1,8 @@
 import random
 from subprocess import call
 from simanneal import Annealer
-from copy import *
+from copy import deepcopy
+#from scipy.stats.stats import pearsonr
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -68,9 +69,14 @@ class Dataset:
 
 		numItems += 1
 
+		self.numColumns = numItems
+
 		self.indexesToNames = names
 		self.namesToIndexes = indexes
 
+		columns = []
+		for i in range(numItems):
+			columns.append([])
 		rows = []
 		for line in lines[1:]:
 			cells = []
@@ -82,7 +88,8 @@ class Dataset:
 				else:
 					entry = 0
 				cells.append(entry)
-				rows.append(cells)
+				columns[i].append(entry)
+			rows.append(cells)
 
 		self.rows = rows
 
@@ -301,13 +308,19 @@ class PPLSynthesisProblem(Annealer):
 		self.programStrings = programStrings
 		self.targetSummary = targetSummary
 
+# **********************************************************************
+# Generate structures based on input dataset correlation
+# **********************************************************************
 
 # **********************************************************************
 # Consume the structure hints, generate a program
 # **********************************************************************
 
 def main():
+	dataset = Dataset("burglary.csv")
+	columns = range(dataset.numColumns)
 
+	
 	g = Graph()
 	f = open("burglary.hints", "r")
 	lines = f.readlines()
@@ -334,7 +347,7 @@ def main():
 		variableNode = VariableDeclNode(node.name, "Boolean", internal)
 		AST.children.append(variableNode)
 
-	AST.fillHolesForConcretePathConditions(Dataset("burglary.csv"))
+	AST.fillHolesForConcretePathConditions(dataset)
 
 	scriptStrings = AST.strings()
 	print scriptStrings[0]
