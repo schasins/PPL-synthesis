@@ -1,6 +1,7 @@
 import random
 from subprocess import call
 from simanneal import Annealer
+from copy import *
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -45,6 +46,63 @@ class Node:
 		self.children = []
 
 # **********************************************************************
+# Data structures for creating PPL ASTs
+# **********************************************************************
+
+class Dataset:
+	def __init__(self, filename):
+		f = open(filename, "r")
+		lines = f.readlines()
+
+		line = lines[0].strip()
+		lineItems = line.split(",")
+		names = {}
+		indexes = {}
+		numItems = 0
+		for i in range(len(lineItems)):
+			lineItem = lineItems[i]
+			if lineItem != "":
+				names[i] = lineItem
+				indexes[lineItem] = i
+				numItems = i
+
+		numItems += 1
+
+		self.indexesToNames = names
+		self.namesToIndexes = indexes
+
+		rows = []
+		for line in lines[1:]:
+			cells = []
+			entries = line.strip().split(",")
+			for i in range(numItems):
+				entry = entries[i]
+				if entry == "true":
+					entry = 1
+				else:
+					entry = 0
+				cells.append(entry)
+				rows.append(cells)
+
+		self.rows = rows
+
+	def makePathConditionFilter(self, pathCondition):
+		pairs = [] # (index, targetVal) pairs
+		for pathConditionComponent in pathCondition:
+			pairs.append((self.namesToIndexes[pathConditionComponent.varName], pathConditionComponent.value))
+		return lambda row : reduce(lambda x, pair : x and row[pair[0]] == pair[1], pairs, True)
+
+	def makeCurrVariableGetter(self, currVariable):
+		index = self.namesToIndexes[currVariable.name]
+		return lambda row: row[index]
+
+class PathConditionComponent:
+	def __init__(self, varName, relationship, value):
+		self.varName = varName
+		self.relationship = relationship
+		self.value = value
+
+# **********************************************************************
 # Data structures for representing PPL ASTs
 # **********************************************************************
 
@@ -59,6 +117,10 @@ class ASTNode:
 			outputStrings = combineStrings([outputStrings, childStrings])
 		return outputStrings
 
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition =[], currVariable = None):
+		for node in self.children:
+			node.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
+
 class VariableDeclNode(ASTNode):
 	def __init__(self, name, varType, RHS):
 		ASTNode.__init__(self)
@@ -70,6 +132,9 @@ class VariableDeclNode(ASTNode):
 		s = ["\nrandom "+self.varType+" "+self.name+" ~ "]
 		RHSStrings = self.RHS.strings()
 		return combineStrings([s, RHSStrings, [";\n"]])
+
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
+		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
 
 class BooleanDistribNode(ASTNode):
 	def __init__(self, percentTrue=None):
@@ -83,6 +148,18 @@ class BooleanDistribNode(ASTNode):
 		else:
 			return components
 
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
+		pathConditionFilter = dataset.makePathConditionFilter(pathCondition)
+		currVariableGetter = dataset.makeCurrVariableGetter(currVariable)
+		matchingRowsCounter = 0
+		matchingRowsSum = 0
+		for row in dataset.rows:
+			if pathConditionFilter(row):
+				matchingRowsCounter += 1
+				val = currVariableGetter(row)
+				matchingRowsSum += val
+		self.percentTrue = 0.5 if matchingRowsCounter == 0 else float(matchingRowsSum)/matchingRowsCounter
+
 class IfNode(ASTNode):
 	def __init__(self, conditionNode, thenNode, elseNode):
 		self.conditionNode = conditionNode
@@ -93,12 +170,22 @@ class IfNode(ASTNode):
 		tabs = tabs + 1
 		return combineStrings([["\n"+"\t"*tabs+"if "], self.conditionNode.strings(tabs), ["\n"+"\t"*tabs+"then "], self.thenNode.strings(tabs), ["\n"+"\t"*tabs+"else "], self.elseNode.strings(tabs)])
 
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
+		pathConditions = self.conditionNode.pathConditions()
+		truePathCondition = pathCondition + [pathConditions[0]]
+		self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
+		falsePathCondition = pathCondition + [pathConditions[1]]
+		self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
+
 class VariableUseNode(ASTNode):
 	def __init__(self, name):
 		self.name = name
 
 	def strings(self, tabs=0):
 		return [self.name]
+
+	def pathConditions(self):
+		return [PathConditionComponent(self.name, "eq", True), PathConditionComponent(self.name, "eq", False)]
 
 # **********************************************************************
 # Helper functions
@@ -146,6 +233,7 @@ def summarizeDataset(fileName):
 			sums[i] = 0
 			names[i] = lineItem
 			numItems = i
+	numItems += 1
 
 	for line in lines[1:]:
 		entries = line.strip().split(",")
@@ -220,8 +308,6 @@ class PPLSynthesisProblem(Annealer):
 
 def main():
 
-	targetSummary = summarizeDataset("burglary.csv")
-
 	g = Graph()
 	f = open("burglary.hints", "r")
 	lines = f.readlines()
@@ -236,48 +322,22 @@ def main():
 
 	AST = ASTNode()
 	for node in nodesInDependencyOrder:
-		print node.name
-		print len(node.parents)
 
 		parents = node.parents
-		if len(parents) > 0:
-			internal = BooleanDistribNode()
-			for parent in parents:
-				conditionNode = VariableUseNode(parent.name)
-				thenNode = internal
-				elseNode = internal
-				internal = IfNode(conditionNode, thenNode, elseNode)
-		else:
-			# we don't need a hole, can just calculate the percent of time to give 1
-			percent = targetSummary[node.name]
-			print percent
-			internal = BooleanDistribNode(percent)
+		internal = BooleanDistribNode()
+		for parent in parents:
+			conditionNode = VariableUseNode(parent.name)
+			thenNode = deepcopy(internal)
+			elseNode = deepcopy(internal)
+			internal = IfNode(conditionNode, thenNode, elseNode)
 
 		variableNode = VariableDeclNode(node.name, "Boolean", internal)
 		AST.children.append(variableNode)
 
+	AST.fillHolesForConcretePathConditions(Dataset("burglary.csv"))
+
 	scriptStrings = AST.strings()
-
-	initState = PPLSynthesisProblem.makeInitialState(scriptStrings)
-	saObj = PPLSynthesisProblem(initState)
-	saObj.setNeeded(scriptStrings, targetSummary)
-	saObj.steps = 1000 #how many iterations will we do?
-	saObj.updates = 1000 # how many times will we print current status
-	saObj.Tmax = (len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
-	print "---"
-	print saObj.Tmax
-	print (len(scriptStrings)-1)*.9
-	saObj.Tmin = .001 # how big an increase in distance are we willing to accept at the end?
-
-	state, distanceFromTargetSummary = saObj.anneal()
-	print state
-	print distanceFromTargetSummary
-	print scriptStrings
-	print
-	print "************"
-
-	outputString = makeProgram(scriptStrings, state[1:], state[0])
-	print outputString
+	print scriptStrings[0]
 
 main()
 
