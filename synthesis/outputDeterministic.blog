@@ -1,31 +1,25 @@
 
-random Boolean Burglary ~ BooleanDistrib(0.0008);
+random Boolean Burglary ~ BooleanDistrib(0.000966);
 
-random Boolean Earthquake ~ BooleanDistrib(0.0018);
+random Boolean Earthquake ~ BooleanDistrib(0.001936);
 
 random Boolean Alarm ~ 
 	if Earthquake
 	then 
 		if Burglary
-		then BooleanDistrib(0.5)
-		else BooleanDistrib(0.333333333333)
+		then BooleanDistrib(1.0)
+		else BooleanDistrib(0.291191709845)
 	else 
 		if Burglary
-		then BooleanDistrib(1.0)
-		else BooleanDistrib(0.00110286745538);
+		then BooleanDistrib(0.945833333333)
+		else BooleanDistrib(0.000928689484748);
+
+random Boolean MaryCalls ~ 
+	if Alarm
+	then BooleanDistrib(0.733555370525)
+	else BooleanDistrib(0.0101463715845);
 
 random Boolean JohnCalls ~ 
 	if Alarm
-	then BooleanDistrib(0.96)
-	else BooleanDistrib(0.0498245614035);
-
-random Boolean MaryCalls ~ 
-	if JohnCalls
-	then 
-		if Alarm
-		then BooleanDistrib(0.75)
-		else BooleanDistrib(0.010060362173)
-	else 
-		if Alarm
-		then BooleanDistrib(1.0)
-		else BooleanDistrib(0.00854610677358);
+	then BooleanDistrib(0.902581182348)
+	else BooleanDistrib(0.0496211900986);

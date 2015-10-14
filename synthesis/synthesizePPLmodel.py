@@ -335,14 +335,17 @@ def generatePotentialStructuresFromDataset(dataset):
 		print dataset.indexesToNames[combo[0]], dataset.indexesToNames[combo[1]]
 		correlationPair = pearsonr(dataset.columns[combo[0]], dataset.columns[combo[1]])
 		correlations.append((combo, correlationPair))
-	sortedCorrelations = sorted(correlations, key=lambda x: x[1][1])
+	sortedCorrelations = sorted(correlations, key=lambda x: x[1][0], reverse=True)
 
 	g = Graph()
 	for correlation in sortedCorrelations:
 		name1 = dataset.indexesToNames[correlation[0][0]]
 		name2 = dataset.indexesToNames[correlation[0][1]]
 		statisticalSignificance = correlation[1][1]
+		correlationAmount = correlation[1][0]
 		if statisticalSignificance > .05:
+			continue
+		if correlationAmount < .1:
 			break
 		if not g.isDescendedFrom(name1, name2):
 			# we don't yet have an explanation from the connection between these two.  add one.
