@@ -14,6 +14,7 @@ class Bernoulli:
         return "Bernoulli(%.6f)" % self.p
 
     def prob(self, data):
+        # print "p = ", self.p
         if data == 1:
             return self.p
         else:
@@ -49,19 +50,25 @@ class visitor:
 
 class ScoreEstimator(visitor):
     def __init__(self, dataset):
-        self.env = {}
         self.dataset = dataset
+
+    def reset(self):
+        self.env = {}
 
     def print_env(self):
         for v in self.env:
             print v, "=", self.env[v]
 
-    def score(self):
+    def evaluate(self, ast):
+        self.reset()
+        self.visit(ast)
         loglik = 0
         for col in self.dataset.indexesToNames:
             name = self.dataset.indexesToNames[col]
             dist = self.env[name]
             for val in self.dataset.columns[col]:
+                # print "val = ", dist.prob(val)
+                # print "log(val) = ", log(dist.prob(val))
                 loglik = loglik + log(dist.prob(val))
         return loglik
 
@@ -104,7 +111,10 @@ class Mutator(visitor):
 
     def visit_BooleanDistribNode(self, ast):
         if self.level == "low":
-            return BooleanDistribNode(ast.percentTrue + (random()-0.5)/5)
+            p = ast.percentTrue + (random()-0.5)/5
+            if p < 0:
+                p = 0.000001
+            return BooleanDistribNode(p)
         else:
             return BooleanDistribNode(random())
 
@@ -117,24 +127,15 @@ class Mutator(visitor):
 
 def estimateScore(ast,dataset):
     estimator = ScoreEstimator(dataset)
-    estimator1 = ScoreEstimator(dataset)
-    estimator2 = ScoreEstimator(dataset)
     mutator1 = Mutator("low")
     mutator2 = Mutator("high")
     
     ast1 = mutator1.visit(ast)
     ast2 = mutator2.visit(ast)
-    
-    ast.accept(estimator)
-    # estimator.print_env()
-    ast1.accept(estimator1)
-    # estimator1.print_env()
-    ast2.accept(estimator2)
-    # estimator2.print_env()
-    
-    print "score = ", estimator.score()
-    print "score = ", estimator1.score()
-    print "score = ", estimator2.score()
+
+    print "score = ", estimator.evaluate(ast)
+    print "score = ", estimator.evaluate(ast1)
+    print "score = ", estimator.evaluate(ast2)
     # print dataset.numColumns
     # print dataset.columns[0][0]
     print "done"
