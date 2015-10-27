@@ -124,6 +124,18 @@ class BooleanDistribNode(ASTNode):
 				matchingRowsSum += val
 		self.percentTrue = 0.5 if matchingRowsCounter == 0 else float(matchingRowsSum)/matchingRowsCounter
 
+class GaussianDistribNode(ASTNode):
+	def __init__(self, mu=None, sig=None):
+		ASTNode.__init__(self)
+		self.mu = mu
+                self.sig = sig
+
+	def strings(self, tabs=0):
+		if self.mu:
+			return ["Gaussian(%f,%f)" % (self.mu, self.sig)]
+		else:
+			return ["Gaussian(",",", ")"]
+
 class IfNode(ASTNode):
 	def __init__(self, conditionNode, thenNode, elseNode):
 		self.conditionNode = conditionNode
@@ -150,6 +162,15 @@ class VariableUseNode(ASTNode):
 
 	def pathConditions(self):
 		return [PathConditionComponent(self.name, "eq", True), PathConditionComponent(self.name, "eq", False)]
+
+class BinExpNode(ASTNode):
+    def __init__(self, op, e1, e2):
+        self.op = op
+        self.e1 = e1
+        self.e2 = e2
+
+    def strings(self, tabs=0):
+        return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
 
 
 # **********************************************************************

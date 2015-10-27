@@ -219,7 +219,7 @@ def main():
 		AST.children.append(variableNode)
 
 	AST.fillHolesForConcretePathConditions(dataset)
-        # estimateScore(AST,dataset)
+        # testEstimateScore(AST,dataset)
 
 	scriptStrings = AST.strings()
 	output = open("outputDeterministic.blog", "w")
