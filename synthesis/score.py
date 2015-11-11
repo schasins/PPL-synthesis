@@ -57,8 +57,14 @@ class visitor:
             return self.visit_VariableUseNode(ast)
         elif isinstance(ast, IfNode):
             return self.visit_IfNode(ast)
+        elif isinstance(ast, BoolBinExpNode):
+            return self.visit_BoolBinExpNode(ast)
         elif isinstance(ast, BinExpNode):
             return self.visit_BinExpNode(ast)
+        elif isinstance(ast, UnaryExpNode):
+            return self.visit_UnaryExpNode(ast)
+        elif isinstance(ast, int) or isinstance(ast, float):
+            return self.visit_Constant(ast)
         else:
             return self.visit_ASTNode(ast)
 
@@ -97,11 +103,26 @@ class ScoreEstimator(visitor):
     def visit_VariableDeclNode(self, ast):
         self.env[ast.name] = self.visit(ast.RHS)
 
+    def visit_Constant(self, ast):
+        return MoG(1,np.array([1]),np.array([ast]),np.array([0]))
+
     def visit_BooleanDistribNode(self, ast):
         return Bernoulli(ast.percentTrue)
 
     def visit_GaussianDistribNode(self, ast):
-        return MoG(1,np.array([1]),np.array([ast.mu]),np.array([ast.sig]))
+        if (isinstance(ast.mu,int) or isinstance(ast.mu,float)) and \
+           (isinstance(ast.sig,int) or isinstance(ast.sig,float)):
+            return MoG(1,np.array([1]),np.array([ast.mu]),np.array([ast.sig]))
+        else:
+            x1 = self.visit(ast.mu)
+            x2 = self.visit(ast.sig)
+            if not(x1.n == x2.n):
+                raise "ScoreEstimator: GaussianDistribNode: mu and sigma need to have the same number of Gaussian components."
+            
+            my_sig = []
+            for i in xrange(x1.n):
+                my_sig.append(x2.mu[i] + x1.sig[i]**2 + x2.sig[i])
+            return MoG(x1.n, x1.w, x1.mu, np.array(my_sig))
 
     def visit_VariableUseNode(self, ast):
         return self.env[ast.name]
@@ -120,10 +141,48 @@ class ScoreEstimator(visitor):
                        np.concatenate((true.mu, false.mu), axis=0), \
                        np.concatenate((true.sig, false.sig), axis=0))
 
+    def visit_BoolBinExpNode(self, ast):
+        x1 = self.visit(ast.e1)
+        x2 = self.visit(ast.e2)
+        if ast.op == '&&':
+            q = x1.p * x2.p
+        elif ast.op == '||':
+            q = x1.p + x2.p - (x1.p*x2.p)
+        return Bernoulli(q)
+
     def visit_BinExpNode(self, ast):
         mog1 = self.visit(ast.e1)
         mog2 = self.visit(ast.e2)
-        
+        if ast.op == '+':
+            mu_op = lambda x,y: x+y
+            sig_op = lambda x,y: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
+        elif ast.op == '-':
+            mu_op = lambda x,y: x-y
+            sig_op = lambda x,y: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
+        elif ast.op == '*':
+            mu_op = lambda x,y: x*y
+            sig_op = lambda x,y: x*y # + 2*alpha*x*y
+        else:
+            raise "ScoreEstimator: BinExpNode: do not support" + ast.op
+
+        w = []
+        mu = []
+        sig = []
+        for i in xrange(mog1.n):
+            for j in xrange(mog2.n):
+                w.append(mog1.w[i] * mog2.w[j])
+                mu.append(mu_op(mog1.mu[i], mog2.mu[j]))
+                sig.append(sig_op(mog1.sig[i], mog2.sig[j]))
+
+        return MoG(mog1.n*mog2.n, np.array(w), np.array(mu), np.array(sig))
+
+    def visit_UnaryExpNode(self, ast):
+        e = self.visit(ast.e)
+        if isinstance(e,Bernoulli) and ast.op == '!':
+            return Bernoulli(1 - e.p)
+        else:
+            raise "ScoreEstimator: UnaryExpNode: currently only support '!' with bernoulli variable"
+
 
 # **********************************************************************
 # AST Mutator
@@ -154,6 +213,9 @@ class Mutator(visitor):
     def visit_VariableDeclNode(self, ast):
         return VariableDeclNode(ast.name, ast.varType, self.visit(ast.RHS))
 
+    def visit_Constant(self, ast):
+        return ast
+
     def visit_BooleanDistribNode(self, ast):
         if self.level == "low":
             p = ast.percentTrue + (random()-0.5)/5
@@ -168,7 +230,6 @@ class Mutator(visitor):
             return GaussianDistribNode(change(ast.mu,0.2), change(ast.sig,0.2))
         else:
             return GaussianDistribNode(change(ast.mu,2), change(ast.sig,2))
-            
 
     def visit_VariableUseNode(self, ast):
         return VariableUseNode(ast.name)
@@ -176,8 +237,14 @@ class Mutator(visitor):
     def visit_IfNode(self, ast):
         return IfNode(self.visit(ast.conditionNode), self.visit(ast.thenNode), self.visit(ast.elseNode))
     
+    def visit_BoolBinExpNode(self, ast):
+        return BoolBinExpNode(ast.op, self.visit(ast.e1), self.visit(ast.e2))
+    
     def visit_BinExpNode(self, ast):
         return BinExpNode(ast.op, self.visit(ast.e1), self.visit(ast.e2))
+    
+    def visit_UnaryExpNode(self, ast):
+        return UnaryExpNode(ast.op, self.visit(ast.e))
 
 def estimateScore(ast, dataset):
     estimator = ScoreEstimator(dataset)
