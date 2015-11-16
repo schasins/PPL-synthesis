@@ -194,8 +194,8 @@ def generatePotentialStructuresFromDataset(dataset):
 			a2 = g.getNode(name2)
 			# for now we'll assume the causation goes from left to right in input dataset
 			# TODO: eventually should create multiple different prog structures from single dataset
-			a1.children.append(a2)
-			a2.parents.append(a1)
+			a1.children.insert(0, a2)
+			a2.parents.insert(0, a1) # for how we process, it's nicer to have parents in reverse order of correlation
 			print name1, "->", name2, correlation[1]
 		else:
 			print "already descended"
