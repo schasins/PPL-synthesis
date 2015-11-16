@@ -332,7 +332,6 @@ def generatePotentialStructuresFromDataset(dataset):
 	combos = combinations(columns, 2)
 	correlations = []
 	for combo in combos:
-		print dataset.indexesToNames[combo[0]], dataset.indexesToNames[combo[1]]
 		correlationPair = pearsonr(dataset.columns[combo[0]], dataset.columns[combo[1]])
 		correlations.append((combo, correlationPair))
 	sortedCorrelations = sorted(correlations, key=lambda x: x[1][0], reverse=True)
