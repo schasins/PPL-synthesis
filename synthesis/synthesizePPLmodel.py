@@ -173,17 +173,20 @@ def generatePotentialStructuresFromDataset(dataset):
 	for combo in combos:
 		correlationPair = pearsonr(dataset.columns[combo[0]], dataset.columns[combo[1]])
 		correlations.append((combo, correlationPair))
-	sortedCorrelations = sorted(correlations, key=lambda x: x[1][0], reverse=True)
+	sortedCorrelations = sorted(correlations, key=lambda x: abs(x[1][0]), reverse=True)
 
 	g = Graph()
 	for correlation in sortedCorrelations:
 		name1 = dataset.indexesToNames[correlation[0][0]]
 		name2 = dataset.indexesToNames[correlation[0][1]]
 		statisticalSignificance = correlation[1][1]
-		correlationAmount = correlation[1][0]
+		correlationAmount = abs(correlation[1][0])
+		print name1, name2
 		if statisticalSignificance > .05:
+			print "non sig:", statisticalSignificance
 			continue
 		if correlationAmount < .1:
+			print "not cor:", correlationAmount
 			break
 		if not g.isDescendedFrom(name1, name2):
 			# we don't yet have an explanation from the connection between these two.  add one.
@@ -194,6 +197,8 @@ def generatePotentialStructuresFromDataset(dataset):
 			a1.children.append(a2)
 			a2.parents.append(a1)
 			print name1, "->", name2, correlation[1]
+		else:
+			print "already descended"
 	return [g]
 
 # **********************************************************************
@@ -201,7 +206,7 @@ def generatePotentialStructuresFromDataset(dataset):
 # **********************************************************************
 
 def main():
-	dataset = Dataset("burglary.csv")
+	dataset = Dataset("../data-generation/csi.csv")
 	g = generatePotentialStructuresFromDataset(dataset)[0]
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
@@ -224,7 +229,7 @@ def main():
         # testEstimateScore(AST,dataset)
 
 	scriptStrings = AST.strings()
-	output = open("outputDeterministic.blog", "w")
+	output = open("../synthesized/csi-outputDeterministic.blog", "w")
 	output.write(scriptStrings[0])
 	print scriptStrings[0]
 
