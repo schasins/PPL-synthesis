@@ -127,10 +127,17 @@ class VariableDeclNode(ASTNode):
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
 
-class BooleanDistribNode(ASTNode):
-	def __init__(self, percentTrue=None):
+class DistribNode(ASTNode):
+  def __init__(self):
 		ASTNode.__init__(self)
+
+class BooleanDistribNode(DistribNode):
+	def __init__(self, percentTrue=None):
+		DistribNode.__init__(self)
 		self.percentTrue = percentTrue
+
+	def params(self):
+		return self.percentTrue
 
 	def strings(self, tabs=0):
 		components = ["BooleanDistrib(", ")"]
@@ -154,7 +161,6 @@ class BooleanDistribNode(ASTNode):
 		if matchingRowsCounter > 0:
 			percentTrue = float(matchingRowsSum)/matchingRowsCounter
 		self.percentTrue = percentTrue
-		return [(pathCondition, percentTrue)]
 
 class GaussianDistribNode(ASTNode):
 	def __init__(self, mu=None, sig=None):
@@ -183,26 +189,7 @@ class IfNode(ASTNode):
 		tabs = tabs + 1
 		return combineStrings([["\n"+"\t"*tabs+"if "], self.conditionNode.strings(tabs), ["\n"+"\t"*tabs+"then "], self.thenNode.strings(tabs), ["\n"+"\t"*tabs+"else "], self.elseNode.strings(tabs)])
 
-	def getRidOfIfWithName(self, name):
-		print "get rid of if with name", name
-		if self.conditionNode.name == name:
-			# we've found the if we want to get rid of
-			print "we've foudn the if"
-			print self.strings()
-			self.parent.replace(self, self.thenNode) # replace this node with one of the branches
-		else:
-			# keep looking
-			"checking the then branch"
-			self.thenNode.getRidOfIfWithName(name)
-			"checking the else branch"
-			self.elseNode.getRidOfIfWithName(name)
-
 	def replace(self, nodeToCut, nodeToAdd):
-		print "**********"
-		print nodeToCut.strings()
-		print self.thenNode.strings()
-		print self.elseNode.strings()
-		print "**********"
 
 		nodeToAdd.parent = self
 		if self.conditionNode == nodeToCut:
@@ -218,36 +205,14 @@ class IfNode(ASTNode):
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		pathConditions = self.conditionNode.pathConditions()
 		truePathCondition = pathCondition + [pathConditions[0]]
-		pairs1 = self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
+		self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
 		falsePathCondition = pathCondition + [pathConditions[1]]
-		pairs2 = self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
-		self.concreteChildHolesFilled = pairs1 + pairs2
-		print "filled Holes for:"
-		print self.strings()
-
-		for pairPair in combinations(self.concreteChildHolesFilled, 2):
-			pathConditions1 = pairPair[0][0]
-			pathConditions2 = pairPair[1][0]
-			# find if they differ by exactly one
-			differing = 0
-			differingName = ""
-			for i in range(len(pathConditions1)):
-				if pathConditions1[i].value != pathConditions2[i].value:
-					differing += 1
-					differingName = pathConditions1[i].varName
-
-			if differing == 1:
-				# are the values basically the same?
-				val1 = pairPair[0][1]
-				val2 = pairPair[1][1]
-				if abs(val1 - val2) < .01:
-					# ok, they're basically the same.  better get rid of the extra if
-					print pathConditions1, pathConditions2, val1, val2
-					self.getRidOfIfWithName(differingName)
-					# and now we've erased all that nice hole filling progress.  better start again
-					# keep in mind that this very node might be the one we just removed!
-					return self.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
-		return self.concreteChildHolesFilled
+		self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
+		if (isinstance(self.thenNode, DistribNode) and isinstance(self.elseNode, DistribNode) and abs(self.thenNode.params() - self.elseNode.params()) < .03):
+			# replace this node with one of the branches
+			self.parent.replace(self, self.thenNode)
+			self.thenNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
+			# and then we'll go back up to the parent and continue with hole filling
 
 class VariableUseNode(ASTNode):
 	def __init__(self, name):
