@@ -166,7 +166,11 @@ def distance(summary1, summary2):
 # Generate structures based on input dataset correlation
 # **********************************************************************
 
+statisticalSignificanceThreshold = 0.05
+correlationThreshold = .05
+
 def generatePotentialStructuresFromDataset(dataset):
+	global statisticalSignificanceThreshold, correlationThreshold
 	columns = range(dataset.numColumns)
 	combos = combinations(columns, 2)
 	correlations = []
@@ -182,10 +186,10 @@ def generatePotentialStructuresFromDataset(dataset):
 		statisticalSignificance = correlation[1][1]
 		correlationAmount = abs(correlation[1][0])
 		print name1, name2
-		if statisticalSignificance > .05:
+		if statisticalSignificance > statisticalSignificanceThreshold:
 			print "non sig:", statisticalSignificance
 			continue
-		if correlationAmount < .1:
+		if correlationAmount < correlationThreshold:
 			print "not cor:", correlationAmount
 			break
 		if not g.isDescendedFrom(name1, name2):
@@ -206,7 +210,7 @@ def generatePotentialStructuresFromDataset(dataset):
 # **********************************************************************
 
 def main():
-	dataset = Dataset("../data-generation/csi.csv")
+	dataset = Dataset("../data-generation/healthiness.csv")
 	g = generatePotentialStructuresFromDataset(dataset)[0]
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
@@ -215,6 +219,7 @@ def main():
 	for node in nodesInDependencyOrder:
 
 		parents = node.parents
+
 		internal = BooleanDistribNode()
 		for parent in parents:
 			conditionNode = VariableUseNode(parent.name)
@@ -223,13 +228,13 @@ def main():
 			internal = IfNode(conditionNode, thenNode, elseNode)
 
 		variableNode = VariableDeclNode(node.name, "Boolean", internal)
-		AST.children.append(variableNode)
+		AST.addChild(variableNode)
 
 	AST.fillHolesForConcretePathConditions(dataset)
         # testEstimateScore(AST,dataset)
 
 	scriptStrings = AST.strings()
-	output = open("../synthesized/csi-outputDeterministic.blog", "w")
+	output = open("../synthesized/healthiness-outputDeterministic.blog", "w")
 	output.write(scriptStrings[0])
 	print scriptStrings[0]
 
