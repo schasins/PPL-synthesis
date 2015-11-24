@@ -208,7 +208,7 @@ class IfNode(ASTNode):
 		self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
 		falsePathCondition = pathCondition + [pathConditions[1]]
 		self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
-		if (isinstance(self.thenNode, DistribNode) and isinstance(self.elseNode, DistribNode) and abs(self.thenNode.params() - self.elseNode.params()) < .03):
+		if (isinstance(self.thenNode, DistribNode) and isinstance(self.elseNode, DistribNode) and self.thenNode.params() !== None and abs(self.thenNode.params() - self.elseNode.params()) < .03):
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
 			self.thenNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
