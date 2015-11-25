@@ -137,7 +137,7 @@ class BooleanDistribNode(DistribNode):
 		self.percentTrue = percentTrue
 
 	def params(self):
-		return self.percentTrue
+		return [self.percentTrue]
 
 	def strings(self, tabs=0):
 		components = ["BooleanDistrib(", ")"]
@@ -185,6 +185,11 @@ class IfNode(ASTNode):
 		self.thenNode.parent = self
 		self.elseNode.parent = self
 
+	def params(self):
+		params1 = self.thenNode.params()
+		params2 = self.elseNode.params()
+		return params1 + params2
+
 	def strings(self, tabs=0):
 		tabs = tabs + 1
 		return combineStrings([["\n"+"\t"*tabs+"if "], self.conditionNode.strings(tabs), ["\n"+"\t"*tabs+"then "], self.thenNode.strings(tabs), ["\n"+"\t"*tabs+"else "], self.elseNode.strings(tabs)])
@@ -208,7 +213,19 @@ class IfNode(ASTNode):
 		self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
 		falsePathCondition = pathCondition + [pathConditions[1]]
 		self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
-		if (isinstance(self.thenNode, DistribNode) and isinstance(self.elseNode, DistribNode) and self.thenNode.params() !== None and abs(self.thenNode.params() - self.elseNode.params()) < .03):
+
+		# TODO: this approach to finding matches only works because the structure of then and else are often the same
+		# and even this one can fail if we get a weird case
+		# to do this properly we'll want to associate the path condition with each distrib's params, make sure each pair's condition only differs by 1
+		# will also want to associate the distribution type once we have more distributions, so we'll be able to have distrib-specific closeness corrections
+		params1 = self.thenNode.params()
+		params2 = self.elseNode.params()
+		match = True
+		for i in range(len(params1)):
+			if abs(params1[i] - params2[i]) > .03:
+				match = False
+				break
+		if match:
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
 			self.thenNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
