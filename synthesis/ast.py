@@ -244,7 +244,14 @@ class IfNode(ASTNode):
 						# for this param, let anything match, since we don't know what its value should be
 						continue
 
-					thresholdToBeat = .0001
+					# threshold to beat should depend on how much data we have
+					# if we have a huge dataset, should only collapse if the variation is pretty big
+					# if we have a smaller dataset, even a biggish variation could be noise
+					# for a dataset of size 10,000, I've found .02 seems pretty good (thresholdmaker 200)
+					# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
+
+					thresholdMaker = 150.0
+					thresholdToBeat = thresholdMaker/dataset.numRows
 					# the threshold to beat should depend on how much data we used to make each estimate
 					# if the data is evenly divided between the if and the else, we should use .01.  else, should use higher
 					minNumRows = min(param1[2], param2[2])
