@@ -20,11 +20,11 @@ class Graph:
 		self.nodes.append(node)
 		self.names[node.name] = node
 
-	def getNode(self, name):
+	def getNode(self, name, distribInfo):
 		if name in self.names:
 			return self.names[name]
 		else:
-			newNode = Node(name)
+			newNode = Node(name, distribInfo)
 			self.addNode(newNode)
 			return newNode
 
@@ -57,10 +57,11 @@ class Graph:
 		ls.append(node)
 
 class Node:
-	def __init__(self, name):
+	def __init__(self, name, distribInfo):
 		self.name = name
 		self.parents = []
 		self.children = []
+		self.distribInfo = distribInfo
 
 
 # **********************************************************************
@@ -174,8 +175,8 @@ def generateReducibleStructuresFromDataset(dataset):
 		for j in range(i+1, dataset.numColumns):
 			name1 = dataset.indexesToNames[i]
 			name2 = dataset.indexesToNames[j]
-			a1 = g.getNode(name1)
-			a2 = g.getNode(name2)
+			a1 = g.getNode(name1, dataset.columnDistributionInformation[i])
+			a2 = g.getNode(name2, dataset.columnDistributionInformation[j])
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1)
 
@@ -238,14 +239,31 @@ def main():
 
 		parents = node.parents
 
-		internal = BooleanDistribNode()
-		for parent in parents:
-			conditionNode = VariableUseNode(parent.name)
-			thenNode = deepcopy(internal)
-			elseNode = deepcopy(internal)
-			internal = IfNode(conditionNode, thenNode, elseNode)
+		if isinstance(node.distribInfo, BooleanDistribution):
+			internal = BooleanDistribNode()
+		elif isinstance(node.distribInfo, CategoricalDistribution):
+			internal = CategoricalDistribNode(node.distribInfo.values)
 
-		variableNode = VariableDeclNode(node.name, "Boolean", internal)
+		for parent in parents:
+			conditionNodes = []
+			bodyNodes = []
+			if isinstance(parent.distribInfo, BooleanDistribution):
+				conditionNodes.append(VariableUseNode(parent.name))
+				for i in range(2):
+					bodyNodes.append(deepcopy(internal))
+			elif isinstance(parent.distribInfo, CategoricalDistribution):
+				numValues = len(parent.distribInfo.values)
+				for i in range(numValues):
+					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name), parent.distribInfo.values[i]))
+				for i in range(numValues):
+					bodyNodes.append(deepcopy(internal))
+			internal = IfNode(conditionNodes, bodyNodes)
+
+		variableNode = None
+		if isinstance(node.distribInfo, BooleanDistribution):
+			variableNode = VariableDeclNode(node.name, "Boolean", internal)
+		elif isinstance(node.distribInfo, CategoricalDistribution):
+			variableNode = VariableDeclNode(node.name, "CategoricalDistribution", internal)
 		AST.addChild(variableNode)
 
 	AST.fillHolesForConcretePathConditions(dataset)

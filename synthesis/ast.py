@@ -4,12 +4,13 @@ from itertools import combinations
 # Supported distributions
 # **********************************************************************
 
-def enum(**enums):
-    return type('Enum', (), enums)
+class BooleanDistribution:
+	def __init__(self):
+		return
 
-Distributions = enum( \
-	BOOLEAN=1, \
-	CATEGORICAL=2)
+class CategoricalDistribution:
+	def __init__(self, values):
+		self.values = values
 
 # **********************************************************************
 # Data structures for creating PPL ASTs
@@ -59,15 +60,14 @@ class Dataset:
 		self.rows = rows
 		self.numRows = len(rows)
 
-		columnTypes = []
+		columnDistributionInformation = []
 		for i in range(len(columnValues)):
 			currColumnValues = columnValues[i]
 			if currColumnValues == set(["true", "false"]):
-				columnTypes.append(Distributions.BOOLEAN)
+				columnDistributionInformation.append(BooleanDistribution())
 			else:
-				columnTypes.append(Distributions.CATEGORICAL)
-		print columnTypes
-		self.columnTypes = columnTypes
+				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues)))
+		self.columnDistributionInformation = columnDistributionInformation
 
 	def makePathConditionFilter(self, pathCondition):
 		pairs = [] # (index, targetVal) pairs
@@ -197,6 +197,53 @@ class BooleanDistribNode(DistribNode):
 		# no reduction to do here
 		return
 
+class CategoricalDistribNode(DistribNode):
+	def __init__(self, values, valuesToPercentages = None, percentMatchingRows = 0):
+		DistribNode.__init__(self)
+		self.values = values
+		self.valuesToPercentages = valuesToPercentages
+		self.percentMatchingRows = percentMatchingRows
+
+	def params(self):
+		return [("Categorical", self.valuesToPercentages, self.percentMatchingRows)]
+
+	def strings(self, tabs=0):
+		components = ["Categorical({", "})"]
+		if self.valuesToPercentages:
+			innards = []
+			for value in self.values: # use values because it has the guaranteed stable ordering
+				innards.append(str(value) + " -> " + str(self.valuesToPercentages[value]))
+			return [components[0]+(",".join(innards))+components[1]]
+		else:
+			return components
+
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
+		pathConditionFilter = dataset.makePathConditionFilter(pathCondition)
+		currVariableGetter = dataset.makeCurrVariableGetter(currVariable)
+		matchingRowsCounter = 0
+		matchingRowsSums = {}
+		for row in dataset.rows:
+			if pathConditionFilter(row):
+				matchingRowsCounter += 1
+				val = currVariableGetter(row)
+				count = matchingRowsSums.get(val, 0)
+				matchingRowsSums[val] = count + 1
+
+		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
+
+		if matchingRowsCounter < 1:
+			self.valuesToPercentages = "??"
+			return
+
+		self.valuesToPercentages = {}
+		for value in self.values:
+			percentMatching = float(matchingRowsSums[value])/matchingRowsCounter
+			self.valuesToPercentages[value] = percentMatching
+
+	def reduce(self, dataset, pathCondition, currVariable):
+		# no reduction to do here
+		return
+
 class GaussianDistribNode(ASTNode):
 	def __init__(self, mu=None, sig=None):
 		ASTNode.__init__(self)
@@ -214,87 +261,158 @@ class GaussianDistribNode(ASTNode):
 		return
 
 class IfNode(ASTNode):
-	def __init__(self, conditionNode, thenNode, elseNode):
-		self.conditionNode = conditionNode
-		self.thenNode = thenNode
-		self.elseNode = elseNode
-		self.concreteChildHolesFilled = []
-
-		self.conditionNode.parent = self
-		self.thenNode.parent = self
-		self.elseNode.parent = self
+	def __init__(self, conditionNodes, bodyNodes):
+		self.conditionNodes = conditionNodes
+		self.bodyNodes = bodyNodes
+		for node in self.conditionNodes:
+			node.parent = self
+		for node in self.bodyNodes:
+			node.parent = self
 
 	def params(self):
-		params1 = self.thenNode.params()
-		params2 = self.elseNode.params()
-		return params1 + params2
+		paramsLs = []
+		for bodyNode in self.bodyNodes:
+			paramsLs = paramsLs + bodyNode.params()
+		return paramsLs
 
 	def strings(self, tabs=0):
 		tabs = tabs + 1
-		return combineStrings([["\n"+"\t"*tabs+"if "], self.conditionNode.strings(tabs), ["\n"+"\t"*tabs+"then "], self.thenNode.strings(tabs), ["\n"+"\t"*tabs+"else "], self.elseNode.strings(tabs)])
+		stringListsToCombine = []
+		first = True
+
+		for i in range(len(self.bodyNodes) - 1):
+			conditionNodeStrings = self.conditionNodes[i].strings(tabs)
+			bodyNodeStrings = self.bodyNodes[i].strings(tabs)
+			if first:
+				stringListsToCombine.append(["\n"+"\t"*tabs+"if "])
+				first = False
+			else:
+				stringListsToCombine.append(["\n"+"\t"*tabs+"else if "])
+
+			stringListsToCombine.append(conditionNodeStrings)
+			stringListsToCombine.append(["\n"+"\t"*tabs+"then "])
+			stringListsToCombine.append(bodyNodeStrings)
+
+		# the last one is always an else
+		bodyNodeStrings = self.bodyNodes[-1].strings(tabs)
+		stringListsToCombine.append(["\n"+"\t"*tabs+"else "])
+		stringListsToCombine.append(bodyNodeStrings)
+
+		return combineStrings(stringListsToCombine)
 
 	def replace(self, nodeToCut, nodeToAdd):
-
+		replaced = False
 		nodeToAdd.parent = self
-		if self.conditionNode == nodeToCut:
-			self.conditionNode = nodeToAdd
-		elif self.thenNode == nodeToCut:
-			self.thenNode = nodeToAdd
-		elif self.elseNode == nodeToCut:
-			self.elseNode = nodeToAdd
-		else:
+		for i in range(len(self.conditionNodes)):
+			if self.conditionNodes[i] == nodeToCut:
+				self.conditionNodes[i] = nodeToAdd
+				replaced = True
+		for i in range(len(self.bodyNodes)):
+			if self.bodyNodes[i] == nodeToCut:
+				self.bodyNodes[i] = nodeToAdd
+				replaced = True
+		if not replaced:
 			raise Exception("Tried to replace a node that wasn't actually a child.")
 		return nodeToAdd
 
 	def reduce(self, dataset, pathCondition, currVariable):
-		params1 = self.thenNode.params()
-		params2 = self.elseNode.params()
-		match = True
-		# because we always construct then and else branches to be the same, we can rely on the structure to be the same, don't need to check path conditions
-		for i in range(len(params1)):
-			param1 = params1[i] # a tuple of distrib type, relevant parmas, num of rows on which based; should eventually add path condition
-			param2 = params2[i]
-			if (param1[0] == "Boolean" and param2[0] == "Boolean"):
-				if (param1[1] == "??" or param2[1] == "??"):
-					# for this param, let anything match, since we don't know what its value should be
-					continue
+		for pair in combinations(range(len(self.bodyNodes)), 2):
+			i = pair[0]
+			j = pair[1]
+			params1 = self.bodyNodes[i].params()
+			params2 = self.bodyNodes[j].params()
+			match = True
+			# because we always construct then and else branches to be the same, we can rely on the structure to be the same, don't need to check path conditions
+			for i in range(len(params1)):
+				param1 = params1[i] # a tuple of distrib type, relevant parmas, num of rows on which based; should eventually add path condition
+				param2 = params2[i]
+				if (param1[0] == "Boolean" and param2[0] == "Boolean"):
+					if (param1[1] == "??" or param2[1] == "??"):
+						# for this param, let anything match, since we don't know what its value should be
+						continue
 
-				# threshold to beat should depend on how much data we have
-				# if we have a huge dataset, should only collapse if the variation is pretty big
-				# if we have a smaller dataset, even a biggish variation could be noise
-				# for a dataset of size 10,000, I've found .02 seems pretty good (thresholdmaker 200)
-				# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
+					# threshold to beat should depend on how much data we have
+					# if we have a huge dataset, should only collapse if the variation is pretty big
+					# if we have a smaller dataset, even a biggish variation could be noise
+					# for a dataset of size 10,000, I've found .02 seems pretty good (thresholdmaker 200)
+					# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
 
-				thresholdMaker = 150.0
-				thresholdToBeat = thresholdMaker/dataset.numRows
-				# the threshold to beat should depend on how much data we used to make each estimate
-				# if the data is evenly divided between the if and the else, we should use the base thresholdToBeat.  else, should use higher
-				minNumRows = min(param1[2], param2[2])
-				rowsRatio = minNumRows/.5
-				# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
-				thresholdToBeat = thresholdToBeat/rowsRatio
-				if (abs(param1[1] - param2[1]) > thresholdToBeat):
-					match = False
-					break
-		if match:
-			# replace this node with one of the branches
-			self.parent.replace(self, self.thenNode)
-			self.thenNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
-			# and now we need to continue with reductions
-			self.thenNode.reduce(dataset, pathCondition, currVariable)
-		else:
-			pathConditions = self.conditionNode.pathConditions()
-			truePathCondition = pathCondition + [pathConditions[0]]
-			self.thenNode.reduce(dataset, truePathCondition, currVariable)
-			falsePathCondition = pathCondition + [pathConditions[1]]
-			self.elseNode.reduce(dataset, falsePathCondition, currVariable)
+					thresholdMaker = 150.0
+					thresholdToBeat = thresholdMaker/dataset.numRows
+					# the threshold to beat should depend on how much data we used to make each estimate
+					# if the data is evenly divided between the if and the else, we should use the base thresholdToBeat.  else, should use higher
+					minNumRows = min(param1[2], param2[2])
+					rowsRatio = minNumRows/.5
+					# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
+					thresholdToBeat = thresholdToBeat/rowsRatio
+					if (abs(param1[1] - param2[1]) > thresholdToBeat):
+						match = False
+						break
+				if (param1[0] == "Categorical" and param2[0] == "Categorical"):
+					if (param1[1] == "??" or param2[1] == "??"):
+						continue
+					thresholdMaker = 150.0
+					thresholdToBeat = thresholdMaker/dataset.numRows
+					minNumRows = min(param1[2], param2[2])
+					rowsRatio = minNumRows/.5
+					thresholdToBeat = thresholdToBeat/rowsRatio
+
+					allValuesMatch = True
+					dict1 = param1[1]
+					dict2 = param2[1]
+					for value in dict1:
+						if (abs(dict1[value] - dict2[value]) > thresholdToBeat):
+							allValuesMatch = False
+							break
+					if not allValuesMatch:
+						match = False
+						break
+
+			if match:
+				# we're either in a case where we were down to 2 conditions, should just eliminate the if
+				# or we're in the case where we should combine 2 conditions among a number of other conditions
+
+				if len(self.bodyNodes) == 2:
+					# replace this node with one of the branches
+					self.parent.replace(self, self.bodyNodes[0])
+					self.bodyNodes[0].fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
+					# and now we need to continue with reductions
+					self.bodyNodes[0].reduce(dataset, pathCondition, currVariable)
+
+					# don't want to keep trying to reduce the body nodes of this node, since it's now been eliminated, so return
+					return
+				else:
+					# combine a couple branches
+					newConditionNode = OrNode(self.conditionNodes[i], self.conditionNodes[j])
+					self.conditionNodes[i] = newConditionNode
+
+					# adapt the body node fillded holes to our new condition
+					pathConditionAdditional = self.conditionNodes[i].pathCondition()
+					self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, pathCondition + [pathConditionAdditional], currVariable)
+
+					# now delete the ones we're getting rid of
+					del self.conditionNodes[j]
+					del self.bodyNodes[j]
+
+		# once we've gotten rid of all the things we can reduce, go ahead and descend down all the remaining body nodes
+		for i in range(len(self.bodyNodes)):
+			if i < len(self.conditionNodes):
+				pathConditionAdditional = self.conditionNodes[i].pathCondition()
+			else:
+				# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
+				pathConditionAdditional = self.conditionNodes[i-1].pathConditionFalse()
+			newPathCondition = pathCondition + [pathConditionAdditional]
+			self.bodyNodes[i].reduce(dataset, newPathCondition, currVariable)
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
-		pathConditions = self.conditionNode.pathConditions()
-		truePathCondition = pathCondition + [pathConditions[0]]
-		self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
-		falsePathCondition = pathCondition + [pathConditions[1]]
-		self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
+		for i in range(len(self.bodyNodes)):
+			if i < len(self.conditionNodes):
+				pathConditionAdditional = self.conditionNodes[i].pathCondition()
+			else:
+				# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
+				pathConditionAdditional = self.conditionNodes[i-1].pathConditionFalse()
+			newPathCondition = pathCondition + [pathConditionAdditional]
+			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
 
 class VariableUseNode(ASTNode):
 	def __init__(self, name):
@@ -303,8 +421,33 @@ class VariableUseNode(ASTNode):
 	def strings(self, tabs=0):
 		return [self.name]
 
+	def pathCondition(self):
+		return PathConditionComponent(self.name, "eq", "true")
+
+	def pathConditionFalse(self):
+		return PathConditionComponent(self.name, "eq", "false")
+
+class ComparisonNode(ASTNode):
+	def __init__(self, variableNode, value):
+		self.node = variableNode
+		self.value = value
+
+	def strings(self, tabs=0):
+		return [self.node.name + " == " + self.value]
+
+	def pathCondition(self):
+		return PathConditionComponent(self.node.name, "eq", self.value)
+
+class OrNode(ASTNode):
+	def __init__(self, leftNode, rightNode):
+		self.lNode = leftNode
+		self.rNode = rightNode
+
+	def strings(self, tabs=0):
+		return combineStrings(self.lNode.strings(), [" | "], self.rNode.strings())
+
 	def pathConditions(self):
-		return [PathConditionComponent(self.name, "eq", "true"), PathConditionComponent(self.name, "eq", "false")]
+		raise "Freak out don't know how this is used"
 
 class BoolBinExpNode(ASTNode):
     def __init__(self, op, e1, e2):
