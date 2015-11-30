@@ -253,14 +253,14 @@ class IfNode(ASTNode):
 					thresholdToBeat = thresholdToBeat/rowsRatio
 					if (abs(param1[1] - param2[1]) > thresholdToBeat):
 						match = False
-					print match
-					print param1
-					print param2
-					print minNumRows
-					print rowsRatio
-					print thresholdToBeat
-					print "****"
-					break
+						break
+			print match
+			print param1
+			print param2
+			print minNumRows
+			print rowsRatio
+			print thresholdToBeat
+			print "****"
 		if match:
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
