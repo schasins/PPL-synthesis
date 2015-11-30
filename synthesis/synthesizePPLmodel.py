@@ -249,6 +249,7 @@ def main():
 		AST.addChild(variableNode)
 
 	AST.fillHolesForConcretePathConditions(dataset)
+	AST.reduce(dataset)
         # testEstimateScore(AST,dataset)
 
 	scriptStrings = AST.strings()

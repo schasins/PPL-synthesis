@@ -99,6 +99,10 @@ class ASTNode:
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition =[], currVariable = None):
 		for node in self.children:
 			node.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
+
+	def reduce(self, dataset, pathCondition =[], currVariable = None):
+		for node in self.children:
+			node.reduce(dataset, pathCondition, currVariable)
         
         def accept(self, visitor):
             visitor.visit(self)
@@ -127,6 +131,9 @@ class VariableDeclNode(ASTNode):
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
+
+	def reduce(self, dataset, pathCondition, currVariable):
+		self.RHS.reduce(dataset, pathCondition, self) # the current node is now the variable being defined
 
 class DistribNode(ASTNode):
   def __init__(self):
@@ -165,6 +172,10 @@ class BooleanDistribNode(DistribNode):
 		self.percentTrue = percentTrue
 		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
 
+	def reduce(self, dataset, pathCondition, currVariable):
+		# no reduction to do here
+		return
+
 class GaussianDistribNode(ASTNode):
 	def __init__(self, mu=None, sig=None):
 		ASTNode.__init__(self)
@@ -176,6 +187,10 @@ class GaussianDistribNode(ASTNode):
 			return ["Gaussian(%f,%f)" % (self.mu, self.sig)]
 		else:
 			return ["Gaussian(",",", ")"]
+
+	def reduce(self, dataset, pathCondition, currVariable):
+		# no reduction to do here
+		return
 
 class IfNode(ASTNode):
 	def __init__(self, conditionNode, thenNode, elseNode):
@@ -210,13 +225,7 @@ class IfNode(ASTNode):
 			raise Exception("Tried to replace a node that wasn't actually a child.")
 		return nodeToAdd
 
-	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
-		pathConditions = self.conditionNode.pathConditions()
-		truePathCondition = pathCondition + [pathConditions[0]]
-		self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
-		falsePathCondition = pathCondition + [pathConditions[1]]
-		self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
-
+	def reduce(self, dataset, pathCondition, currVariable):
 		# TODO: this approach to finding matches only works because the structure of then and else are often the same
 		# and even this one can fail if we get a weird case
 		# to do this properly we'll want to associate the path condition with each distrib's params, make sure each pair's condition only differs by 1
@@ -235,7 +244,7 @@ class IfNode(ASTNode):
 						# for this param, let anything match, since we don't know what its value should be
 						continue
 
-					thresholdToBeat = .00001
+					thresholdToBeat = .0001
 					# the threshold to beat should depend on how much data we used to make each estimate
 					# if the data is evenly divided between the if and the else, we should use .01.  else, should use higher
 					minNumRows = min(param1[2], param2[2])
@@ -255,7 +264,15 @@ class IfNode(ASTNode):
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
 			self.thenNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
-			# and then we'll go back up to the parent and continue with hole filling
+			# and now we need to continue with reductions
+			self.thenNode.reduce(dataset, pathCondition, currVariable)
+
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
+		pathConditions = self.conditionNode.pathConditions()
+		truePathCondition = pathCondition + [pathConditions[0]]
+		self.thenNode.fillHolesForConcretePathConditions(dataset, truePathCondition, currVariable)
+		falsePathCondition = pathCondition + [pathConditions[1]]
+		self.elseNode.fillHolesForConcretePathConditions(dataset, falsePathCondition, currVariable)
 
 class VariableUseNode(ASTNode):
 	def __init__(self, name):
