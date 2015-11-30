@@ -226,48 +226,42 @@ class IfNode(ASTNode):
 		return nodeToAdd
 
 	def reduce(self, dataset, pathCondition, currVariable):
-		# TODO: this approach to finding matches only works because the structure of then and else are often the same
-		# and even this one can fail if we get a weird case
-		# to do this properly we'll want to associate the path condition with each distrib's params, make sure each pair's condition only differs by 1
-		# will also want to associate the distribution type once we have more distributions, so we'll be able to have distrib-specific closeness corrections
 		params1 = self.thenNode.params()
 		params2 = self.elseNode.params()
 		match = True
-		if len(params1) != len(params2):
-			match = False
-		else:
-			for i in range(len(params1)):
-				param1 = params1[i] # a tuple of distrib type, relevant parmas, num of rows on which based; should eventually add path condition
-				param2 = params2[i]
-				if (param1[0] == "Boolean" and param2[0] == "Boolean"):
-					if (param1[1] == "??" or param2[1] == "??"):
-						# for this param, let anything match, since we don't know what its value should be
-						continue
+		# because we always construct then and else branches to be the same, we can rely on the structure to be the same, don't need to check path conditions
+		for i in range(len(params1)):
+			param1 = params1[i] # a tuple of distrib type, relevant parmas, num of rows on which based; should eventually add path condition
+			param2 = params2[i]
+			if (param1[0] == "Boolean" and param2[0] == "Boolean"):
+				if (param1[1] == "??" or param2[1] == "??"):
+					# for this param, let anything match, since we don't know what its value should be
+					continue
 
-					# threshold to beat should depend on how much data we have
-					# if we have a huge dataset, should only collapse if the variation is pretty big
-					# if we have a smaller dataset, even a biggish variation could be noise
-					# for a dataset of size 10,000, I've found .02 seems pretty good (thresholdmaker 200)
-					# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
+				# threshold to beat should depend on how much data we have
+				# if we have a huge dataset, should only collapse if the variation is pretty big
+				# if we have a smaller dataset, even a biggish variation could be noise
+				# for a dataset of size 10,000, I've found .02 seems pretty good (thresholdmaker 200)
+				# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
 
-					thresholdMaker = 150.0
-					thresholdToBeat = thresholdMaker/dataset.numRows
-					# the threshold to beat should depend on how much data we used to make each estimate
-					# if the data is evenly divided between the if and the else, we should use .01.  else, should use higher
-					minNumRows = min(param1[2], param2[2])
-					rowsRatio = minNumRows/.5
-					# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
-					thresholdToBeat = thresholdToBeat/rowsRatio
-					if (abs(param1[1] - param2[1]) > thresholdToBeat):
-						match = False
-						break
-			print match
-			print param1
-			print param2
-			print minNumRows
-			print rowsRatio
-			print thresholdToBeat
-			print "****"
+				thresholdMaker = 150.0
+				thresholdToBeat = thresholdMaker/dataset.numRows
+				# the threshold to beat should depend on how much data we used to make each estimate
+				# if the data is evenly divided between the if and the else, we should use the base thresholdToBeat.  else, should use higher
+				minNumRows = min(param1[2], param2[2])
+				rowsRatio = minNumRows/.5
+				# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
+				thresholdToBeat = thresholdToBeat/rowsRatio
+				if (abs(param1[1] - param2[1]) > thresholdToBeat):
+					match = False
+					break
+		print match
+		print param1
+		print param2
+		print minNumRows
+		print rowsRatio
+		print thresholdToBeat
+		print "****"
 		if match:
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
