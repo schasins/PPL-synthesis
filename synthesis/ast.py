@@ -253,19 +253,26 @@ class IfNode(ASTNode):
 					thresholdToBeat = thresholdToBeat/rowsRatio
 					if (abs(param1[1] - param2[1]) > thresholdToBeat):
 						match = False
-						print param1
-						print param2
-						print minNumRows
-						print rowsRatio
-						print thresholdToBeat
-						print "****"
-						break
+					print match
+					print param1
+					print param2
+					print minNumRows
+					print rowsRatio
+					print thresholdToBeat
+					print "****"
+					break
 		if match:
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
 			self.thenNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
 			# and now we need to continue with reductions
 			self.thenNode.reduce(dataset, pathCondition, currVariable)
+		else:
+			pathConditions = self.conditionNode.pathConditions()
+			truePathCondition = pathCondition + [pathConditions[0]]
+			self.thenNode.reduce(dataset, truePathCondition, currVariable)
+			falsePathCondition = pathCondition + [pathConditions[1]]
+			self.elseNode.reduce(dataset, falsePathCondition, currVariable)
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		pathConditions = self.conditionNode.pathConditions()
