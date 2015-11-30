@@ -5,6 +5,7 @@ from subprocess import call
 from copy import deepcopy
 from scipy.stats.stats import pearsonr
 from itertools import combinations
+import sys
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -166,6 +167,20 @@ def distance(summary1, summary2):
 # Generate structures based on input dataset correlation
 # **********************************************************************
 
+
+def generateReducibleStructuresFromDataset(dataset):
+	g = Graph()
+	for i in range(dataset.numColumns):
+		for j in range(i+1, dataset.numColumns):
+			name1 = dataset.indexesToNames[i]
+			name2 = dataset.indexesToNames[j]
+			a1 = g.getNode(name1)
+			a2 = g.getNode(name2)
+			a1.children.insert(0, a2)
+			a2.parents.insert(0, a1)
+
+	return [g]
+
 statisticalSignificanceThreshold = 0.05
 correlationThreshold = .05
 
@@ -210,8 +225,11 @@ def generatePotentialStructuresFromDataset(dataset):
 # **********************************************************************
 
 def main():
-	dataset = Dataset("../data-generation/healthiness.csv")
-	g = generatePotentialStructuresFromDataset(dataset)[0]
+	inputFile = sys.argv[1]
+	ouputFilename = sys.argv[2]
+
+	dataset = Dataset(inputFile)
+	g = generateReducibleStructuresFromDataset(dataset)[0]
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
@@ -234,7 +252,7 @@ def main():
         # testEstimateScore(AST,dataset)
 
 	scriptStrings = AST.strings()
-	output = open("../synthesized/healthiness-outputDeterministic.blog", "w")
+	output = open("../synthesized/"+ouputFilename, "w")
 	output.write(scriptStrings[0])
 	print scriptStrings[0]
 

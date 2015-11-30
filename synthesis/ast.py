@@ -47,6 +47,7 @@ class Dataset:
 
 		self.columns = columns
 		self.rows = rows
+		self.numRows = len(rows)
 
 	def makePathConditionFilter(self, pathCondition):
 		pairs = [] # (index, targetVal) pairs
@@ -132,12 +133,13 @@ class DistribNode(ASTNode):
 		ASTNode.__init__(self)
 
 class BooleanDistribNode(DistribNode):
-	def __init__(self, percentTrue=None):
+	def __init__(self, percentTrue=None, percentMatchingRows = 0):
 		DistribNode.__init__(self)
 		self.percentTrue = percentTrue
+		self.percentMatchingRows = percentMatchingRows
 
 	def params(self):
-		return [self.percentTrue]
+		return [("Boolean", self.percentTrue, self.percentMatchingRows)]
 
 	def strings(self, tabs=0):
 		components = ["BooleanDistrib(", ")"]
@@ -157,10 +159,11 @@ class BooleanDistribNode(DistribNode):
 				val = currVariableGetter(row)
 				matchingRowsSum += val
 
-		percentTrue = .5
+		percentTrue = "??"
 		if matchingRowsCounter > 0:
 			percentTrue = float(matchingRowsSum)/matchingRowsCounter
 		self.percentTrue = percentTrue
+		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
 
 class GaussianDistribNode(ASTNode):
 	def __init__(self, mu=None, sig=None):
@@ -221,10 +224,33 @@ class IfNode(ASTNode):
 		params1 = self.thenNode.params()
 		params2 = self.elseNode.params()
 		match = True
-		for i in range(len(params1)):
-			if abs(params1[i] - params2[i]) > .03:
-				match = False
-				break
+		if len(params1) != len(params2):
+			match = False
+		else:
+			for i in range(len(params1)):
+				param1 = params1[i] # a tuple of distrib type, relevant parmas, num of rows on which based; should eventually add path condition
+				param2 = params2[i]
+				if (param1[0] == "Boolean" and param2[0] == "Boolean"):
+					if (param1[1] == "??" or param2[1] == "??"):
+						# for this param, let anything match, since we don't know what its value should be
+						continue
+
+					thresholdToBeat = .00001
+					# the threshold to beat should depend on how much data we used to make each estimate
+					# if the data is evenly divided between the if and the else, we should use .01.  else, should use higher
+					minNumRows = min(param1[2], param2[2])
+					rowsRatio = minNumRows/.5
+					# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
+					thresholdToBeat = thresholdToBeat/rowsRatio
+					if (abs(param1[1] - param2[1]) > thresholdToBeat):
+						match = False
+						print param1
+						print param2
+						print minNumRows
+						print rowsRatio
+						print thresholdToBeat
+						print "****"
+						break
 		if match:
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
