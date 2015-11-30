@@ -1,6 +1,17 @@
 from itertools import combinations
 
 # **********************************************************************
+# Supported distributions
+# **********************************************************************
+
+def enum(**enums):
+    return type('Enum', (), enums)
+
+Distributions = enum( \
+	BOOLEAN=1, \
+	CATEGORICAL=2)
+
+# **********************************************************************
 # Data structures for creating PPL ASTs
 # **********************************************************************
 
@@ -29,25 +40,34 @@ class Dataset:
 		self.namesToIndexes = indexes
 
 		columns = []
+		columnValues = []
 		for i in range(numItems):
 			columns.append([])
+			columnValues.append(set())
 		rows = []
 		for line in lines[1:]:
 			cells = []
 			entries = line.strip().split(",")
 			for i in range(numItems):
 				entry = entries[i]
-				if entry == "true":
-					entry = 1
-				else:
-					entry = 0
 				cells.append(entry)
 				columns[i].append(entry)
+				columnValues[i].add(entry)
 			rows.append(cells)
 
 		self.columns = columns
 		self.rows = rows
 		self.numRows = len(rows)
+
+		columnTypes = []
+		for i in range(len(columnValues)):
+			currColumnValues = columnValues[i]
+			if currColumnValues == set(["true", "false"]):
+				columnTypes.append(Distributions.BOOLEAN)
+			else:
+				columnTypes.append(Distributions.CATEGORICAL)
+		print columnTypes
+		self.columnTypes = columnTypes
 
 	def makePathConditionFilter(self, pathCondition):
 		pairs = [] # (index, targetVal) pairs
@@ -164,7 +184,8 @@ class BooleanDistribNode(DistribNode):
 			if pathConditionFilter(row):
 				matchingRowsCounter += 1
 				val = currVariableGetter(row)
-				matchingRowsSum += val
+				if val == "true":
+					matchingRowsSum += 1
 
 		percentTrue = "??"
 		if matchingRowsCounter > 0:
@@ -255,13 +276,6 @@ class IfNode(ASTNode):
 				if (abs(param1[1] - param2[1]) > thresholdToBeat):
 					match = False
 					break
-		print match
-		print param1
-		print param2
-		print minNumRows
-		print rowsRatio
-		print thresholdToBeat
-		print "****"
 		if match:
 			# replace this node with one of the branches
 			self.parent.replace(self, self.thenNode)
@@ -290,7 +304,7 @@ class VariableUseNode(ASTNode):
 		return [self.name]
 
 	def pathConditions(self):
-		return [PathConditionComponent(self.name, "eq", True), PathConditionComponent(self.name, "eq", False)]
+		return [PathConditionComponent(self.name, "eq", "true"), PathConditionComponent(self.name, "eq", "false")]
 
 class BoolBinExpNode(ASTNode):
     def __init__(self, op, e1, e2):
