@@ -205,7 +205,6 @@ def generatePotentialStructuresFromDataset(dataset):
 
 def deepcopyNode(node):
 	newNode = deepcopy(node)
-	newNode.program = node.program # this is a silly way to get around this issue.  fix this
 	return newNode
 
 def main():
@@ -217,29 +216,27 @@ def main():
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
-	prog = Program(dataset)
-	AST = ASTNode(prog)
-	prog.setRoot(AST)
+	AST = ASTNode()
 	for node in nodesInDependencyOrder:
 
 		parents = node.parents
 
 		if isinstance(node.distribInfo, BooleanDistribution):
-			internal = BooleanDistribNode(prog, node.name)
+			internal = BooleanDistribNode(node.name)
 		elif isinstance(node.distribInfo, CategoricalDistribution):
-			typeDecl = TypeDeclNode(prog, node.name, node.distribInfo.typeName, node.distribInfo.values)
+			typeDecl = TypeDeclNode(node.name, node.distribInfo.typeName, node.distribInfo.values)
 			AST.addChild(typeDecl)
-			internal = CategoricalDistribNode(prog, node.distribInfo.values)
+			internal = CategoricalDistribNode(node.distribInfo.values)
 		elif isinstance(node.distribInfo, IntegerDistribution):
-			internal = IntegerDistribNode(prog, node.name)
+			internal = IntegerDistribNode(node.name)
 		elif isinstance(node.distribInfo, RealDistribution):
-			internal = RealDistribNode(prog, node.name)
+			internal = RealDistribNode(node.name)
 
 		for parent in parents:
 			conditionNodes = []
 			bodyNodes = []
 			if isinstance(parent.distribInfo, BooleanDistribution):
-				conditionNodes.append(VariableUseNode(prog, parent.name, parent.distribInfo.typeName))
+				conditionNodes.append(VariableUseNode(parent.name, parent.distribInfo.typeName))
 				for i in range(2):
 					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(parent.distribInfo, CategoricalDistribution):
@@ -248,18 +245,21 @@ def main():
 					# doesn't make sense to depend on this
 					continue
 				for i in range(numValues):
-					conditionNodes.append(ComparisonNode(prog, VariableUseNode(prog, parent.name, parent.distribInfo.typeName), "==", parent.distribInfo.values[i]))
+					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "==", parent.distribInfo.values[i]))
 				for i in range(numValues):
 					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(node.distribInfo, IntegerDistribution) or isinstance(node.distribInfo, RealDistribution):
-				conditionNodes.append(ComparisonNode(prog, VariableUseNode(prog, parent.name, parent.distribInfo.typeName)))
+				conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName)))
 				for i in range(2):
 					bodyNodes.append(deepcopyNode(internal))
-			internal = IfNode(prog, conditionNodes, bodyNodes)
+			internal = IfNode(conditionNodes, bodyNodes)
 
 		variableNode = None
-		variableNode = VariableDeclNode(prog, node.name, node.distribInfo.typeName, internal)
+		variableNode = VariableDeclNode(node.name, node.distribInfo.typeName, internal)
 		AST.addChild(variableNode)
+
+	prog = Program(dataset)
+	prog.setRoot(AST)
 
 	AST.fillHolesForConcretePathConditions(dataset)
 	AST.reduce(dataset)
