@@ -1,4 +1,5 @@
 from itertools import combinations
+import operator
 
 # **********************************************************************
 # Supported distributions
@@ -7,16 +8,37 @@ from itertools import combinations
 class BooleanDistribution:
 	def __init__(self):
 		self.typeName = "Boolean"
-		return
 
 class CategoricalDistribution:
 	def __init__(self, values, typeName):
 		self.values = values
 		self.typeName = typeName
 
+class IntegerDistribution:
+	def __init__(self):
+		self.typeName = "Integer"
+
+class RealDistribution:
+	def __init__(self):
+		self.typeName = "Real"
+
 # **********************************************************************
 # Data structures for creating PPL ASTs
 # **********************************************************************
+
+def isInteger(s):
+    try:
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+def isFloat(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
 class Dataset:
 	def __init__(self, filename):
@@ -67,6 +89,10 @@ class Dataset:
 			currColumnValues = columnValues[i]
 			if currColumnValues == set(["true", "false"]):
 				columnDistributionInformation.append(BooleanDistribution())
+			elif reduce(lambda x, y: x and isInteger(y), currColumnValues, True):
+				columnDistributionInformation.append(IntegerDistribution())
+			elif reduce(lambda x, y: x and isFloat(y), currColumnValues, True):
+				columnDistributionInformation.append(RealDistribution())
 			else:
 				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues), names[i]+"Type"))
 		self.columnDistributionInformation = columnDistributionInformation
@@ -154,6 +180,7 @@ class VariableDeclNode(ASTNode):
 		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
 
 	def reduce(self, dataset, pathCondition, currVariable):
+		print "reduce variabledecl", pathCondition, self.name
 		self.RHS.reduce(dataset, pathCondition, self) # the current node is now the variable being defined
 
 class TypeDeclNode(ASTNode):
@@ -171,7 +198,7 @@ class DistribNode(ASTNode):
 		ASTNode.__init__(self)
 
 class BooleanDistribNode(DistribNode):
-	def __init__(self, percentTrue=None, percentMatchingRows = 0):
+	def __init__(self, percentTrue=None, percentMatchingRows = None):
 		DistribNode.__init__(self)
 		self.percentTrue = percentTrue
 		self.percentMatchingRows = percentMatchingRows
@@ -198,7 +225,7 @@ class BooleanDistribNode(DistribNode):
 				if val == "true":
 					matchingRowsSum += 1
 
-		percentTrue = "??"
+		percentTrue = None
 		if matchingRowsCounter > 0:
 			percentTrue = float(matchingRowsSum)/matchingRowsCounter
 		self.percentTrue = percentTrue
@@ -209,7 +236,7 @@ class BooleanDistribNode(DistribNode):
 		return
 
 class CategoricalDistribNode(DistribNode):
-	def __init__(self, values, valuesToPercentages = None, percentMatchingRows = 0):
+	def __init__(self, values, valuesToPercentages = None, percentMatchingRows = None):
 		DistribNode.__init__(self)
 		self.values = values
 		self.valuesToPercentages = valuesToPercentages
@@ -243,7 +270,7 @@ class CategoricalDistribNode(DistribNode):
 		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
 
 		if matchingRowsCounter < 1:
-			self.valuesToPercentages = "??"
+			self.valuesToPercentages = None
 			return
 
 		self.valuesToPercentages = {}
@@ -255,17 +282,72 @@ class CategoricalDistribNode(DistribNode):
 		# no reduction to do here
 		return
 
-class GaussianDistribNode(ASTNode):
-	def __init__(self, mu=None, sig=None):
-		ASTNode.__init__(self)
+class RealDistribNode(DistribNode):
+	def __init__(self):
+		DistribNode.__init__(self)
+
+	def strings(self, tabs=0):
+		return [",", ","]
+
+	def params(self):
+		return None
+
+	def reduce(self, dataset, pathCondition, currVariable):
+		# no reduction to do here
+		return
+
+class GaussianDistribNode(RealDistribNode):
+	def __init__(self, mu=None, sig=None, percentMatchingRows = None):
+		RealDistribNode.__init__(self)
 		self.mu = mu
-                self.sig = sig
+		self.sig = sig
 
 	def strings(self, tabs=0):
 		if self.mu:
 			return ["Gaussian(%f,%f)" % (self.mu, self.sig)]
 		else:
 			return ["Gaussian(",",", ")"]
+
+	def params(self):
+		return [("Gaussian", (self.mu, self.sig), self.percentMatchingRows)]
+
+	def reduce(self, dataset, pathCondition, currVariable):
+		# no reduction to do here
+		return
+
+class BetaDistribNode(RealDistribNode):
+	def __init__(self, alpha=None, beta=None, percentMatchingRows = None):
+		RealDistribNode.__init__(self)
+		self.alpha = alpha
+		self.beta = beta
+
+	def strings(self, tabs=0):
+		if self.alpha:
+			return ["Beta(%f,%f)" % (self.alpha, self.beta)]
+		else:
+			return ["Beta(",",", ")"]
+
+	def params(self):
+		return [("Beta", (self.alpha, self.beta), self.percentMatchingRows)]
+
+	def reduce(self, dataset, pathCondition, currVariable):
+		# no reduction to do here
+		return
+
+class UniformRealDistribNode(RealDistribNode):
+	def __init__(self, a=None, b=None, percentMatchingRows = None):
+		RealDistribNode.__init__(self)
+		self.a = a
+		self.b = b
+
+	def strings(self, tabs=0):
+		if self.a:
+			return ["Beta(%f,%f)" % (self.a, self.b)]
+		else:
+			return ["Beta(",",", ")"]
+
+	def params(self):
+		return [("UniformReal", (self.a, self.b), self.percentMatchingRows)]
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		# no reduction to do here
@@ -283,7 +365,11 @@ class IfNode(ASTNode):
 	def params(self):
 		paramsLs = []
 		for bodyNode in self.bodyNodes:
-			paramsLs = paramsLs + bodyNode.params()
+			newParams = bodyNode.params()
+			if newParams == None:
+				# if any of the branches have non-concrete params, the whole thing has non-concrete
+				return None
+			paramsLs = paramsLs + newParams
 		return paramsLs
 
 	def strings(self, tabs=0):
@@ -327,18 +413,27 @@ class IfNode(ASTNode):
 		return nodeToAdd
 
 	def reduce(self, dataset, pathCondition, currVariable):
+		print "reduce", pathCondition, currVariable
 		for pair in combinations(range(len(self.bodyNodes)), 2):
 			p1i = pair[0]
 			p2i = pair[1]
 			params1 = self.bodyNodes[p1i].params()
 			params2 = self.bodyNodes[p2i].params()
+			if params1 == None or params2 == None:
+				# the path conditions going down aren't concrete, so it doesn't make sense to reduce yet
+				continue
 			match = True
+			print "*****"
+			print self.bodyNodes[p1i].strings()
+			print params1
+			print self.bodyNodes[p2i].strings()
+			print params2
 			# because we always construct then and else branches to be the same, we can rely on the structure to be the same, don't need to check path conditions
 			for i in range(len(params1)):
 				param1 = params1[i] # a tuple of distrib type, relevant parmas, num of rows on which based; should eventually add path condition
 				param2 = params2[i]
 				if (param1[0] == "Boolean" and param2[0] == "Boolean"):
-					if (param1[1] == "??" or param2[1] == "??"):
+					if (param1[1] == None or param2[1] == None):
 						# for this param, let anything match, since we don't know what its value should be
 						continue
 
@@ -360,7 +455,7 @@ class IfNode(ASTNode):
 						match = False
 						break
 				if (param1[0] == "Categorical" and param2[0] == "Categorical"):
-					if (param1[1] == "??" or param2[1] == "??"):
+					if (param1[1] == None or param2[1] == None):
 						continue
 					thresholdMaker = 150.0
 					thresholdToBeat = thresholdMaker/dataset.numRows
@@ -413,6 +508,9 @@ class IfNode(ASTNode):
 		for i in range(len(self.bodyNodes)):
 			if i < len(self.conditionNodes):
 				pathConditionAdditional = self.conditionNodes[i].pathCondition()
+				if pathConditionAdditional == None:
+					# the path condition is no longer concrete
+					continue
 			else:
 				# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
 				pathConditionAdditional = self.conditionNodes[i-1].pathConditionFalse()
@@ -423,6 +521,9 @@ class IfNode(ASTNode):
 		for i in range(len(self.bodyNodes)):
 			if i < len(self.conditionNodes):
 				pathConditionAdditional = self.conditionNodes[i].pathCondition()
+				if pathConditionAdditional == None:
+					# the path condition is no longer concrete
+					continue
 			else:
 				# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
 				pathConditionAdditional = self.conditionNodes[i-1].pathConditionFalse()
@@ -443,15 +544,27 @@ class VariableUseNode(ASTNode):
 		return PathConditionComponent([self.name], lambda x: x == "false")
 
 class ComparisonNode(ASTNode):
-	def __init__(self, variableNode, value):
+
+	ops = {	"==": operator.eq,
+			">": operator.gt,
+			"<": operator.lt}
+
+	def __init__(self, variableNode, relationship = None, value = None):
 		self.node = variableNode
+		self.relationship = relationship
 		self.value = value
 
 	def strings(self, tabs=0):
-		return [self.node.name + " == " + self.value]
+		if self.relationship:
+			return [self.node.name + " " + self.relationship + " " + self.value]
+		else:
+			return [self.node.name, ""]
 
 	def pathCondition(self):
-		return PathConditionComponent([self.node.name], lambda x: x == self.value)
+		return PathConditionComponent([self.node.name], lambda x: ops[self.relationship](x, self.value))
+
+	def pathConditionFalse(self):
+		return PathConditionComponent([self.node.name], lambda x: not ops[self.relationship](x, self.value))
 
 class OrNode(ASTNode):
 	def __init__(self, leftNode, rightNode):

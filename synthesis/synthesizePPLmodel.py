@@ -245,6 +245,10 @@ def main():
 			typeDecl = TypeDeclNode(node.distribInfo.typeName, node.distribInfo.values)
 			AST.addChild(typeDecl)
 			internal = CategoricalDistribNode(node.distribInfo.values)
+		elif isinstance(node.distribInfo, IntegerDistribution):
+			internal = IntegerDistribNode()
+		elif isinstance(node.distribInfo, RealDistribution):
+			internal = RealDistribNode()
 
 		for parent in parents:
 			conditionNodes = []
@@ -259,8 +263,12 @@ def main():
 					# doesn't make sense to depend on this
 					continue
 				for i in range(numValues):
-					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name), parent.distribInfo.values[i]))
+					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name), "==", parent.distribInfo.values[i]))
 				for i in range(numValues):
+					bodyNodes.append(deepcopy(internal))
+			elif isinstance(node.distribInfo, IntegerDistribution) or isinstance(node.distribInfo, RealDistribution):
+				conditionNodes.append(ComparisonNode(VariableUseNode(parent.name)))
+				for i in range(2):
 					bodyNodes.append(deepcopy(internal))
 			internal = IfNode(conditionNodes, bodyNodes)
 
@@ -276,6 +284,8 @@ def main():
 	output = open("../synthesized/"+ouputFilename, "w")
 	output.write(scriptStrings[0])
 	print scriptStrings[0]
+	print "-----"
+	print scriptStrings
 
 main()
 
