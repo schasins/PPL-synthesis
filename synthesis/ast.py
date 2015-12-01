@@ -70,20 +70,19 @@ class Dataset:
 		self.columnDistributionInformation = columnDistributionInformation
 
 	def makePathConditionFilter(self, pathCondition):
-		pairs = [] # (index, targetVal) pairs
+		pairs = [] # (index, func) pairs
 		for pathConditionComponent in pathCondition:
-			pairs.append((self.namesToIndexes[pathConditionComponent.varName], pathConditionComponent.value))
-		return lambda row : reduce(lambda x, pair : x and row[pair[0]] == pair[1], pairs, True)
+			pairs.append(( map( lambda x: self.namesToIndexes[x], pathConditionComponent.varNames), pathConditionComponent.func))
+		return lambda row : reduce(lambda x, pair : x and apply(pair[1], map( lambda arg: row[arg], pair[0])), pairs, True)
 
 	def makeCurrVariableGetter(self, currVariable):
 		index = self.namesToIndexes[currVariable.name]
 		return lambda row: row[index]
 
 class PathConditionComponent:
-	def __init__(self, varName, relationship, value):
-		self.varName = varName
-		self.relationship = relationship
-		self.value = value
+	def __init__(self, varNames, func):
+		self.varNames = varNames
+		self.func = func
 
 # **********************************************************************
 # Data structures for representing PPL ASTs
@@ -317,10 +316,10 @@ class IfNode(ASTNode):
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		for pair in combinations(range(len(self.bodyNodes)), 2):
-			i = pair[0]
-			j = pair[1]
-			params1 = self.bodyNodes[i].params()
-			params2 = self.bodyNodes[j].params()
+			p1i = pair[0]
+			p2i = pair[1]
+			params1 = self.bodyNodes[p1i].params()
+			params2 = self.bodyNodes[p2i].params()
 			match = True
 			# because we always construct then and else branches to be the same, we can rely on the structure to be the same, don't need to check path conditions
 			for i in range(len(params1)):
@@ -383,16 +382,20 @@ class IfNode(ASTNode):
 					return
 				else:
 					# combine a couple branches
-					newConditionNode = OrNode(self.conditionNodes[i], self.conditionNodes[j])
-					self.conditionNodes[i] = newConditionNode
+					newConditionNode = OrNode(self.conditionNodes[p1i], self.conditionNodes[p2i])
+					self.conditionNodes[p1i] = newConditionNode
 
 					# adapt the body node fillded holes to our new condition
-					pathConditionAdditional = self.conditionNodes[i].pathCondition()
-					self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, pathCondition + [pathConditionAdditional], currVariable)
+					pathConditionAdditional = self.conditionNodes[p1i].pathCondition()
+					self.bodyNodes[p1i].fillHolesForConcretePathConditions(dataset, pathCondition + [pathConditionAdditional], currVariable)
 
 					# now delete the ones we're getting rid of
-					del self.conditionNodes[j]
-					del self.bodyNodes[j]
+					del self.conditionNodes[p2i]
+					del self.bodyNodes[p2i]
+
+					# now that we've deleted stuff, the i and j indexes don't work anymore
+					self.reduce(dataset, pathCondition, currVariable)
+					return
 
 		# once we've gotten rid of all the things we can reduce, go ahead and descend down all the remaining body nodes
 		for i in range(len(self.bodyNodes)):
@@ -422,10 +425,10 @@ class VariableUseNode(ASTNode):
 		return [self.name]
 
 	def pathCondition(self):
-		return PathConditionComponent(self.name, "eq", "true")
+		return PathConditionComponent([self.name], lambda x: x == "true")
 
 	def pathConditionFalse(self):
-		return PathConditionComponent(self.name, "eq", "false")
+		return PathConditionComponent([self.name], lambda x: x == "false")
 
 class ComparisonNode(ASTNode):
 	def __init__(self, variableNode, value):
@@ -436,7 +439,7 @@ class ComparisonNode(ASTNode):
 		return [self.node.name + " == " + self.value]
 
 	def pathCondition(self):
-		return PathConditionComponent(self.node.name, "eq", self.value)
+		return PathConditionComponent([self.node.name], lambda x: x == self.value)
 
 class OrNode(ASTNode):
 	def __init__(self, leftNode, rightNode):
@@ -444,10 +447,12 @@ class OrNode(ASTNode):
 		self.rNode = rightNode
 
 	def strings(self, tabs=0):
-		return combineStrings(self.lNode.strings(), [" | "], self.rNode.strings())
+		return combineStrings([self.lNode.strings(), [" | "], self.rNode.strings()])
 
-	def pathConditions(self):
-		raise "Freak out don't know how this is used"
+	def pathCondition(self):
+		p1 = self.lNode.pathCondition()
+		p2 = self.rNode.pathCondition()
+		return PathConditionComponent(p1.varNames + p2.varNames, lambda x, y: p1.func(x) or p2.func(y))
 
 class BoolBinExpNode(ASTNode):
     def __init__(self, op, e1, e2):
