@@ -31,7 +31,7 @@ class Dataset:
 		for i in range(len(lineItems)):
 			lineItem = lineItems[i]
 			if lineItem != "":
-				names[i] = lineItem.replace("(", "_").replace(")", "_")
+				names[i] = lineItem.replace("(", "").replace(")", "")
 				indexes[names[i]] = i
 				numItems = i
 
@@ -164,7 +164,7 @@ class TypeDeclNode(ASTNode):
 
 	def strings(self, tabs = 0):
 		vals = ", ".join(self.values)
-		return ["\ndistinct " + self.name + " " + vals + ";"]
+		return ["\ntype " + self.name + ";\ndistinct " + self.name + " " + vals + ";"]
 
 class DistribNode(ASTNode):
   def __init__(self):
@@ -224,7 +224,7 @@ class CategoricalDistribNode(DistribNode):
 			innards = []
 			for value in self.values: # use values because it has the guaranteed stable ordering
 				innards.append(str(value) + " -> " + str(self.valuesToPercentages[value]))
-			return [components[0]+(",".join(innards))+components[1]]
+			return [components[0]+(", ".join(innards))+components[1]]
 		else:
 			return components
 

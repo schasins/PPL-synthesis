@@ -255,6 +255,9 @@ def main():
 					bodyNodes.append(deepcopy(internal))
 			elif isinstance(parent.distribInfo, CategoricalDistribution):
 				numValues = len(parent.distribInfo.values)
+				if numValues == 1:
+					# doesn't make sense to depend on this
+					continue
 				for i in range(numValues):
 					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name), parent.distribInfo.values[i]))
 				for i in range(numValues):
