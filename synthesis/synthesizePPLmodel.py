@@ -254,7 +254,7 @@ def main():
 			conditionNodes = []
 			bodyNodes = []
 			if isinstance(parent.distribInfo, BooleanDistribution):
-				conditionNodes.append(VariableUseNode(parent.name))
+				conditionNodes.append(VariableUseNode(parent.name, parent.distribInfo.typeName))
 				for i in range(2):
 					bodyNodes.append(deepcopy(internal))
 			elif isinstance(parent.distribInfo, CategoricalDistribution):
@@ -263,11 +263,11 @@ def main():
 					# doesn't make sense to depend on this
 					continue
 				for i in range(numValues):
-					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name), "==", parent.distribInfo.values[i]))
+					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "==", parent.distribInfo.values[i]))
 				for i in range(numValues):
 					bodyNodes.append(deepcopy(internal))
 			elif isinstance(node.distribInfo, IntegerDistribution) or isinstance(node.distribInfo, RealDistribution):
-				conditionNodes.append(ComparisonNode(VariableUseNode(parent.name)))
+				conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName)))
 				for i in range(2):
 					bodyNodes.append(deepcopy(internal))
 			internal = IfNode(conditionNodes, bodyNodes)
@@ -278,6 +278,7 @@ def main():
 
 	AST.fillHolesForConcretePathConditions(dataset)
 	AST.reduce(dataset)
+	AST.fillHolesRandomly(dataset)
         # testEstimateScore(AST,dataset)
 
 	scriptStrings = AST.strings()

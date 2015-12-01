@@ -1,5 +1,6 @@
 from itertools import combinations
 import operator
+import random
 
 # **********************************************************************
 # Supported distributions
@@ -147,6 +148,11 @@ class ASTNode:
 		for node in self.children:
 			node.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
 
+	def fillHolesRandomly(self, currVariableType = None):
+		print "fillHolesRandomly ast node"
+		for node in self.children:
+			node.fillHolesRandomly(currVariableType)
+
 	def reduce(self, dataset, pathCondition =[], currVariable = None):
 		for node in self.children:
 			node.reduce(dataset, pathCondition, currVariable)
@@ -178,6 +184,10 @@ class VariableDeclNode(ASTNode):
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
+
+	def fillHolesRandomly(self, currVariableType):
+		print "fillHolesRandomly vardecl"
+		self.RHS.fillHolesRandomly(self.varType)
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		print "reduce variabledecl", pathCondition, self.name
@@ -295,6 +305,10 @@ class RealDistribNode(DistribNode):
 	def reduce(self, dataset, pathCondition, currVariable):
 		# no reduction to do here
 		return
+
+	def fillHolesRandomly(self, currVariableType):
+		print "fillHolesRandomly realdistrib"
+		self.parent.replace(self, BetaDistribNode()) #TODO: replace it with a randomly chosen distrib?
 
 class GaussianDistribNode(RealDistribNode):
 	def __init__(self, mu=None, sig=None, percentMatchingRows = None):
@@ -530,9 +544,17 @@ class IfNode(ASTNode):
 			newPathCondition = pathCondition + [pathConditionAdditional]
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
 
+	def fillHolesRandomly(self, currVariableType):
+		print "fillHolesRandomly if"
+		for node in self.conditionNodes:
+			node.fillHolesRandomly(currVariableType)
+		for node in self.bodyNodes:
+			node.fillHolesRandomly(currVariableType)
+
 class VariableUseNode(ASTNode):
-	def __init__(self, name):
+	def __init__(self, name, typeName):
 		self.name = name
+		self.typeName = typeName
 
 	def strings(self, tabs=0):
 		return [self.name]
@@ -556,15 +578,22 @@ class ComparisonNode(ASTNode):
 
 	def strings(self, tabs=0):
 		if self.relationship:
-			return [self.node.name + " " + self.relationship + " " + self.value]
+			return [self.node.name + " " + self.relationship + " " + str(self.value)]
 		else:
 			return [self.node.name, ""]
 
 	def pathCondition(self):
-		return PathConditionComponent([self.node.name], lambda x: ops[self.relationship](x, self.value))
+		return PathConditionComponent([self.node.name], lambda x: self.ops[self.relationship](x, self.value))
 
 	def pathConditionFalse(self):
-		return PathConditionComponent([self.node.name], lambda x: not ops[self.relationship](x, self.value))
+		return PathConditionComponent([self.node.name], lambda x: not self.ops[self.relationship](x, self.value))
+
+	def fillHolesRandomly(self, currVariableType):
+		print "fillHolesRandomly comparison"
+		if (self.relationship == None):
+			self.relationship = random.choice(self.ops.keys())
+		if (self.value == None):
+			self.value = 1
 
 class OrNode(ASTNode):
 	def __init__(self, leftNode, rightNode):
