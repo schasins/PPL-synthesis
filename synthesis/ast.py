@@ -308,13 +308,18 @@ class RealDistribNode(DistribNode):
 
 	def fillHolesRandomly(self, currVariableType):
 		print "fillHolesRandomly realdistrib"
-		self.parent.replace(self, BetaDistribNode()) #TODO: replace it with a randomly chosen distrib?
+		newNode = BetaDistribNode()
+		self.parent.replace(self, newNode) #TODO: replace it with a randomly chosen distrib?
+
+		#TODO: do we really want to do this?
+		newNode.fillHolesRandomly(currVariableType)
 
 class GaussianDistribNode(RealDistribNode):
 	def __init__(self, mu=None, sig=None, percentMatchingRows = None):
 		RealDistribNode.__init__(self)
 		self.mu = mu
 		self.sig = sig
+		self.percentMatchingRows = percentMatchingRows
 
 	def strings(self, tabs=0):
 		if self.mu:
@@ -334,6 +339,7 @@ class BetaDistribNode(RealDistribNode):
 		RealDistribNode.__init__(self)
 		self.alpha = alpha
 		self.beta = beta
+		self.percentMatchingRows = percentMatchingRows
 
 	def strings(self, tabs=0):
 		if self.alpha:
@@ -348,11 +354,17 @@ class BetaDistribNode(RealDistribNode):
 		# no reduction to do here
 		return
 
+	def fillHolesRandomly(self, currVariableType):
+		print "fillHolesRandomly betadistrib"
+		self.alpha = .5
+		self.beta = .5
+
 class UniformRealDistribNode(RealDistribNode):
 	def __init__(self, a=None, b=None, percentMatchingRows = None):
 		RealDistribNode.__init__(self)
 		self.a = a
 		self.b = b
+		self.percentMatchingRows = percentMatchingRows
 
 	def strings(self, tabs=0):
 		if self.a:

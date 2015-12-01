@@ -279,6 +279,9 @@ def main():
 	AST.fillHolesForConcretePathConditions(dataset)
 	AST.reduce(dataset)
 	AST.fillHolesRandomly(dataset)
+	# TODO: do we want to figure out the proper params for the distributions we've added?
+	#AST.fillHolesForConcretePathConditions(dataset)
+	#AST.reduce(dataset)
         # testEstimateScore(AST,dataset)
 
 	scriptStrings = AST.strings()
