@@ -6,6 +6,7 @@ from copy import deepcopy
 from scipy.stats.stats import pearsonr
 from itertools import combinations
 import sys
+from simanneal import Annealer
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -126,43 +127,20 @@ def distance(summary1, summary2):
 # Simulated annealing
 # **********************************************************************
 
-# class PPLSynthesisProblem(Annealer):
+class PPLSynthesisProblem(Annealer):
 
-# 	def move(self):
-# 		# changes the value in one hole of the program
-# 		# TODO: is this actually the way we want to do a move?
-# 		numHoles = self.state[0]
-# 		holeFillers = []
-# 		for i in range(numHoles):
-# 			holeFillers.append(random.uniform(.000001, .999999))
-# 		self.state = [numHoles]+holeFillers
+	def move(self):
+		self.state.mutate()
 
-# 	def energy(self):
-# 		# calculates the distance from the target distributions
-# 		outputString = makeProgram(self.programStrings, self.state[1:], self.state[0])
+	def energy(self):
+		return estimateScore(self.state.root, self.dataset)
 
-# 		f = open("output.blog", "w")
-# 		f.write(outputString)
-# 		f.close()
+	@staticmethod
+	def makeInitialState(prog):
+		return prog
 
-# 		f = open("output.output", "w")
-# 		call(["blog", "output.blog", "--generate", "-n", "1000"], stdout=f)
-# 		call(["python", "blogOutputToCSV.py", "output.output", "output.csv"])
-
-# 		summaryCandidate = summarizeDataset("output.csv")
-# 		return distance(summaryCandidate, self.targetSummary) # want to minimize this
-
-# 	@staticmethod
-# 	def makeInitialState(programStrings):
-# 		numHoles = len(programStrings) - 1
-# 		state = [numHoles]
-# 		for i in range(numHoles):
-# 			state.append(random.uniform(.000001, .999999))
-# 		return state
-
-# 	def setNeeded(self, programStrings, targetSummary):
-# 		self.programStrings = programStrings
-# 		self.targetSummary = targetSummary
+	def setNeeded(self, dataset):
+		self.dataset = dataset
 
 # **********************************************************************
 # Generate structures based on input dataset correlation
@@ -225,6 +203,10 @@ def generatePotentialStructuresFromDataset(dataset):
 # Consume the structure hints, generate a program
 # **********************************************************************
 
+def deepcopyNode(node):
+	newNode = deepcopy(node)
+	return newNode
+
 def main():
 	inputFile = sys.argv[1]
 	ouputFilename = sys.argv[2]
@@ -240,15 +222,15 @@ def main():
 		parents = node.parents
 
 		if isinstance(node.distribInfo, BooleanDistribution):
-			internal = BooleanDistribNode()
+			internal = BooleanDistribNode(node.name)
 		elif isinstance(node.distribInfo, CategoricalDistribution):
-			typeDecl = TypeDeclNode(node.distribInfo.typeName, node.distribInfo.values)
+			typeDecl = TypeDeclNode(node.name, node.distribInfo.typeName, node.distribInfo.values)
 			AST.addChild(typeDecl)
 			internal = CategoricalDistribNode(node.distribInfo.values)
 		elif isinstance(node.distribInfo, IntegerDistribution):
-			internal = IntegerDistribNode()
+			internal = IntegerDistribNode(node.name)
 		elif isinstance(node.distribInfo, RealDistribution):
-			internal = RealDistribNode()
+			internal = RealDistribNode(node.name)
 
 		for parent in parents:
 			conditionNodes = []
@@ -256,7 +238,7 @@ def main():
 			if isinstance(parent.distribInfo, BooleanDistribution):
 				conditionNodes.append(VariableUseNode(parent.name, parent.distribInfo.typeName))
 				for i in range(2):
-					bodyNodes.append(deepcopy(internal))
+					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(parent.distribInfo, CategoricalDistribution):
 				numValues = len(parent.distribInfo.values)
 				if numValues == 1:
@@ -265,24 +247,51 @@ def main():
 				for i in range(numValues):
 					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "==", parent.distribInfo.values[i]))
 				for i in range(numValues):
-					bodyNodes.append(deepcopy(internal))
+					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(node.distribInfo, IntegerDistribution) or isinstance(node.distribInfo, RealDistribution):
 				conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName)))
 				for i in range(2):
-					bodyNodes.append(deepcopy(internal))
+					bodyNodes.append(deepcopyNode(internal))
 			internal = IfNode(conditionNodes, bodyNodes)
 
 		variableNode = None
 		variableNode = VariableDeclNode(node.name, node.distribInfo.typeName, internal)
 		AST.addChild(variableNode)
 
+	prog = Program(dataset)
+	prog.setRoot(AST)
+
 	AST.fillHolesForConcretePathConditions(dataset)
 	AST.reduce(dataset)
-	AST.fillHolesRandomly(dataset)
+	AST.fillHolesRandomly()
+
+	print prog.programString()
+	prog.mutate()
+	print prog.programString()
+	prog.mutate()
+	print prog.programString()
+	prog.mutate()
+	print prog.programString()
+
 	# TODO: do we want to figure out the proper params for the distributions we've added?
 	#AST.fillHolesForConcretePathConditions(dataset)
 	#AST.reduce(dataset)
-        # testEstimateScore(AST,dataset)
+	# testEstimateScore(AST,dataset)
+
+	initState = PPLSynthesisProblem.makeInitialState(prog)
+	saObj = PPLSynthesisProblem(initState)
+	saObj.setNeeded(dataset)
+	saObj.steps = 1000 #how many iterations will we do?
+	saObj.updates = 1000 # how many times will we print current status
+	saObj.Tmax = 25000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
+	print "---"
+	print saObj.Tmax
+	saObj.Tmin = .001 # how big an increase in distance are we willing to accept at the end?
+
+	ast, distanceFromDataset = saObj.anneal()
+	print distanceFromDataset
+	print
+	print "************"
 
 	scriptStrings = AST.strings()
 	output = open("../synthesized/"+ouputFilename, "w")
