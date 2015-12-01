@@ -242,6 +242,8 @@ def main():
 		if isinstance(node.distribInfo, BooleanDistribution):
 			internal = BooleanDistribNode()
 		elif isinstance(node.distribInfo, CategoricalDistribution):
+			typeDecl = TypeDeclNode(node.distribInfo.typeName, node.distribInfo.values)
+			AST.addChild(typeDecl)
 			internal = CategoricalDistribNode(node.distribInfo.values)
 
 		for parent in parents:

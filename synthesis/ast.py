@@ -156,6 +156,16 @@ class VariableDeclNode(ASTNode):
 	def reduce(self, dataset, pathCondition, currVariable):
 		self.RHS.reduce(dataset, pathCondition, self) # the current node is now the variable being defined
 
+class TypeDeclNode(ASTNode):
+	def __init__(self, name, values):
+		ASTNode.__init__(self)
+		self.name = name
+		self.values = values
+
+	def strings(self, tabs = 0):
+		vals = ", ".join(self.values)
+		return ["\ndistinct " + self.name + " " + vals + ";"]
+
 class DistribNode(ASTNode):
   def __init__(self):
 		ASTNode.__init__(self)
