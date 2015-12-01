@@ -86,17 +86,28 @@ class Dataset:
 		self.numRows = len(rows)
 
 		columnDistributionInformation = []
+		columnMaxes = {}
+		columnMins = {}
 		for i in range(len(columnValues)):
 			currColumnValues = columnValues[i]
 			if currColumnValues == set(["true", "false"]):
 				columnDistributionInformation.append(BooleanDistribution())
 			elif reduce(lambda x, y: x and isInteger(y), currColumnValues, True):
 				columnDistributionInformation.append(IntegerDistribution())
+				self.columns[i] = (map(lambda x: int(x), currColumnValues))
+				columnMaxes[names[i]] = max(self.columns[i])
+				columnMins[names[i]] = min(self.columns[i])
+				columnMins.append(min(self.columns[i]))
 			elif reduce(lambda x, y: x and isFloat(y), currColumnValues, True):
 				columnDistributionInformation.append(RealDistribution())
+				self.columns[i] = (map(lambda x: float(x), currColumnValues))
+				columnMaxes[names[i]] = max(self.columns[i])
+				columnMins[names[i]] = min(self.columns[i])
 			else:
 				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues), names[i]+"Type"))
 		self.columnDistributionInformation = columnDistributionInformation
+		self.columnMaxes = columnMaxes
+		self.columnMins = columnMins
 
 	def makePathConditionFilter(self, pathCondition):
 		pairs = [] # (index, func) pairs
@@ -117,17 +128,44 @@ class PathConditionComponent:
 # Data structures for representing PPL ASTs
 # **********************************************************************
 
+class Program:
+	def __init__(self, dataset):
+		self.randomizeableNodes = set()
+		self.variables = set()
+		self.dataset = dataset
+		self.root = None
+
+	def setRoot(self, root):
+		self.root = root
+
+	def variableRange(self, variableName):
+		return (self.dataset.columnMins[variableName], self.dataset.columnMaxes[variableName])
+
+	def mutate(self):
+		node = random.choice(self.randomizeableNodes)
+		node.mutate()
+
+	def programString(self):
+		return self.root.strings()
+
 class ASTNode:
-	def __init__(self):
+	def __init__(self, program):
 		self.children = []
 		self.parent = None
+		self.program = program
+
+	def setProgram(self, program):
+		self.program = program
+
+	def setParent(self, parentNode):
+		self.parent = parentNode
 
 	def replace(self, nodeToCut, nodeToAdd):
 		foundNode = False
 		for i in range(len(self.children)):
 			if self.children[i] == nodeToCut:
 				self.children[i] = nodeToAdd
-				nodeToAdd.parent = self
+				nodeToAdd.setParent(self)
 				foundNode = True
 		if not foundNode:
 			raise Exception("Tried to replace a node that wasn't actually a child.")
@@ -135,7 +173,7 @@ class ASTNode:
 
 	def addChild(self, node):
 		self.children.append(node)
-		node.parent = self
+		node.setParent(self)
 
 	def strings(self, tabs=0):
 		outputStrings = []
@@ -148,31 +186,30 @@ class ASTNode:
 		for node in self.children:
 			node.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
 
-	def fillHolesRandomly(self, currVariableType = None):
-		print "fillHolesRandomly ast node"
+	def fillHolesRandomly(self):
 		for node in self.children:
-			node.fillHolesRandomly(currVariableType)
+			node.fillHolesRandomly()
 
 	def reduce(self, dataset, pathCondition =[], currVariable = None):
 		for node in self.children:
 			node.reduce(dataset, pathCondition, currVariable)
         
-        def accept(self, visitor):
-            visitor.visit(self)
+	def accept(self, visitor):
+		visitor.visit(self)
 
 class VariableDeclNode(ASTNode):
-	def __init__(self, name, varType, RHS):
-		ASTNode.__init__(self)
+	def __init__(self, program, name, varType, RHS):
+		ASTNode.__init__(self, program)
 		self.name = name
 		self.varType = varType
 		self.RHS = RHS
 		
-		self.RHS.parent = self
+		self.RHS.setParent(self)
 
 	def replace(self, nodeToCut, nodeToAdd):
 		if self.RHS == nodeToCut:
 			self.RHS = nodeToAdd
-			nodeToAdd.parent = self
+			nodeToAdd.setParent(self)
 		else:
 			raise Exception("Tried to replace a node that wasn't actually a child.")
 		return nodeToAdd
@@ -185,17 +222,17 @@ class VariableDeclNode(ASTNode):
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
 
-	def fillHolesRandomly(self, currVariableType):
-		print "fillHolesRandomly vardecl"
-		self.RHS.fillHolesRandomly(self.varType)
+	def fillHolesRandomly(self):
+		self.RHS.fillHolesRandomly()
+		self.program.variables.add(self)
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		print "reduce variabledecl", pathCondition, self.name
 		self.RHS.reduce(dataset, pathCondition, self) # the current node is now the variable being defined
 
 class TypeDeclNode(ASTNode):
-	def __init__(self, name, values):
-		ASTNode.__init__(self)
+	def __init__(self, program, name, values):
+		ASTNode.__init__(self, program)
 		self.name = name
 		self.values = values
 
@@ -204,13 +241,14 @@ class TypeDeclNode(ASTNode):
 		return ["\ntype " + self.name + ";\ndistinct " + self.name + " " + vals + ";"]
 
 class DistribNode(ASTNode):
-  def __init__(self):
-		ASTNode.__init__(self)
+  def __init__(self, program):
+		ASTNode.__init__(self, program)
 
 class BooleanDistribNode(DistribNode):
-	def __init__(self, percentTrue=None, percentMatchingRows = None):
-		DistribNode.__init__(self)
+	def __init__(self, program, varName, percentTrue=None, percentMatchingRows = None):
+		DistribNode.__init__(self, program)
 		self.percentTrue = percentTrue
+		self.varName = varName
 		self.percentMatchingRows = percentMatchingRows
 
 	def params(self):
@@ -245,9 +283,18 @@ class BooleanDistribNode(DistribNode):
 		# no reduction to do here
 		return
 
+	def mutate(self):
+		if self.percentTrue == None or random.uniform(0, 1) < .3:
+			# completely overwrite
+			self.percentTrue = random.uniform(0, 1)
+		else:
+			# make a small adjustment
+			self.percentTrue = self.percentTrue + random.uniform(-.1,.1)
+
 class CategoricalDistribNode(DistribNode):
-	def __init__(self, values, valuesToPercentages = None, percentMatchingRows = None):
-		DistribNode.__init__(self)
+	def __init__(self, program, varName, values, valuesToPercentages = None, percentMatchingRows = None):
+		DistribNode.__init__(self, program)
+		self.varName = varName
 		self.values = values
 		self.valuesToPercentages = valuesToPercentages
 		self.percentMatchingRows = percentMatchingRows
@@ -292,12 +339,36 @@ class CategoricalDistribNode(DistribNode):
 		# no reduction to do here
 		return
 
+	def mutate(self):
+		# TODO : go through all the mutates and make sure they don't go beyond the bounds
+		if self.valuesToPercentages == None:
+			self.valuesToPercentages = {}
+			for value in self.values:
+				self.valuesToPercentages[value] = random.uniform(0, 1) # note that BLOG automatically normalizes so they sum to 1
+		elif random.uniform(0, 1) < .3:
+			# completely overwrite
+			value = random.choice(self.values)
+			self.valuesToPercentages[value] = random.uniform(0, 1)
+		else:
+			# make a small adjustment
+			value = random.choice(self.values)
+			self.valuesToPercentages[value] = self.valuesToPercentages[value] + random.uniform(-.1,.1)
+
+
 class RealDistribNode(DistribNode):
-	def __init__(self):
-		DistribNode.__init__(self)
+
+	def __init__(self, program, varName, actualDistribNode = None):
+		DistribNode.__init__(self, program)
+		self.varName = varName
+		self.range = self.program.variableRange(self.varName)
+		self.actualDistribNode = actualDistribNode
+		self.availableNodeTypes = [GaussianDistribNode, BetaDistribNode, UniformRealDistribNode]
 
 	def strings(self, tabs=0):
-		return [",", ","]
+		if self.actualDistribNode == None:
+			return [",", ","]
+		else:
+			return self.actualDistribNode.strings()
 
 	def params(self):
 		return None
@@ -306,17 +377,31 @@ class RealDistribNode(DistribNode):
 		# no reduction to do here
 		return
 
-	def fillHolesRandomly(self, currVariableType):
-		print "fillHolesRandomly realdistrib"
-		newNode = BetaDistribNode()
-		self.parent.replace(self, newNode) #TODO: replace it with a randomly chosen distrib?
+	def fillHolesRandomly(self):
+		self.mutate()
+		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
+		self.program.randomizeableNodes.add(self)
 
-		#TODO: do we really want to do this?
-		newNode.fillHolesRandomly(currVariableType)
+	def mutate(self):
+		nodeType = random.choice(self.availableNodeTypes)
+		self.actualDistribNode = nodeType(self.program, self.varName)
+		self.actualDistribNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
+
+def overwriteOrModifyOneParam(overWriteProb, paramsLs, lowerLimit, upperLimit, modificationLowerLimit, modificationUpperLimit):
+	indexToChange = random.choice(range(len(paramsLs)))
+	if random.uniform(0,1) < overWriteProb:
+		paramsLs[indexToChange] = random.uniform(lowerLimit, upperLimit)
+	else:
+		paramsLs[indexToChange] = paramsLs[indexToChange] + random.uniform(modificationLowerLimit, modificationUpperLimit)
+		if paramsLs[indexToChange] > upperLimit:
+			paramsLs[indexToChange] = upperLimit
+		elif paramsLs[indexToChange] < lowerLimit:
+			paramsLs[indexToChange] = lowerLimit
+	return paramsLs
 
 class GaussianDistribNode(RealDistribNode):
-	def __init__(self, mu=None, sig=None, percentMatchingRows = None):
-		RealDistribNode.__init__(self)
+	def __init__(self, program, varName, mu=None, sig=None, percentMatchingRows = None):
+		RealDistribNode.__init__(self, program, varName)
 		self.mu = mu
 		self.sig = sig
 		self.percentMatchingRows = percentMatchingRows
@@ -334,9 +419,23 @@ class GaussianDistribNode(RealDistribNode):
 		# no reduction to do here
 		return
 
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.randomizeableNodes.add(self)
+
+	def mutate(self):
+		(lowerBound, upperBound) = self.range
+		if self.mu == None:
+			self.mu = random.uniform(lowerBound, upperBound) # TODO what's actually a good upper limit?
+			self.sig = random.uniform(lowerBound, upperBound)
+		else:
+			modParams = overwriteOrModifyOneParam(.3, [self.mu, self.sig], lowerBound, upperBound, -.1, .1)
+			self.mu = modParams[0]
+			self.sig = modParams[1]
+
 class BetaDistribNode(RealDistribNode):
-	def __init__(self, alpha=None, beta=None, percentMatchingRows = None):
-		RealDistribNode.__init__(self)
+	def __init__(self, program, varName, alpha=None, beta=None, percentMatchingRows = None):
+		RealDistribNode.__init__(self, program, varName)
 		self.alpha = alpha
 		self.beta = beta
 		self.percentMatchingRows = percentMatchingRows
@@ -354,14 +453,25 @@ class BetaDistribNode(RealDistribNode):
 		# no reduction to do here
 		return
 
-	def fillHolesRandomly(self, currVariableType):
-		print "fillHolesRandomly betadistrib"
-		self.alpha = .5
-		self.beta = .5
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.randomizeableNodes.add(self)
+
+	def mutate(self):
+		(lowerBound, upperBound) = self.range # TODO: what is this param?  what's a good limit?
+		# both alpha and beta need to be > 0
+		lowerBound = .000000000000001
+		if self.alpha == None:
+			self.alpha = random.uniform(lowerBound, upperBound) 
+			self.beta = random.uniform(lowerBound, upperBound)
+		else:
+			modParams = overwriteOrModifyOneParam(.3, [self.alpha, self.beta], lowerBound, upperBound, -.1, .1)
+			self.alpha = modParams[0]
+			self.beta = modParams[1]
 
 class UniformRealDistribNode(RealDistribNode):
-	def __init__(self, a=None, b=None, percentMatchingRows = None):
-		RealDistribNode.__init__(self)
+	def __init__(self, program, varName, a=None, b=None, percentMatchingRows = None):
+		RealDistribNode.__init__(self, program, varName)
 		self.a = a
 		self.b = b
 		self.percentMatchingRows = percentMatchingRows
@@ -379,14 +489,33 @@ class UniformRealDistribNode(RealDistribNode):
 		# no reduction to do here
 		return
 
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.randomizeableNodes.add(self)
+
+	def mutate(self):
+		(lowerBound, upperBound) = self.range
+		if self.a == None:
+			self.a = random.uniform(lowerBound, upperBound) 
+			self.b = random.uniform(self.a, upperBound)
+		else:
+			modParams = overwriteOrModifyOneParam(.3, [self.a, self.b], lowerBound, upperBound, -.1, .1)
+			self.a = modParams[0]
+			self.b = modParams[1]
+			if self.b < self.a:
+				tmp = self.b
+				self.b = self.a
+				self.a = self.b
+
 class IfNode(ASTNode):
-	def __init__(self, conditionNodes, bodyNodes):
+	def __init__(self, program, conditionNodes, bodyNodes):
+		ASTNode.__init__(self, program)
 		self.conditionNodes = conditionNodes
 		self.bodyNodes = bodyNodes
 		for node in self.conditionNodes:
-			node.parent = self
+			node.setParent(self)
 		for node in self.bodyNodes:
-			node.parent = self
+			node.setParent(self)
 
 	def params(self):
 		paramsLs = []
@@ -425,7 +554,7 @@ class IfNode(ASTNode):
 
 	def replace(self, nodeToCut, nodeToAdd):
 		replaced = False
-		nodeToAdd.parent = self
+		nodeToAdd.setParent(self)
 		for i in range(len(self.conditionNodes)):
 			if self.conditionNodes[i] == nodeToCut:
 				self.conditionNodes[i] = nodeToAdd
@@ -556,16 +685,27 @@ class IfNode(ASTNode):
 			newPathCondition = pathCondition + [pathConditionAdditional]
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
 
-	def fillHolesRandomly(self, currVariableType):
+	def fillHolesRandomly(self):
 		print "fillHolesRandomly if"
 		for node in self.conditionNodes:
-			node.fillHolesRandomly(currVariableType)
+			node.fillHolesRandomly()
 		for node in self.bodyNodes:
-			node.fillHolesRandomly(currVariableType)
+			node.fillHolesRandomly()
+
+		# TODO: should probably only add this to randomizeable if some subset of the child nodes actually get randomized
+		# should start recording that
+
+		# can randomize by removing the if
+		self.program.randomizeableNodes.add(self)
+
+	def mutate(self):
+		self.parent.replace(self, self.bodyNodes[0])
 
 class VariableUseNode(ASTNode):
-	def __init__(self, name, typeName):
+	def __init__(self, program, name, typeName):
+		ASTNode.__init__(self, program)
 		self.name = name
+		self.range = self.program.variableRange(self.name)
 		self.typeName = typeName
 
 	def strings(self, tabs=0):
@@ -583,7 +723,8 @@ class ComparisonNode(ASTNode):
 			">": operator.gt,
 			"<": operator.lt}
 
-	def __init__(self, variableNode, relationship = None, value = None):
+	def __init__(self, program, variableNode, relationship = None, value = None):
+		ASTNode.__init__(self, program)
 		self.node = variableNode
 		self.relationship = relationship
 		self.value = value
@@ -600,15 +741,23 @@ class ComparisonNode(ASTNode):
 	def pathConditionFalse(self):
 		return PathConditionComponent([self.node.name], lambda x: not self.ops[self.relationship](x, self.value))
 
-	def fillHolesRandomly(self, currVariableType):
-		print "fillHolesRandomly comparison"
-		if (self.relationship == None):
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.randomizeableNodes.add(self)
+
+	def mutate(self):
+		(lowerBound, upperBound) = self.node.range
+		if (self.relationship == None or random.uniform(0,1) < .1):
 			self.relationship = random.choice(self.ops.keys())
+		else:
+			overwriteOrModifyOneParam(.3, [self.value], lowerBound, upperBound, -.1, .1)
 		if (self.value == None):
-			self.value = 1
+			self.value = random.uniform(lowerBound, upperBound)
 
 class OrNode(ASTNode):
-	def __init__(self, leftNode, rightNode):
+	# TODO: use boolbinexp (boolean binary expression) instead
+	def __init__(self, program, leftNode, rightNode):
+		ASTNode.__init__(self, program)
 		self.lNode = leftNode
 		self.rNode = rightNode
 
@@ -620,34 +769,37 @@ class OrNode(ASTNode):
 		p2 = self.rNode.pathCondition()
 		return PathConditionComponent(p1.varNames + p2.varNames, lambda x, y: p1.func(x) or p2.func(y))
 
-class BoolBinExpNode(ASTNode):
-    def __init__(self, op, e1, e2):
-        # op should be in {'&&','||'}
-        self.op = op
-        self.e1 = e1
-        self.e2 = e2
+	class BoolBinExpNode(ASTNode):
+		def __init__(self, program, op, e1, e2):
+			ASTNode.__init__(self, program)
+			# op should be in {'&&','||'}
+			self.op = op
+			self.e1 = e1
+			self.e2 = e2
 
-    def strings(self, tabs=0):
-        return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
+		def strings(self, tabs=0):
+			return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
 
-class BinExpNode(ASTNode):
-    def __init__(self, op, e1, e2):
-        # op should be in {'+','-','*'}
-        self.op = op
-        self.e1 = e1
-        self.e2 = e2
+	class BinExpNode(ASTNode):
+		def __init__(self, program, op, e1, e2):
+			ASTNode.__init__(self, program)
+			# op should be in {'+','-','*'}
+			self.op = op
+			self.e1 = e1
+			self.e2 = e2
 
-    def strings(self, tabs=0):
-        return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
+		def strings(self, tabs=0):
+			return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
 
-class UnaryExpNode(ASTNode):
-    def __init__(self, op, e):
-        # op should be in {'!'}
-        self.op = op
-        self.e = e
+	class UnaryExpNode(ASTNode):
+		def __init__(self, program, op, e):
+			ASTNode.__init__(self, program)
+			# op should be in {'!'}
+			self.op = op
+			self.e = e
 
-    def strings(self, tabs=0):
-        return self.op + self.e.strings(tabs)
+		def strings(self, tabs=0):
+			return self.op + self.e.strings(tabs)
 
 
 # **********************************************************************
