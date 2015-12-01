@@ -203,6 +203,11 @@ def generatePotentialStructuresFromDataset(dataset):
 # Consume the structure hints, generate a program
 # **********************************************************************
 
+def deepcopyNode(node):
+	newNode = deepcopy(node)
+	newNode.program = node.program # this is a silly way to get around this issue.  fix this
+	return newNode
+
 def main():
 	inputFile = sys.argv[1]
 	ouputFilename = sys.argv[2]
@@ -236,7 +241,7 @@ def main():
 			if isinstance(parent.distribInfo, BooleanDistribution):
 				conditionNodes.append(VariableUseNode(prog, parent.name, parent.distribInfo.typeName))
 				for i in range(2):
-					bodyNodes.append(deepcopy(internal))
+					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(parent.distribInfo, CategoricalDistribution):
 				numValues = len(parent.distribInfo.values)
 				if numValues == 1:
@@ -245,11 +250,11 @@ def main():
 				for i in range(numValues):
 					conditionNodes.append(ComparisonNode(prog, VariableUseNode(prog, parent.name, parent.distribInfo.typeName), "==", parent.distribInfo.values[i]))
 				for i in range(numValues):
-					bodyNodes.append(deepcopy(internal))
+					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(node.distribInfo, IntegerDistribution) or isinstance(node.distribInfo, RealDistribution):
 				conditionNodes.append(ComparisonNode(prog, VariableUseNode(prog, parent.name, parent.distribInfo.typeName)))
 				for i in range(2):
-					bodyNodes.append(deepcopy(internal))
+					bodyNodes.append(deepcopyNode(internal))
 			internal = IfNode(prog, conditionNodes, bodyNodes)
 
 		variableNode = None
@@ -260,7 +265,14 @@ def main():
 	AST.reduce(dataset)
 	AST.fillHolesRandomly()
 
-	print AST.strings()[0]
+	print prog.programString()
+	prog.mutate()
+	print prog.programString()
+	prog.mutate()
+	print prog.programString()
+	prog.mutate()
+	print prog.programString()
+
 	# TODO: do we want to figure out the proper params for the distributions we've added?
 	#AST.fillHolesForConcretePathConditions(dataset)
 	#AST.reduce(dataset)

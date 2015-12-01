@@ -130,8 +130,8 @@ class PathConditionComponent:
 
 class Program:
 	def __init__(self, dataset):
-		self.randomizeableNodes = set()
-		self.variables = set()
+		self.randomizeableNodes = []
+		self.variables = []
 		self.dataset = dataset
 		self.root = None
 
@@ -142,11 +142,15 @@ class Program:
 		return (self.dataset.columnMins[variableName], self.dataset.columnMaxes[variableName])
 
 	def mutate(self):
-		node = random.choice(self.randomizeableNodes)
+		node = random.choice(list(self.randomizeableNodes))
+		print "*********"
+		print self.randomizeableNodes
+		print node
+		print "*********"
 		node.mutate()
 
 	def programString(self):
-		return self.root.strings()
+		return self.root.strings()[0]
 
 class ASTNode:
 	def __init__(self, program):
@@ -224,7 +228,7 @@ class VariableDeclNode(ASTNode):
 
 	def fillHolesRandomly(self):
 		self.RHS.fillHolesRandomly()
-		self.program.variables.add(self)
+		self.program.variables.append(self)
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		print "reduce variabledecl", pathCondition, self.name
@@ -380,7 +384,7 @@ class RealDistribNode(DistribNode):
 	def fillHolesRandomly(self):
 		self.mutate()
 		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
-		self.program.randomizeableNodes.add(self)
+		self.program.randomizeableNodes.append(self)
 
 	def mutate(self):
 		nodeType = random.choice(self.availableNodeTypes)
@@ -421,7 +425,7 @@ class GaussianDistribNode(RealDistribNode):
 
 	def fillHolesRandomly(self):
 		self.mutate()
-		self.program.randomizeableNodes.add(self)
+		self.program.randomizeableNodes.append(self)
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.range
@@ -454,8 +458,9 @@ class BetaDistribNode(RealDistribNode):
 		return
 
 	def fillHolesRandomly(self):
+		print "beta fill holes"
 		self.mutate()
-		self.program.randomizeableNodes.add(self)
+		self.program.randomizeableNodes.append(self)
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.range # TODO: what is this param?  what's a good limit?
@@ -491,7 +496,7 @@ class UniformRealDistribNode(RealDistribNode):
 
 	def fillHolesRandomly(self):
 		self.mutate()
-		self.program.randomizeableNodes.add(self)
+		self.program.randomizeableNodes.append(self)
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.range
@@ -696,7 +701,7 @@ class IfNode(ASTNode):
 		# should start recording that
 
 		# can randomize by removing the if
-		self.program.randomizeableNodes.add(self)
+		self.program.randomizeableNodes.append(self)
 
 	def mutate(self):
 		self.parent.replace(self, self.bodyNodes[0])
@@ -743,7 +748,7 @@ class ComparisonNode(ASTNode):
 
 	def fillHolesRandomly(self):
 		self.mutate()
-		self.program.randomizeableNodes.add(self)
+		self.program.randomizeableNodes.append(self)
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.node.range
