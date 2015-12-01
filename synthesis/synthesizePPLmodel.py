@@ -260,10 +260,7 @@ def main():
 			internal = IfNode(conditionNodes, bodyNodes)
 
 		variableNode = None
-		if isinstance(node.distribInfo, BooleanDistribution):
-			variableNode = VariableDeclNode(node.name, "Boolean", internal)
-		elif isinstance(node.distribInfo, CategoricalDistribution):
-			variableNode = VariableDeclNode(node.name, "CategoricalDistribution", internal)
+		variableNode = VariableDeclNode(node.name, node.distribInfo.typeName, internal)
 		AST.addChild(variableNode)
 
 	AST.fillHolesForConcretePathConditions(dataset)

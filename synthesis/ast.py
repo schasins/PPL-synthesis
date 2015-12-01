@@ -6,11 +6,13 @@ from itertools import combinations
 
 class BooleanDistribution:
 	def __init__(self):
+		self.typeName = "Boolean"
 		return
 
 class CategoricalDistribution:
-	def __init__(self, values):
+	def __init__(self, values, typeName):
 		self.values = values
+		self.typeName = typeName
 
 # **********************************************************************
 # Data structures for creating PPL ASTs
@@ -29,8 +31,8 @@ class Dataset:
 		for i in range(len(lineItems)):
 			lineItem = lineItems[i]
 			if lineItem != "":
-				names[i] = lineItem
-				indexes[lineItem] = i
+				names[i] = lineItem.replace("(", "_").replace(")", "_")
+				indexes[names[i]] = i
 				numItems = i
 
 		numItems += 1
@@ -66,7 +68,7 @@ class Dataset:
 			if currColumnValues == set(["true", "false"]):
 				columnDistributionInformation.append(BooleanDistribution())
 			else:
-				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues)))
+				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues), names[i]+"Type"))
 		self.columnDistributionInformation = columnDistributionInformation
 
 	def makePathConditionFilter(self, pathCondition):
