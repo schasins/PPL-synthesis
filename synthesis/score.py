@@ -203,6 +203,7 @@ class ScoreEstimator(visitor):
     def visit_BoolBinExpNode(self, ast):
         x1 = self.visit(ast.e1)
         x2 = self.visit(ast.e2)
+        q = None
         if ast.op == '&&':
             q = x1.p * x2.p
         elif ast.op == '||':
