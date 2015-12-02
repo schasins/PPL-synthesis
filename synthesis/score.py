@@ -13,7 +13,7 @@ def guass(x, mu, sig):
     
 class Bernoulli:
     def __init__(self, p):
-        self.p = p
+        self.p = 1.0 * p
 
     def __str__(self):
         return "Bernoulli(%.6f)" % self.p
@@ -29,8 +29,8 @@ class MoG:
     def __init__(self, n, w, mu, sig):
         self.n = n
         self.w = w     # list of mixing fractions
-        self.mu = mu   # list of means
-        self.sig = sig # list of variances
+        self.mu = 1.0 * mu   # list of means
+        self.sig = 1.0 * sig # list of variances
 
     def __str__(self):
         return "MoG(" + str(self.n) + "," + str(self.w) + "," + str(self.mu) + "," + str(self.sig) + ")"
@@ -51,20 +51,32 @@ class visitor:
             return self.visit_VariableDeclNode(ast)
         elif isinstance(ast, BooleanDistribNode):
             return self.visit_BooleanDistribNode(ast)
+        elif isinstance(ast,CategoricalDistribNode):
+            return self.visit_CategoricalDistribNode(ast)
         elif isinstance(ast, GaussianDistribNode):
             return self.visit_GaussianDistribNode(ast)
+        elif isinstance(ast,BetaDistribNode):
+            return self.visit_BetaDistribNode(ast)
+        elif isinstance(ast,UniformRealDistribNode):
+            raise "Scoring does not support UniformRealDistribNode."
         elif isinstance(ast, VariableUseNode):
             return self.visit_VariableUseNode(ast)
         elif isinstance(ast, IfNode):
             return self.visit_IfNode(ast)
+        elif isinstance(ast, ComparisonNode):
+            return self.visit_ComparisonNode(ast)
         elif isinstance(ast, BoolBinExpNode):
             return self.visit_BoolBinExpNode(ast)
         elif isinstance(ast, BinExpNode):
             return self.visit_BinExpNode(ast)
         elif isinstance(ast, UnaryExpNode):
             return self.visit_UnaryExpNode(ast)
+        elif isinstance(ast, bool):
+            return self.visit_BoolConstant(ast)
         elif isinstance(ast, int) or isinstance(ast, float):
             return self.visit_Constant(ast)
+        elif isinstance(ast, str):
+            return self.visit_String(ast)
         else:
             return self.visit_ASTNode(ast)
 
@@ -104,15 +116,34 @@ class ScoreEstimator(visitor):
         self.env[ast.name] = self.visit(ast.RHS)
 
     def visit_Constant(self, ast):
-        return MoG(1,np.array([1]),np.array([ast]),np.array([0]))
+        return MoG(1,np.array([1]),np.array([1.0 * ast]),np.array([0.0]))
+
+    def visit_BoolConstant(self, ast):
+        if ast:
+            return Bernoulli(1)
+        else:
+            return Bernoulli(0)
+
+    def visit_String(self,ast):
+        return CategoricalDistribNode([ast],{ast:1.0})
 
     def visit_BooleanDistribNode(self, ast):
         return Bernoulli(ast.percentTrue)
 
+    def visit_CategoricalDistribNode(self, ast):
+        return ast
+
+    def visit_BetaDistribNode(self, ast):
+        alpha = ast.alpha
+        beta = ast.beta
+        return MoG(1,np.array([1]), \
+                   np.array([(1.0*alpha)/(alpha + beta)]), \
+                   np.array([math.sqrt(1.0*alpha*beta / ((alpha+beta)**2 * (alpha+beta+1)))]))
+
     def visit_GaussianDistribNode(self, ast):
         if (isinstance(ast.mu,int) or isinstance(ast.mu,float)) and \
            (isinstance(ast.sig,int) or isinstance(ast.sig,float)):
-            return MoG(1,np.array([1]),np.array([ast.mu]),np.array([ast.sig]))
+            return MoG(1,np.array([1]),np.array([1.0*ast.mu]),np.array([1.0*ast.sig]))
         else:
             x1 = self.visit(ast.mu)
             x2 = self.visit(ast.sig)
@@ -154,14 +185,14 @@ class ScoreEstimator(visitor):
         mog1 = self.visit(ast.e1)
         mog2 = self.visit(ast.e2)
         if ast.op == '+':
-            mu_op = lambda x,y: x+y
+            mu_op = lambda x,y,s1,s2: x+y
             sig_op = lambda x,y: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
         elif ast.op == '-':
-            mu_op = lambda x,y: x-y
+            mu_op = lambda x,y,s1,s2: x-y
             sig_op = lambda x,y: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
         elif ast.op == '*':
-            mu_op = lambda x,y: x*y
-            sig_op = lambda x,y: x*y # + 2*alpha*x*y
+            mu_op = lambda m1,m2,s1,s2: (m1*(s2**1) + m2*(s1**2))/(s1**2 + s2**2)
+            sig_op = lambda x,y: ((x**2) * (y**2))/(x**2 + y**2)
         else:
             raise "ScoreEstimator: BinExpNode: do not support" + ast.op
 
@@ -171,7 +202,7 @@ class ScoreEstimator(visitor):
         for i in xrange(mog1.n):
             for j in xrange(mog2.n):
                 w.append(mog1.w[i] * mog2.w[j])
-                mu.append(mu_op(mog1.mu[i], mog2.mu[j]))
+                mu.append(mu_op(mog1.mu[i], mog2.mu[j],mog1.sig[i], mog2.sig[j]))
                 sig.append(sig_op(mog1.sig[i], mog2.sig[j]))
 
         return MoG(mog1.n*mog2.n, np.array(w), np.array(mu), np.array(sig))
@@ -183,6 +214,41 @@ class ScoreEstimator(visitor):
         else:
             raise "ScoreEstimator: UnaryExpNode: currently only support '!' with bernoulli variable"
 
+    def visit_ComparisonNode(self, ast):
+        e1 = self.visit(ast.node)
+        e2 = self.visit(ast.value)
+        # == for boolean, categorical, real
+        if ast.relationship == "==":
+            if isinstance(e1,Bernoulli) and isinstance(e2,Bernoulli):
+                return Bernoulli((e1.p*e2.p) + (1-e1.p)*(1-e2.p))
+            elif isinstance(e1,MoG) and isinstance(e2,MoG):
+                p = 0
+                for i in xrange(e1.n):
+                    for j in xrange(e2.n):
+                        if e1.mu[i] == e2.mu[j] and \
+                           e1.sig[i] == 0 and e2.sig[j] == 0:
+                            p = p + e1.w[i]*e2.w[j]
+                return Bernoulli(p)
+            elif isinstance(e1,CategoricalDistribNode) and isinstance(e2,CategoricalDistribNode):
+                p = 0
+                for i in e1.values:
+                    for j in e2.values:
+                        if i == j:
+                            p = p + e1.valuesToPercentages[i]*e2.valuesToPercentages[j]
+                return Bernoulli(p)
+            else:
+                raise "ComparisonNode: types mismatch"
+        # >, < for real
+        elif isinstance(e1,MoG) and isinstance(e2,MoG):
+            if ast.relationship == "<":
+                # swap
+                tmp = e1
+                e1 = e2
+                e2 = tmp
+            raise "X > Y: to be supported"
+        else:
+            raise "ComparisonNode: types mismatch at " + ast.strings
+            
 
 # **********************************************************************
 # AST Mutator
@@ -216,6 +282,12 @@ class Mutator(visitor):
     def visit_Constant(self, ast):
         return ast
 
+    def visit_BoolConstant(self, ast):
+        return ast
+
+    def visit_String(self, ast):
+        return ast
+
     def visit_BooleanDistribNode(self, ast):
         if self.level == "low":
             p = ast.percentTrue + (random()-0.5)/5
@@ -224,6 +296,9 @@ class Mutator(visitor):
             return BooleanDistribNode(p)
         else:
             return BooleanDistribNode(random())
+
+    def visit_CategoricalDistribNode(self, ast):
+        return ast
         
     def visit_GaussianDistribNode(self, ast):
         if self.level == "low":
@@ -231,11 +306,17 @@ class Mutator(visitor):
         else:
             return GaussianDistribNode(change(ast.mu,2), change(ast.sig,2))
 
+    def visit_BetaDistribNode(self, ast):
+        return ast
+    
     def visit_VariableUseNode(self, ast):
         return VariableUseNode(ast.name)
 
     def visit_IfNode(self, ast):
         return IfNode(self.visit(ast.conditionNode), self.visit(ast.thenNode), self.visit(ast.elseNode))
+    
+    def visit_ComparisonNode(self, ast):
+        return ComparisonNode(ast.node, ast.relationship, ast.value)
     
     def visit_BoolBinExpNode(self, ast):
         return BoolBinExpNode(ast.op, self.visit(ast.e1), self.visit(ast.e2))
