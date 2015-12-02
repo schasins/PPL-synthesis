@@ -66,17 +66,18 @@ def testMoG7():
     print mog
 
 def testMoG8():
-    x = CategoricalDistribNode(["a","b","c"],{"a":0.2,"b":0.3,"c":0.5})
-    tests = [ComparisonNode(B02, "==", B02), \
-             ComparisonNode(B02, "==", True), \
-             ComparisonNode(True, "==", True), \
-             ComparisonNode(True, "==", False), \
-             ComparisonNode(G(10,0), "==", G(10,0)), \
-             ComparisonNode(G(10,1), "==", G(10,0)), \
-             ComparisonNode(G(10,0), "==", G(11,0)), \
+    x = CategoricalDistribNode(None,["a","b","c"],{"a":0.2,"b":0.3,"c":0.5})
+    tests = [#ComparisonNode(B02, "==", B02), \
+             #ComparisonNode(B02, "==", True), \
+             #ComparisonNode(True, "==", True), \
+             #ComparisonNode(True, "==", False), \
+             #ComparisonNode(G(10,0), "==", G(10,0)), \
+             #ComparisonNode(G(10,1), "==", G(10,0)), \
+             #ComparisonNode(G(10,0), "==", G(11,0)), \
              ComparisonNode(x, "==", x), \
              ComparisonNode(x, "==", "a"), \
              ComparisonNode("b", "==", "a"), \
+             ComparisonNode(G(-0.5,1), ">", G(0,1)), \
     ]
 
     for ast in tests:
@@ -87,4 +88,4 @@ def testMoG8():
         print mog
         print "-------------------------------------------------------"
 
-testMoG2()
+testMoG8()

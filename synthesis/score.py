@@ -3,6 +3,7 @@ from math import log, sqrt
 from random import random
 import math
 import numpy as np
+import scipy.special
 
 # **********************************************************************
 # Distributions
@@ -59,6 +60,9 @@ class visitor:
             return self.visit_BetaDistribNode(ast)
         elif isinstance(ast,UniformRealDistribNode):
             raise "Scoring does not support UniformRealDistribNode."
+        elif isinstance(ast,RealDistribNode):
+            return self.visit_RealDistribNode(ast)
+        
         elif isinstance(ast, VariableUseNode):
             return self.visit_VariableUseNode(ast)
         elif isinstance(ast, IfNode):
@@ -103,9 +107,14 @@ class ScoreEstimator(visitor):
             name = self.dataset.indexesToNames[col]
             dist = self.env[name]
             for val in self.dataset.columns[col]:
-                # print "val = ", dist.at(val)
-                # print "log(val) = ", log(dist.at(val))
-                loglik = loglik + log(dist.at(val))
+                pdf = dist.at(val)
+                if pdf <= 0:
+                    print "name", name
+                    print "dist", dist
+                    print "pdf = ", pdf
+                    
+                log_pdf = log(pdf)
+                loglik = loglik + log_pdf
         return loglik
 
     def visit_ASTNode(self, ast):
@@ -113,6 +122,7 @@ class ScoreEstimator(visitor):
             self.visit(c)
 
     def visit_VariableDeclNode(self, ast):
+        rhs = self.visit(ast.RHS)
         self.env[ast.name] = self.visit(ast.RHS)
 
     def visit_Constant(self, ast):
@@ -125,13 +135,16 @@ class ScoreEstimator(visitor):
             return Bernoulli(0)
 
     def visit_String(self,ast):
-        return CategoricalDistribNode([ast],{ast:1.0})
+        return CategoricalDistribNode(None,[ast],{ast:1.0})
 
     def visit_BooleanDistribNode(self, ast):
         return Bernoulli(ast.percentTrue)
 
     def visit_CategoricalDistribNode(self, ast):
         return ast
+
+    def visit_RealDistribNode(self, ast):
+        return self.visit(ast.actualDistribNode)
 
     def visit_BetaDistribNode(self, ast):
         alpha = ast.alpha
@@ -226,8 +239,12 @@ class ScoreEstimator(visitor):
             raise "ScoreEstimator: UnaryExpNode: currently only support '!' with bernoulli variable"
 
     def visit_ComparisonNode(self, ast):
+        # print "ast.node = ", ast.node
+        # print "ast.value = ", ast.value
         e1 = self.visit(ast.node)
         e2 = self.visit(ast.value)
+        # print "e1 = ", e1
+        # print "e2 = ", e2
         # == for boolean, categorical, real
         if ast.relationship == "==":
             if isinstance(e1,Bernoulli) and isinstance(e2,Bernoulli):
@@ -248,7 +265,7 @@ class ScoreEstimator(visitor):
                             p = p + e1.valuesToPercentages[i]*e2.valuesToPercentages[j]
                 return Bernoulli(p)
             else:
-                raise "ComparisonNode: types mismatch"
+                raise "ComparisonNode: types mismatch #1"
         # >, < for real
         elif isinstance(e1,MoG) and isinstance(e2,MoG):
             if ast.relationship == "<":
@@ -256,10 +273,19 @@ class ScoreEstimator(visitor):
                 tmp = e1
                 e1 = e2
                 e2 = tmp
-            raise "X > Y: to be supported"
+            p = 0
+            for i in range(e1.n):
+                for j in range(e2.n):
+                    p = p + (1 + erf(e1.mu[i],e2.mu[j],e1.sig[i],e2.sig[j])) \
+                        * 0.5 * e1.w[i] * e2.w[j]
+            return Bernoulli(p)
         else:
-            raise "ComparisonNode: types mismatch at " + ast.strings
-            
+            raise "ComparisonNode: types mismatch #2"
+
+def erf(mu1,mu2,sig1,sig2):
+    x = (mu1 - mu2)/math.sqrt(2*(sig1**2 + sig2**2))
+    return scipy.special.erf(x)
+
 
 # **********************************************************************
 # AST Mutator
@@ -318,6 +344,9 @@ class Mutator(visitor):
             return GaussianDistribNode(change(ast.mu,2), change(ast.sig,2))
 
     def visit_BetaDistribNode(self, ast):
+        return ast
+
+    def visit_RealDistribNode(self, ast):
         return ast
     
     def visit_VariableUseNode(self, ast):
