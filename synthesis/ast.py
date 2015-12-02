@@ -55,6 +55,7 @@ class Dataset:
 			lineItem = lineItems[i]
 			if lineItem != "":
 				names[i] = lineItem.replace("(", "").replace(")", "")
+				print names[i]
 				indexes[names[i]] = i
 				numItems = i
 
@@ -595,6 +596,7 @@ class IfNode(ASTNode):
 		return nodeToAdd
 
 	def reduce(self, dataset, pathCondition, currVariable):
+		print currVariable.name, len(self.bodyNodes)
 		for pair in combinations(range(len(self.bodyNodes)), 2):
 			p1i = pair[0]
 			p2i = pair[1]
@@ -772,8 +774,9 @@ class ComparisonNode(ASTNode):
 		return PathConditionComponent([self.node.name], lambda x: not self.ops[self.relationship](x, self.value))
 
 	def fillHolesRandomly(self):
-		self.mutate()
-		self.program.randomizeableNodes.append(self)
+		if self.node.typeName == "Real" or self.node.typeName == "Integer":
+			self.mutate()
+			self.program.randomizeableNodes.append(self)
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.node.range()

@@ -291,9 +291,9 @@ def main():
 	initState = PPLSynthesisProblem.makeInitialState(prog)
 	saObj = PPLSynthesisProblem(initState)
 	saObj.setNeeded(dataset)
-	saObj.steps = 10000 #how many iterations will we do?
-	saObj.updates = 10000 # how many times will we print current status
-	saObj.Tmax = 250000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
+	saObj.steps = 5000 #how many iterations will we do?
+	saObj.updates = 5000 # how many times will we print current status
+	saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
 	print "---"
 	print saObj.Tmax
 	saObj.Tmin = .001 # how big an increase in distance are we willing to accept at the end?
