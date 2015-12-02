@@ -133,7 +133,7 @@ class PPLSynthesisProblem(Annealer):
 		self.state.mutate()
 
 	def energy(self):
-		return estimateScore(self.state.root, self.dataset)
+		return -1*estimateScore(self.state.root, self.dataset)
 
 	@staticmethod
 	def makeInitialState(prog):
@@ -268,7 +268,7 @@ def main():
 
 
 	print prog.programString()
-	
+
 	AST.fillHolesRandomly()
 
 	print prog.programString()
