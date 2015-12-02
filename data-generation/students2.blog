@@ -1,0 +1,12 @@
+
+random Boolean skilled ~ BooleanDistrib(.2);
+
+random Boolean tired ~ BooleanDistrib(.5);
+
+random Real testPerformance ~
+	if skilled then
+		if tired then Gaussian(70, 20)
+		else Gaussian(90, 5)
+	else
+		if tired then Gaussian(30, 15)
+		else Gaussian(70, 5);

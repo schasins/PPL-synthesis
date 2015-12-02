@@ -264,11 +264,15 @@ def main():
 
 
 	AST.fillHolesForConcretePathConditions(dataset)
+
 	AST.reduce(dataset)
+
+	print prog.programString()
+	print "*****"
 
 	AST.fillHolesRandomly()
 
-	#print prog.programString()
+	print prog.programString()
 
 	# print "actual score: ", estimateScore(prog.root, dataset)
 	# for i in range(10):
