@@ -150,10 +150,10 @@ class PPLSynthesisProblem(Annealer):
 def generateReducibleStructuresFromDataset(dataset):
 	g = Graph()
 	for i in range(dataset.numColumns):
+		name1 = dataset.indexesToNames[i]
+		a1 = g.getNode(name1, dataset.columnDistributionInformation[i])
 		for j in range(i+1, dataset.numColumns):
-			name1 = dataset.indexesToNames[i]
 			name2 = dataset.indexesToNames[j]
-			a1 = g.getNode(name1, dataset.columnDistributionInformation[i])
 			a2 = g.getNode(name2, dataset.columnDistributionInformation[j])
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1)
@@ -254,9 +254,9 @@ def main():
 					bodyNodes.append(deepcopyNode(internal))
 			internal = IfNode(conditionNodes, bodyNodes)
 
-		variableNode = None
 		variableNode = VariableDeclNode(node.name, node.distribInfo.typeName, internal)
 		AST.addChild(variableNode)
+		print "adding child"
 
 	prog = Program(dataset)
 	prog.setRoot(AST)
