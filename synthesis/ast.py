@@ -377,7 +377,7 @@ class RealDistribNode(DistribNode):
 		DistribNode.__init__(self)
 		self.varName = varName
 		self.actualDistribNode = actualDistribNode
-		self.availableNodeTypes = [GaussianDistribNode, BetaDistribNode, UniformRealDistribNode]
+		self.availableNodeTypes = [GaussianDistribNode, BetaDistribNode]
 
 	def strings(self, tabs=0):
 		if self.actualDistribNode == None:
