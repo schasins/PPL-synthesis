@@ -77,7 +77,7 @@ def testMoG8():
              ComparisonNode(x, "==", x), \
              ComparisonNode(x, "==", "a"), \
              ComparisonNode("b", "==", "a"), \
-             ComparisonNode(G(-0.5,1), ">", G(0,1)), \
+             ComparisonNode(G(0.1,0), ">", G(0,0)), \
     ]
 
     for ast in tests:
