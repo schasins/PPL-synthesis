@@ -443,11 +443,15 @@ class GaussianDistribNode(RealDistribNode):
 		(lowerBound, upperBound) = self.program.variableRange(self.varName)
 		if self.mu == None:
 			self.mu = random.uniform(lowerBound, upperBound) # TODO what's actually a good upper limit?
-			self.sig = random.uniform(lowerBound, upperBound)
+			self.sig = random.uniform(0, upperBound)
 		else:
-			modParams = overwriteOrModifyOneParam(.3, [self.mu, self.sig], lowerBound, upperBound, -.1, .1)
-			self.mu = modParams[0]
-			self.sig = modParams[1]
+			# TODO: putting in a temporary fix for the fact they don't have the same bounds, should do something nicer
+			if random.uniform(0,1) < .5:
+				modParams = overwriteOrModifyOneParam(.3, [self.mu], lowerBound, upperBound, -.1, .1)
+				self.mu = modParams[0]
+			else:
+				modParams = overwriteOrModifyOneParam(.3, [self.sig], 0, upperBound, -.1, .1)
+				self.sig = modParams[0]
 
 class BetaDistribNode(RealDistribNode):
 	def __init__(self, varName, alpha=None, beta=None, percentMatchingRows = None):
