@@ -4,6 +4,7 @@ from random import random
 import math
 import numpy as np
 import scipy.special
+from sys import maxint
 
 # **********************************************************************
 # Distributions
@@ -108,11 +109,14 @@ class ScoreEstimator(visitor):
             dist = self.env[name]
             for val in self.dataset.columns[col]:
                 pdf = dist.at(val)
-                if pdf <= 0:
+                if pdf < 0:
                     print "name", name
                     print "dist", dist
+                    print "val", val
                     print "pdf = ", pdf
-                    
+
+                if pdf == 0:
+                    return -maxint
                 log_pdf = log(pdf)
                 loglik = loglik + log_pdf
         return loglik
