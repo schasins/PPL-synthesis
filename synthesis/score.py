@@ -287,7 +287,10 @@ class ScoreEstimator(visitor):
             raise "ComparisonNode: types mismatch #2"
 
 def erf(mu1,mu2,sig1,sig2):
-    x = (mu1 - mu2)/math.sqrt(2*(sig1**2 + sig2**2))
+    d = math.sqrt(2*(sig1**2 + sig2**2))
+    if d == 0:
+        return 1
+    x = (mu1 - mu2)/d
     return scipy.special.erf(x)
 
 
