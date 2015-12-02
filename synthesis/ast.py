@@ -260,8 +260,8 @@ class DistribNode(ASTNode):
 		self.program = program
 
 class BooleanDistribNode(DistribNode):
-	def __init__(self, program, varName, percentTrue=None, percentMatchingRows = None):
-		DistribNode.__init__(self, program)
+	def __init__(self, varName, percentTrue=None, percentMatchingRows = None):
+		DistribNode.__init__(self)
 		self.percentTrue = percentTrue
 		self.varName = varName
 		self.percentMatchingRows = percentMatchingRows

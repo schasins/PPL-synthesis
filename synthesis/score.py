@@ -158,10 +158,10 @@ class ScoreEstimator(visitor):
     def visit_VariableUseNode(self, ast):
         return self.env[ast.name]
 
-    def visit_IfNode(self, ast):
-        cond = self.visit(ast.conditionNode)
-        true = self.visit(ast.thenNode)
-        false = self.visit(ast.elseNode)
+    def ite(self,cond, true, false):
+        # cond = self.visit(ast.conditionNode)
+        # true = self.visit(ast.thenNode)
+        # false = self.visit(ast.elseNode)
         if isinstance(cond, Bernoulli) and \
            isinstance(true, Bernoulli) and isinstance(false, Bernoulli):
             return Bernoulli(cond.p * true.p + (1 - cond.p) * false.p)
@@ -171,6 +171,17 @@ class ScoreEstimator(visitor):
                        np.concatenate((cond.p * true.w, (1-cond.p) * false.w), axis=0), \
                        np.concatenate((true.mu, false.mu), axis=0), \
                        np.concatenate((true.sig, false.sig), axis=0))
+
+    def visit_IfNode(self, ast):
+        conditions = [self.visit(x) for x in ast.conditionNodes]
+        bodies = [self.visit(x) for x in ast.bodyNodes]
+
+        working = bodies[-1]
+        # traverse in reversed order
+        for i in range(len(conditions))[::-1]:
+            working = self.ite(conditions[i],bodies[i],working)
+
+        return working
 
     def visit_BoolBinExpNode(self, ast):
         x1 = self.visit(ast.e1)
@@ -313,7 +324,9 @@ class Mutator(visitor):
         return VariableUseNode(ast.name)
 
     def visit_IfNode(self, ast):
-        return IfNode(self.visit(ast.conditionNode), self.visit(ast.thenNode), self.visit(ast.elseNode))
+        conditions = [self.visit(x) for x in ast.conditionNodes]
+        bodies = [self.visit(x) for x in ast.bodyNodes]
+        return IfNode(conditions, bodies)
     
     def visit_ComparisonNode(self, ast):
         return ComparisonNode(ast.node, ast.relationship, ast.value)
