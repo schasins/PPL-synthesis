@@ -203,12 +203,12 @@ class ScoreEstimator(visitor):
     def visit_BoolBinExpNode(self, ast):
         x1 = self.visit(ast.e1)
         x2 = self.visit(ast.e2)
-        q = None
         if ast.op == '&&':
             q = x1.p * x2.p
+            return Bernoulli(q)
         elif ast.op == '||':
             q = x1.p + x2.p - (x1.p*x2.p)
-        return Bernoulli(q)
+            return Bernoulli(q)
 
     def visit_BinExpNode(self, ast):
         mog1 = self.visit(ast.e1)
