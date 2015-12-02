@@ -240,6 +240,7 @@ class VariableDeclNode(ASTNode):
 		self.RHS.reduce(dataset, pathCondition, self) # the current node is now the variable being defined
 
 class TypeDeclNode(ASTNode):
+
 	def __init__(self, name, values):
 		ASTNode.__init__(self)
 		self.name = name
@@ -660,7 +661,7 @@ class IfNode(ASTNode):
 					return
 				else:
 					# combine a couple branches
-					newConditionNode = OrNode(self.conditionNodes[p1i], self.conditionNodes[p2i])
+					newConditionNode = BoolBinExpNode("|", self.conditionNodes[p1i], self.conditionNodes[p2i])
 					self.conditionNodes[p1i] = newConditionNode
 
 					# adapt the body node fillded holes to our new condition
@@ -779,27 +780,11 @@ class ComparisonNode(ASTNode):
 		if (self.value == None):
 			self.value = random.uniform(lowerBound, upperBound)
 
-class OrNode(ASTNode):
-	# TODO: use boolbinexp (boolean binary expression) instead
-	def __init__(self, leftNode, rightNode):
-		ASTNode.__init__(self)
-		self.lNode = leftNode
-		self.rNode = rightNode
-
-	def setProgram(self, program):
-		self.program = program
-		self.lNode.setProgram(program)
-		self.rNode.setProgram(program)
-
-	def strings(self, tabs=0):
-		return combineStrings([self.lNode.strings(), [" | "], self.rNode.strings()])
-
-	def pathCondition(self):
-		p1 = self.lNode.pathCondition()
-		p2 = self.rNode.pathCondition()
-		return PathConditionComponent(p1.varNames + p2.varNames, lambda x, y: p1.func(x) or p2.func(y))
-
 class BoolBinExpNode(ASTNode):
+
+	ops = {	"&": operator.__and__,
+			"|": operator.__or__}
+
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
 		# op should be in {'&&','||'}
@@ -807,8 +792,18 @@ class BoolBinExpNode(ASTNode):
 		self.e1 = e1
 		self.e2 = e2
 
+	def setProgram(self, program):
+		self.program = program
+		self.e1.setProgram(program)
+		self.e2.setProgram(program)
+
 	def strings(self, tabs=0):
-		return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
+		return combineStrings([self.e1.strings(), [" "+self.op+" "], self.e2.strings()])
+
+	def pathCondition(self):
+		p1 = self.e1.pathCondition()
+		p2 = self.e2.pathCondition()
+		return PathConditionComponent(p1.varNames + p2.varNames, lambda x, y: self.ops[self.op](p1.func(x), p2.func(y)))
 
 class BinExpNode(ASTNode):
 	def __init__(self, op, e1, e2):

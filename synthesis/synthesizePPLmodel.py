@@ -224,9 +224,9 @@ def main():
 		if isinstance(node.distribInfo, BooleanDistribution):
 			internal = BooleanDistribNode(node.name)
 		elif isinstance(node.distribInfo, CategoricalDistribution):
-			typeDecl = TypeDeclNode(node.name, node.distribInfo.typeName, node.distribInfo.values)
+			typeDecl = TypeDeclNode(node.distribInfo.typeName, node.distribInfo.values)
 			AST.addChild(typeDecl)
-			internal = CategoricalDistribNode(node.distribInfo.values)
+			internal = CategoricalDistribNode(node.name, node.distribInfo.values)
 		elif isinstance(node.distribInfo, IntegerDistribution):
 			internal = IntegerDistribNode(node.name)
 		elif isinstance(node.distribInfo, RealDistribution):
@@ -261,8 +261,14 @@ def main():
 	prog = Program(dataset)
 	prog.setRoot(AST)
 
+
+
 	AST.fillHolesForConcretePathConditions(dataset)
 	AST.reduce(dataset)
+
+
+	print prog.programString()
+	
 	AST.fillHolesRandomly()
 
 	print prog.programString()
