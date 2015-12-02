@@ -266,12 +266,12 @@ def main():
 	AST.fillHolesRandomly()
 
 	print prog.programString()
-	prog.mutate()
-	print prog.programString()
-	prog.mutate()
-	print prog.programString()
-	prog.mutate()
-	print prog.programString()
+	# prog.mutate()
+	# print prog.programString()
+	# prog.mutate()
+	# print prog.programString()
+	# prog.mutate()
+	# print prog.programString()
 
 	# TODO: do we want to figure out the proper params for the distributions we've added?
 	#AST.fillHolesForConcretePathConditions(dataset)
