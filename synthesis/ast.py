@@ -144,10 +144,10 @@ class Program:
 
 	def mutate(self):
 		node = random.choice(list(self.randomizeableNodes))
-		print "*********"
-		print self.randomizeableNodes
-		print node
-		print "*********"
+		#print "********"
+		#print node
+		#print node.strings()
+		#print "********"
 		node.mutate()
 
 	def programString(self):
@@ -237,7 +237,6 @@ class VariableDeclNode(ASTNode):
 		self.program.variables.append(self)
 
 	def reduce(self, dataset, pathCondition, currVariable):
-		print "reduce variabledecl", pathCondition, self.name
 		self.RHS.reduce(dataset, pathCondition, self) # the current node is now the variable being defined
 
 class TypeDeclNode(ASTNode):
@@ -401,10 +400,7 @@ class RealDistribNode(DistribNode):
 		nodeType = random.choice(self.availableNodeTypes)
 		self.actualDistribNode = nodeType(self.varName)
 		self.actualDistribNode.setProgram(self.program)
-		print len(self.program.randomizeableNodes)
 		self.actualDistribNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
-		print len(self.program.randomizeableNodes)
-		print "5555555555555555"
 
 def overwriteOrModifyOneParam(overWriteProb, paramsLs, lowerLimit, upperLimit, modificationLowerLimit, modificationUpperLimit):
 	indexToChange = random.choice(range(len(paramsLs)))
@@ -439,7 +435,6 @@ class GaussianDistribNode(RealDistribNode):
 		return
 
 	def fillHolesRandomly(self):
-		print "gaussian fill holes"
 		self.mutate()
 		self.program.randomizeableNodes.append(self)
 
@@ -474,7 +469,6 @@ class BetaDistribNode(RealDistribNode):
 		return
 
 	def fillHolesRandomly(self):
-		print "beta fill holes"
 		self.mutate()
 		self.program.randomizeableNodes.append(self)
 
@@ -511,7 +505,6 @@ class UniformRealDistribNode(RealDistribNode):
 		return
 
 	def fillHolesRandomly(self):
-		print "uniform real fill holes"
 		self.mutate()
 		self.program.randomizeableNodes.append(self)
 
@@ -597,7 +590,6 @@ class IfNode(ASTNode):
 		return nodeToAdd
 
 	def reduce(self, dataset, pathCondition, currVariable):
-		print "reduce", pathCondition, currVariable
 		for pair in combinations(range(len(self.bodyNodes)), 2):
 			p1i = pair[0]
 			p2i = pair[1]
@@ -607,11 +599,6 @@ class IfNode(ASTNode):
 				# the path conditions going down aren't concrete, so it doesn't make sense to reduce yet
 				continue
 			match = True
-			print "*****"
-			print self.bodyNodes[p1i].strings()
-			print params1
-			print self.bodyNodes[p2i].strings()
-			print params2
 			# because we always construct then and else branches to be the same, we can rely on the structure to be the same, don't need to check path conditions
 			for i in range(len(params1)):
 				param1 = params1[i] # a tuple of distrib type, relevant parmas, num of rows on which based; should eventually add path condition
@@ -715,7 +702,6 @@ class IfNode(ASTNode):
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
 
 	def fillHolesRandomly(self):
-		print "fillHolesRandomly if"
 		for node in self.conditionNodes:
 			node.fillHolesRandomly()
 		for node in self.bodyNodes:
@@ -729,6 +715,7 @@ class IfNode(ASTNode):
 
 	def mutate(self):
 		self.parent.replace(self, self.bodyNodes[0])
+		self.program.randomizeableNodes.remove(self)
 
 class VariableUseNode(ASTNode):
 	def __init__(self, name, typeName):
