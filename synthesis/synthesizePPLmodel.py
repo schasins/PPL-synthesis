@@ -266,12 +266,14 @@ def main():
 	AST.fillHolesForConcretePathConditions(dataset)
 	AST.reduce(dataset)
 
-
-	print prog.programString()
-
 	AST.fillHolesRandomly()
 
-	print prog.programString()
+	#print prog.programString()
+
+	print "actual score: ", estimateScore(prog.root, dataset)
+	for i in range(len(10)):
+		prog.mutate()
+		print estimateScore(prog.root, dataset)
 	# prog.mutate()
 	# print prog.programString()
 	# prog.mutate()
@@ -283,6 +285,8 @@ def main():
 	#AST.fillHolesForConcretePathConditions(dataset)
 	#AST.reduce(dataset)
 	# testEstimateScore(AST,dataset)
+
+	# below is simulated annealing
 
 	initState = PPLSynthesisProblem.makeInitialState(prog)
 	saObj = PPLSynthesisProblem(initState)
