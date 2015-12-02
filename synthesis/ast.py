@@ -799,37 +799,37 @@ class OrNode(ASTNode):
 		p2 = self.rNode.pathCondition()
 		return PathConditionComponent(p1.varNames + p2.varNames, lambda x, y: p1.func(x) or p2.func(y))
 
-	class BoolBinExpNode(ASTNode):
-		def __init__(self, op, e1, e2):
-			ASTNode.__init__(self)
-			# op should be in {'&&','||'}
-			self.op = op
-			self.e1 = e1
-			self.e2 = e2
+class BoolBinExpNode(ASTNode):
+	def __init__(self, op, e1, e2):
+		ASTNode.__init__(self)
+		# op should be in {'&&','||'}
+		self.op = op
+		self.e1 = e1
+		self.e2 = e2
 
-		def strings(self, tabs=0):
-			return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
+	def strings(self, tabs=0):
+		return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
 
-	class BinExpNode(ASTNode):
-		def __init__(self, op, e1, e2):
-			ASTNode.__init__(self)
-			# op should be in {'+','-','*'}
-			self.op = op
-			self.e1 = e1
-			self.e2 = e2
+class BinExpNode(ASTNode):
+	def __init__(self, op, e1, e2):
+		ASTNode.__init__(self)
+		# op should be in {'+','-','*'}
+		self.op = op
+		self.e1 = e1
+		self.e2 = e2
 
-		def strings(self, tabs=0):
-			return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
+	def strings(self, tabs=0):
+		return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
 
-	class UnaryExpNode(ASTNode):
-		def __init__(self, op, e):
-			ASTNode.__init__(self)
-			# op should be in {'!'}
-			self.op = op
-			self.e = e
+class UnaryExpNode(ASTNode):
+	def __init__(self, op, e):
+		ASTNode.__init__(self)
+		# op should be in {'!'}
+		self.op = op
+		self.e = e
 
-		def strings(self, tabs=0):
-			return self.op + self.e.strings(tabs)
+	def strings(self, tabs=0):
+		return self.op + self.e.strings(tabs)
 
 
 # **********************************************************************
