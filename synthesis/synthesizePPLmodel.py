@@ -270,10 +270,10 @@ def main():
 
 	#print prog.programString()
 
-	print "actual score: ", estimateScore(prog.root, dataset)
-	for i in range(len(10)):
-		prog.mutate()
-		print estimateScore(prog.root, dataset)
+	# print "actual score: ", estimateScore(prog.root, dataset)
+	# for i in range(len(10)):
+	# 	prog.mutate()
+	# 	print estimateScore(prog.root, dataset)
 	# prog.mutate()
 	# print prog.programString()
 	# prog.mutate()
