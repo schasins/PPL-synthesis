@@ -43,9 +43,29 @@ class MoG:
             ans = ans + (self.w[i] * guass(x, self.mu[i], self.sig[i]))
         return ans
 
+class Categorical:
+    def __init__(self, values, valuesToPercentages):
+        self.values = values
+        self.valuesToPercentages = valuesToPercentages
+
+    def __str__(self):
+        l = []
+        for val in self.values:
+            l.append(val + "->" + str(self.valuesToPercentages[val]))
+        return "Categorical(" + ",".join(l) + ")"
+
+    def at(self, x):
+        return self.valuesToPercentages[x]
+
 # **********************************************************************
 # AST visitor
 # **********************************************************************
+
+class ScoreError(Exception):
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
 
 class visitor:
     def visit(self, ast):
@@ -60,7 +80,7 @@ class visitor:
         elif isinstance(ast,BetaDistribNode):
             return self.visit_BetaDistribNode(ast)
         elif isinstance(ast,UniformRealDistribNode):
-            raise "Scoring does not support UniformRealDistribNode."
+            raise ScoreError("Scoring does not support UniformRealDistribNode.")
         elif isinstance(ast,RealDistribNode):
             return self.visit_RealDistribNode(ast)
         
@@ -101,8 +121,12 @@ class ScoreEstimator(visitor):
             print v, "=", self.env[v]
 
     def evaluate(self, ast):
+        # print "-------- AST---------"
+        # print ast.strings()[0]
         self.reset()
         self.visit(ast)
+        # print "-------- ENV --------"
+        # print self.env
         loglik = 0
         for col in self.dataset.indexesToNames:
             name = self.dataset.indexesToNames[col]
@@ -139,13 +163,13 @@ class ScoreEstimator(visitor):
             return Bernoulli(0)
 
     def visit_String(self,ast):
-        return CategoricalDistribNode(None,[ast],{ast:1.0})
+        return Categorical([ast],{ast:1.0})
 
     def visit_BooleanDistribNode(self, ast):
         return Bernoulli(ast.percentTrue)
 
     def visit_CategoricalDistribNode(self, ast):
-        return ast
+        return Categorical(ast.values, ast.valuesToPercentages)
 
     def visit_RealDistribNode(self, ast):
         return self.visit(ast.actualDistribNode)
@@ -165,7 +189,7 @@ class ScoreEstimator(visitor):
             x1 = self.visit(ast.mu)
             x2 = self.visit(ast.sig)
             if not(x1.n == x2.n):
-                raise "ScoreEstimator: GaussianDistribNode: mu and sigma need to have the same number of Gaussian components."
+                raise ScoreError("ScoreEstimator: GaussianDistribNode: mu and sigma need to have the same number of Gaussian components.")
             
             my_sig = []
             for i in xrange(x1.n):
@@ -179,15 +203,28 @@ class ScoreEstimator(visitor):
         # cond = self.visit(ast.conditionNode)
         # true = self.visit(ast.thenNode)
         # false = self.visit(ast.elseNode)
-        if isinstance(cond, Bernoulli) and \
-           isinstance(true, Bernoulli) and isinstance(false, Bernoulli):
-            return Bernoulli(cond.p * true.p + (1 - cond.p) * false.p)
-        elif isinstance(cond, Bernoulli) and \
-           isinstance(true, MoG) and isinstance(false, MoG):
-            return MoG(true.n + false.n, \
-                       np.concatenate((cond.p * true.w, (1-cond.p) * false.w), axis=0), \
-                       np.concatenate((true.mu, false.mu), axis=0), \
-                       np.concatenate((true.sig, false.sig), axis=0))
+        if isinstance(cond, Bernoulli):
+            if isinstance(true, Bernoulli) and isinstance(false, Bernoulli):
+                return Bernoulli(cond.p * true.p + (1 - cond.p) * false.p)
+            elif isinstance(true, MoG) and isinstance(false, MoG):
+                return MoG(true.n + false.n, \
+                           np.concatenate((cond.p * true.w, (1-cond.p) * false.w), axis=0), \
+                           np.concatenate((true.mu, false.mu), axis=0), \
+                           np.concatenate((true.sig, false.sig), axis=0))
+            elif isinstance(true, Categorical) and isinstance(false, Categorical):
+                if not(sorted(true.values) == sorted(false.values)):
+                    raise ScoreError("if-else: categorical of the two branches contain differnet values")
+                tmap = true.valuesToPercentages
+                fmap = false.valuesToPercentages
+                p = cond.p
+                newmap = {}
+                for val in true.values:
+                    newmap[val] = p * tmap[val] + (1-p) * fmap[val]
+                return Categorical(true.values,newmap)
+            else:
+                raise ScoreError("if-else: true and false branches' types mistmatch")
+        else:
+            raise ScoreError("if-else: condition type should be boolean distribution")
 
     def visit_IfNode(self, ast):
         conditions = [self.visit(x) for x in ast.conditionNodes]
@@ -203,12 +240,14 @@ class ScoreEstimator(visitor):
     def visit_BoolBinExpNode(self, ast):
         x1 = self.visit(ast.e1)
         x2 = self.visit(ast.e2)
-        if ast.op == '&&':
+        if ast.op == '&&' or ast.op == '&':
             q = x1.p * x2.p
             return Bernoulli(q)
-        elif ast.op == '||':
+        elif ast.op == '||' or ast.op == '|':
             q = x1.p + x2.p - (x1.p*x2.p)
             return Bernoulli(q)
+        else:
+            raise ScoreError("ScoreEstimator: BoolBinExpNode: do not support " + ast.op)
 
     def visit_BinExpNode(self, ast):
         mog1 = self.visit(ast.e1)
@@ -223,7 +262,7 @@ class ScoreEstimator(visitor):
             mu_op = lambda m1,m2,s1,s2: (m1*(s2**1) + m2*(s1**2))/(s1**2 + s2**2)
             sig_op = lambda x,y: ((x**2) * (y**2))/(x**2 + y**2)
         else:
-            raise "ScoreEstimator: BinExpNode: do not support" + ast.op
+            raise ScoreError("ScoreEstimator: BinExpNode: do not support " + ast.op)
 
         w = []
         mu = []
@@ -241,7 +280,7 @@ class ScoreEstimator(visitor):
         if isinstance(e,Bernoulli) and ast.op == '!':
             return Bernoulli(1 - e.p)
         else:
-            raise "ScoreEstimator: UnaryExpNode: currently only support '!' with bernoulli variable"
+            raise ScoreError("ScoreEstimator: UnaryExpNode: currently only support '!' with bernoulli variable")
 
     def visit_ComparisonNode(self, ast):
         # print "ast.node = ", ast.node
@@ -262,7 +301,7 @@ class ScoreEstimator(visitor):
                            e1.sig[i] == 0 and e2.sig[j] == 0:
                             p = p + e1.w[i]*e2.w[j]
                 return Bernoulli(p)
-            elif isinstance(e1,CategoricalDistribNode) and isinstance(e2,CategoricalDistribNode):
+            elif isinstance(e1,Categorical) and isinstance(e2,Categorical):
                 p = 0
                 for i in e1.values:
                     for j in e2.values:
@@ -270,7 +309,7 @@ class ScoreEstimator(visitor):
                             p = p + e1.valuesToPercentages[i]*e2.valuesToPercentages[j]
                 return Bernoulli(p)
             else:
-                raise "ComparisonNode: types mismatch #1"
+                raise ScoreError("ComparisonNode: types mismatch #1")
         # >, < for real
         elif isinstance(e1,MoG) and isinstance(e2,MoG):
             if ast.relationship == "<":
@@ -285,7 +324,7 @@ class ScoreEstimator(visitor):
                         * 0.5 * e1.w[i] * e2.w[j]
             return Bernoulli(p)
         else:
-            raise "ComparisonNode: types mismatch #2"
+            raise ScoreError("ComparisonNode: types mismatch #2")
 
 def erf(mu1,mu2,sig1,sig2):
     d = math.sqrt(2*(sig1**2 + sig2**2))
