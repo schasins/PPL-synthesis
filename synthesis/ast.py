@@ -378,7 +378,7 @@ class RealDistribNode(DistribNode):
 		DistribNode.__init__(self)
 		self.varName = varName
 		self.actualDistribNode = actualDistribNode
-		self.availableNodeTypes = [GaussianDistribNode, BetaDistribNode]
+		self.availableNodeTypes = [GaussianDistribNode]
 
 	def strings(self, tabs=0):
 		if self.actualDistribNode == None:
@@ -444,14 +444,14 @@ class GaussianDistribNode(RealDistribNode):
 		(lowerBound, upperBound) = self.program.variableRange(self.varName)
 		if self.mu == None:
 			self.mu = random.uniform(lowerBound, upperBound) # TODO what's actually a good upper limit?
-			self.sig = random.uniform(0, upperBound)
+			self.sig = random.uniform(0, upperBound/2)
 		else:
 			# TODO: putting in a temporary fix for the fact they don't have the same bounds, should do something nicer
 			if random.uniform(0,1) < .5:
-				modParams = overwriteOrModifyOneParam(.3, [self.mu], lowerBound, upperBound, -.1, .1)
+				modParams = overwriteOrModifyOneParam(.3, [self.mu], lowerBound, upperBound, -.5, .5)
 				self.mu = modParams[0]
 			else:
-				modParams = overwriteOrModifyOneParam(.3, [self.sig], 0, upperBound, -.1, .1)
+				modParams = overwriteOrModifyOneParam(.3, [self.sig], 0, upperBound/2, -.5, .5)
 				self.sig = modParams[0]
 
 class BetaDistribNode(RealDistribNode):

@@ -278,6 +278,7 @@ def main():
 	# for i in range(10):
 	# 	prog.mutate()
 	# 	print estimateScore(prog.root, dataset)
+	# print prog.root.randomizeableVariables
 	# prog.mutate()
 	# print prog.programString()
 	# prog.mutate()
@@ -295,12 +296,12 @@ def main():
 	initState = PPLSynthesisProblem.makeInitialState(prog)
 	saObj = PPLSynthesisProblem(initState)
 	saObj.setNeeded(dataset)
-	saObj.steps = 5000 #how many iterations will we do?
-	saObj.updates = 5000 # how many times will we print current status
+	saObj.steps = 100000 #how many iterations will we do?
+	saObj.updates = 100000 # how many times will we print current status
 	saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
 	print "---"
 	print saObj.Tmax
-	saObj.Tmin = .001 # how big an increase in distance are we willing to accept at the end?
+	saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
 	ast, distanceFromDataset = saObj.anneal()
 	print distanceFromDataset
