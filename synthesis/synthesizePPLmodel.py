@@ -210,6 +210,7 @@ def deepcopyNode(node):
 def main():
 	inputFile = sys.argv[1]
 	ouputFilename = sys.argv[2]
+	SAiterations = sys.argv[3]
 
 	dataset = Dataset(inputFile)
 	g = generateReducibleStructuresFromDataset(dataset)[0]
@@ -295,8 +296,8 @@ def main():
 	initState = PPLSynthesisProblem.makeInitialState(prog)
 	saObj = PPLSynthesisProblem(initState)
 	saObj.setNeeded(dataset)
-	saObj.steps = 100000 #how many iterations will we do?
-	saObj.updates = 100000 # how many times will we print current status
+	saObj.steps = SAiterations # 100000 #how many iterations will we do?
+	saObj.updates = SAiterations # 100000 # how many times will we print current status
 	saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
 	print "---"
 	print saObj.Tmax
@@ -308,7 +309,7 @@ def main():
 	print "************"
 
 	scriptStrings = AST.strings()
-	output = open("../synthesized/"+ouputFilename, "w")
+	output = open("../synthesized/"+ouputFilename+".blog", "w")
 	output.write(scriptStrings[0])
 	print scriptStrings[0]
 	print "-----"
