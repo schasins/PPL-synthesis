@@ -7,6 +7,8 @@ from scipy.stats.stats import pearsonr
 from itertools import combinations
 import sys
 from simanneal import Annealer
+from ND import *
+from scipy.stats import spearmanr
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -146,6 +148,35 @@ class PPLSynthesisProblem(Annealer):
 # Generate structures based on input dataset correlation
 # **********************************************************************
 
+def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold):
+	correlationsMatrix = [ [ 0 for i in range(dataset.numColumns) ] for j in range(dataset.numColumns) ]
+	for i in range(dataset.numColumns):
+		for j in range(i + 1, dataset.numColumns):
+			iCols = dataset.columnNumericColumns[i]
+			jCols = dataset.columnNumericColumns[j]
+			correlations = []
+			for iCol in iCols:
+				for jCol in jCols:
+					print len(iCol), len(jCol)
+					res = spearmanr(iCol, jCol)
+					correlations.append(res[0])
+			print correlations
+			correlation1 = max(correlations)
+			correlation2 = min(correlations)
+			correlation = correlation1
+			if abs(correlation2) > abs(correlation1):
+				correlation = correlation2
+
+			#correlation = pearsonr(dataset.columns[i], dataset.columns[j])
+			correlationsMatrix[i][j] = correlation
+			correlationsMatrix[j][i] = correlation
+	for row in correlationsMatrix:
+		print row
+
+	x = np.array(correlationsMatrix)
+	print ND(x)
+	exit()
+
 
 def generateReducibleStructuresFromDataset(dataset):
 	g = Graph()
@@ -210,10 +241,12 @@ def deepcopyNode(node):
 def main():
 	inputFile = sys.argv[1]
 	ouputFilename = sys.argv[2]
-	SAiterations = sys.argv[3]
+	SAiterations = int(sys.argv[3])
+	connectionThreshold = float(sys.argv[4])
 
 	dataset = Dataset(inputFile)
-	g = generateReducibleStructuresFromDataset(dataset)[0]
+	#g = generateReducibleStructuresFromDataset(dataset)[0]
+	g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
@@ -266,7 +299,8 @@ def main():
 
 	AST.fillHolesForConcretePathConditions(dataset)
 
-	AST.reduce(dataset)
+	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
+	# AST.reduce(dataset)
 
 	print prog.programString()
 	print "*****"
@@ -309,9 +343,10 @@ def main():
 	print "************"
 
 	scriptStrings = AST.strings()
-	output = open("../synthesized/"+ouputFilename+".blog", "w")
-	output.write(scriptStrings[0])
-	print scriptStrings[0]
+	outputString = scriptStrings[0]+"\n\n//"+str(distanceFromDataset)
+	output = open("../synthesized/"+ouputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.blog", "w")
+	output.write(outputString)
+	print outputString
 	print "-----"
 	print scriptStrings
 

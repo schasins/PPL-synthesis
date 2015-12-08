@@ -87,26 +87,38 @@ class Dataset:
 		self.numRows = len(rows)
 
 		columnDistributionInformation = []
+		columnNumericColumns = []
 		columnMaxes = {}
 		columnMins = {}
 		for i in range(len(columnValues)):
 			currColumnValues = columnValues[i]
 			if currColumnValues == set(["true", "false"]):
 				columnDistributionInformation.append(BooleanDistribution())
+				ls = map(lambda x: 1*(x == "true"), self.columns[i])
+				columnNumericColumns.append([ls])
 			elif reduce(lambda x, y: x and isInteger(y), currColumnValues, True):
 				columnDistributionInformation.append(IntegerDistribution())
 				self.columns[i] = (map(lambda x: int(x), currColumnValues))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
 				columnMins.append(min(self.columns[i]))
+				columnNumericColumns.append([self.columns[i]])
 			elif reduce(lambda x, y: x and isFloat(y), currColumnValues, True):
 				columnDistributionInformation.append(RealDistribution())
 				self.columns[i] = (map(lambda x: float(x), currColumnValues))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
+				columnNumericColumns.append([self.columns[i]])
 			else:
 				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues), names[i]+"Type"))
+				lists = []
+				for val in currColumnValues:
+					ls = map(lambda x: 1*(x == val), self.columns[i])
+					lists.append(ls)
+				columnNumericColumns.append(lists)
+
 		self.columnDistributionInformation = columnDistributionInformation
+		self.columnNumericColumns = columnNumericColumns
 		self.columnMaxes = columnMaxes
 		self.columnMins = columnMins
 
