@@ -55,7 +55,6 @@ class Dataset:
 			lineItem = lineItems[i]
 			if lineItem != "":
 				names[i] = lineItem.replace("(", "").replace(")", "")
-				print names[i]
 				indexes[names[i]] = i
 				numItems = i
 
@@ -206,8 +205,10 @@ class ASTNode:
 			node.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
 
 	def fillHolesRandomly(self):
+		filledSomeHoles = False
 		for node in self.children:
-			node.fillHolesRandomly()
+			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles
+		return filledSomeHoles
 
 	def reduce(self, dataset, pathCondition =[], currVariable = None):
 		for node in self.children:
@@ -246,8 +247,10 @@ class VariableDeclNode(ASTNode):
 		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
 
 	def fillHolesRandomly(self):
-		self.RHS.fillHolesRandomly()
-		self.program.variables.append(self)
+		filledSomeHoles = self.RHS.fillHolesRandomly()
+		if filledSomeHoles:
+			self.program.variables.append(self)
+		return filledSomeHoles
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		self.RHS.reduce(dataset, pathCondition, self) # the current node is now the variable being defined
@@ -409,6 +412,7 @@ class RealDistribNode(DistribNode):
 		self.mutate()
 		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
 		self.program.randomizeableNodes.append(self)
+		return True
 
 	def mutate(self):
 		nodeType = random.choice(self.availableNodeTypes)
@@ -451,6 +455,7 @@ class GaussianDistribNode(RealDistribNode):
 	def fillHolesRandomly(self):
 		self.mutate()
 		self.program.randomizeableNodes.append(self)
+		return True
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.program.variableRange(self.varName)
@@ -489,6 +494,7 @@ class BetaDistribNode(RealDistribNode):
 	def fillHolesRandomly(self):
 		self.mutate()
 		self.program.randomizeableNodes.append(self)
+		return True
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.program.variableRange(self.varName) # TODO: what is this param?  what's a good limit?
@@ -525,6 +531,7 @@ class UniformRealDistribNode(RealDistribNode):
 	def fillHolesRandomly(self):
 		self.mutate()
 		self.program.randomizeableNodes.append(self)
+		return True
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.program.variableRange(self.varName)
@@ -721,16 +728,19 @@ class IfNode(ASTNode):
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
 
 	def fillHolesRandomly(self):
+		filledSomeHoles = False
 		for node in self.conditionNodes:
-			node.fillHolesRandomly()
+			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles
 		for node in self.bodyNodes:
-			node.fillHolesRandomly()
+			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles 
 
 		# TODO: should probably only add this to randomizeable if some subset of the child nodes actually get randomized
 		# should start recording that
 
-		# can randomize by removing the if
-		self.program.randomizeableNodes.append(self)
+		if filledSomeHoles:
+			# can randomize by removing the if
+			self.program.randomizeableNodes.append(self)
+		return filledSomeHoles
 
 	def mutate(self):
 		self.parent.replace(self, self.bodyNodes[0])
@@ -789,6 +799,8 @@ class ComparisonNode(ASTNode):
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
 			self.mutate()
 			self.program.randomizeableNodes.append(self)
+			return True
+		return False
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.node.range()

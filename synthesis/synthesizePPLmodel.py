@@ -9,6 +9,21 @@ import sys
 from simanneal import Annealer
 from ND import *
 from scipy.stats import spearmanr
+from cStringIO import StringIO
+import pickle
+
+# **********************************************************************
+# Helpers
+# **********************************************************************
+
+class Capturing(list):
+	def __enter__(self):
+		self._stdout = sys.stdout
+		sys.stdout = self._stringio = StringIO()
+		return self
+	def __exit__(self, *args):
+		self.extend(self._stringio.getvalue().splitlines())
+		sys.stdout = self._stdout
 
 # **********************************************************************
 # Data structures for representing structure hints
@@ -189,7 +204,7 @@ def generateReducibleStructuresFromDataset(dataset):
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1)
 
-	return [g]
+	return g
 
 statisticalSignificanceThreshold = 0.05
 correlationThreshold = .05
@@ -240,13 +255,15 @@ def deepcopyNode(node):
 
 def main():
 	inputFile = sys.argv[1]
-	ouputFilename = sys.argv[2]
-	SAiterations = int(sys.argv[3])
-	connectionThreshold = float(sys.argv[4])
+	SAiterations = int(sys.argv[2])
+	connectionThreshold = float(sys.argv[3])
+	outputDirectory = sys.argv[4]
+	outputFilename = sys.argv[5]
 
 	dataset = Dataset(inputFile)
 	#g = generateReducibleStructuresFromDataset(dataset)[0]
-	g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
+	#g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
+	g = generateReducibleStructuresFromDataset(dataset)
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
@@ -290,7 +307,6 @@ def main():
 
 		variableNode = VariableDeclNode(node.name, node.distribInfo.typeName, internal)
 		AST.addChild(variableNode)
-		print "adding child"
 
 	prog = Program(dataset)
 	prog.setRoot(AST)
@@ -302,12 +318,9 @@ def main():
 	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
 	# AST.reduce(dataset)
 
-	print prog.programString()
-	print "*****"
+	#print prog.programString()
 
 	AST.fillHolesRandomly()
-
-	print prog.programString()
 
 	# print "actual score: ", estimateScore(prog.root, dataset)
 	# for i in range(10):
@@ -333,22 +346,28 @@ def main():
 	saObj.steps = SAiterations # 100000 #how many iterations will we do?
 	saObj.updates = SAiterations # 100000 # how many times will we print current status
 	saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
-	print "---"
-	print saObj.Tmax
+
 	saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
-	ast, distanceFromDataset = saObj.anneal()
-	print distanceFromDataset
-	print
-	print "************"
+	#print AST.strings()
+	distanceFromDataset = -1*estimateScore(prog.root, dataset)
+	#print len(prog.randomizeableNodes)
+	annealingOutput = []
+	if len(prog.randomizeableNodes) > 0:
+		with Capturing() as annealingOutput:
+			ast, distanceFromDataset = saObj.anneal()
 
 	scriptStrings = AST.strings()
 	outputString = scriptStrings[0]+"\n\n//"+str(distanceFromDataset)
-	output = open("../synthesized/"+ouputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.blog", "w")
+	output = open(outputDirectory+"/synthesizedBLOGPrograms/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.blog", "w")
 	output.write(outputString)
-	print outputString
-	print "-----"
-	print scriptStrings
+	output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.pickle", "w")
+	pickle.dump(prog, output2)
+	output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.timing", "w")
+	output3.write("\n".join(annealingOutput))
+
+
+	#print scriptStrings
 
 main()
 
