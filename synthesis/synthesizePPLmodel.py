@@ -299,7 +299,7 @@ def main():
 					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "==", parent.distribInfo.values[i]))
 				for i in range(numValues):
 					bodyNodes.append(deepcopyNode(internal))
-			elif isinstance(node.distribInfo, IntegerDistribution) or isinstance(node.distribInfo, RealDistribution):
+			elif isinstance(parent.distribInfo, IntegerDistribution) or isinstance(parent.distribInfo, RealDistribution):
 				conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName)))
 				for i in range(2):
 					bodyNodes.append(deepcopyNode(internal))
@@ -316,6 +316,9 @@ def main():
 	AST.fillHolesForConcretePathConditions(dataset)
 
 	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
+	
+	#print prog.programString()
+
 	AST.reduce(dataset)
 
 	#print prog.programString()

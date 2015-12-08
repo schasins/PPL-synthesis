@@ -3,19 +3,19 @@ random Boolean tired ~ BooleanDistrib(0.5009);
 
 random Real skillLevel ~ 
 	if tired
-	then Gaussian(15.524711,9.029202)
-	else Gaussian(16.760152,6.866474);
+	then Gaussian(9.163672,1.527671)
+	else Gaussian(12.398692,2.466873);
 
 random Real testPerformance ~ 
 	if tired
 	then 
-		if skillLevel < 7.06513790697
-		then Gaussian(96.954253,38.758100)
-		else Gaussian(87.628134,4.968787)
+		if skillLevel < 9.19974170048
+		then Gaussian(82.207212,27.958528)
+		else Gaussian(56.192526,14.168402)
 	else 
-		if skillLevel > 3.90165576285
-		then Gaussian(63.781763,3.327105)
-		else Gaussian(76.949491,51.589952);
+		if skillLevel == 2.92710295959
+		then Gaussian(103.348280,27.568282)
+		else Gaussian(44.728138,9.817287);
 
 
-//89901.3758052
+//77125.4010588

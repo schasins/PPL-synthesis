@@ -725,6 +725,9 @@ class IfNode(ASTNode):
 			else:
 				# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
 				pathConditionAdditional = self.conditionNodes[i-1].pathConditionFalse()
+				if pathConditionAdditional == None:
+					# the path condition is no longer concrete
+					continue
 			newPathCondition = pathCondition + [pathConditionAdditional]
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
 
@@ -793,10 +796,14 @@ class ComparisonNode(ASTNode):
 			return [self.node.name, ""]
 
 	def pathCondition(self):
+		if self.relationship == None or self.value == None:
+			return None
 		index = self.program.dataset.namesToIndexes[self.node.name]
 		return PathConditionComponent(lambda x: self.ops[self.relationship](x[index], self.value)) # x is a list of args
 
 	def pathConditionFalse(self):
+		if self.relationship == None or self.value == None:
+			return None
 		index = self.program.dataset.namesToIndexes[self.node.name]
 		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], self.value)) # x is a list of args
 

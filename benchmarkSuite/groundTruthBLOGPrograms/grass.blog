@@ -1,0 +1,13 @@
+random Real Rain ~ Gaussian(4, 4);
+
+random Boolean Sprinkler ~ 
+	if Rain < 1.0 then
+		true
+	else
+		false;
+
+random Boolean GrassWet ~
+	if Rain > 2.0 | Sprinkler then
+		true
+	else
+		false;
