@@ -1,10 +1,7 @@
 
 random Boolean HealthConsciousP1 ~ BooleanDistrib(0.4936);
 
-random Boolean LittleFreeTimeP1 ~ 
-	if HealthConsciousP1
-	then BooleanDistrib(0.506888168558)
-	else BooleanDistrib(0.495853080569);
+random Boolean LittleFreeTimeP1 ~ BooleanDistrib(0.5013);
 
 random Boolean ExerciseP1 ~ 
 	if HealthConsciousP1
@@ -19,280 +16,29 @@ random Boolean ExerciseP1 ~
 
 random Boolean GoodDietP1 ~ 
 	if HealthConsciousP1
-	then 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then BooleanDistrib(0.708094848733)
-			else BooleanDistrib(0.695856137608)
-		else 
-			if ExerciseP1
-			then BooleanDistrib(0.683371298405)
-			else BooleanDistrib(0.665271966527)
-	else 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then BooleanDistrib(0.236434108527)
-			else BooleanDistrib(0.295605858855)
-		else 
-			if ExerciseP1
-			then BooleanDistrib(0.292063492063)
-			else BooleanDistrib(0.300850734725);
+	then BooleanDistrib(0.691855753647)
+	else BooleanDistrib(0.293048973144);
 
 random Boolean NormalWeightP1 ~ 
-	if HealthConsciousP1
+	if ExerciseP1
 	then 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then BooleanDistrib(0.803695150115)
-				else BooleanDistrib(0.484593837535)
-			else 
-				if GoodDietP1
-				then BooleanDistrib(0.48202247191)
-				else BooleanDistrib(0.241645244216)
-		else 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then BooleanDistrib(0.792666666667)
-				else BooleanDistrib(0.520863309353)
-			else 
-				if GoodDietP1
-				then BooleanDistrib(0.477987421384)
-				else BooleanDistrib(0.3)
+		if GoodDietP1
+		then BooleanDistrib(0.791413237925)
+		else BooleanDistrib(0.511443250817)
 	else 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then BooleanDistrib(0.72131147541)
-				else BooleanDistrib(0.553299492386)
-			else 
-				if GoodDietP1
-				then BooleanDistrib(0.507507507508)
-				else BooleanDistrib(0.193446754883)
-		else 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then BooleanDistrib(0.76902173913)
-				else BooleanDistrib(0.505605381166)
-			else 
-				if GoodDietP1
-				then BooleanDistrib(0.514138817481)
-				else BooleanDistrib(0.193584070796);
+		if GoodDietP1
+		then BooleanDistrib(0.49572243346)
+		else BooleanDistrib(0.202702702703);
 
 random Boolean HighCholesterolP1 ~ 
-	if HealthConsciousP1
-	then 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.326149425287)
-					else BooleanDistrib(0.241176470588)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.705202312139)
-					else BooleanDistrib(0.679347826087)
-			else 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.275058275058)
-					else BooleanDistrib(0.277657266811)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.734042553191)
-					else BooleanDistrib(0.664406779661)
-		else 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.32716568545)
-					else BooleanDistrib(0.344051446945)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.707182320442)
-					else BooleanDistrib(0.678678678679)
-			else 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.355263157895)
-					else BooleanDistrib(0.409638554217)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.833333333333)
-					else BooleanDistrib(0.589285714286)
-	else 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.227272727273)
-					else BooleanDistrib(0.411764705882)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.669724770642)
-					else BooleanDistrib(0.670454545455)
-			else 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.325443786982)
-					else BooleanDistrib(0.27743902439)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.71009771987)
-					else BooleanDistrib(0.68828125)
-		else 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.293286219081)
-					else BooleanDistrib(0.305882352941)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.705099778271)
-					else BooleanDistrib(0.680272108844)
-			else 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then BooleanDistrib(0.29)
-					else BooleanDistrib(0.312169312169)
-				else 
-					if NormalWeightP1
-					then BooleanDistrib(0.72)
-					else BooleanDistrib(0.685871056241);
+	if GoodDietP1
+	then BooleanDistrib(0.309246785058)
+	else BooleanDistrib(0.690452852382);
 
 random Boolean TestedHighCholesterolP1 ~ 
-	if HealthConsciousP1
-	then 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.911894273128)
-						else BooleanDistrib(0.100213219616)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.90243902439)
-						else BooleanDistrib(0.093023255814)
-				else 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.909836065574)
-						else BooleanDistrib(0.0588235294118)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.888)
-						else BooleanDistrib(0.0677966101695)
-			else 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.932203389831)
-						else BooleanDistrib(0.11575562701)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.875)
-						else BooleanDistrib(0.0930930930931)
-				else 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.913043478261)
-						else BooleanDistrib(0.08)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.928571428571)
-						else BooleanDistrib(0.040404040404)
-		else 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.907455012853)
-						else BooleanDistrib(0.10375)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.92523364486)
-						else BooleanDistrib(0.0980392156863)
-				else 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.8828125)
-						else BooleanDistrib(0.132075471698)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.889380530973)
-						else BooleanDistrib(0.102803738318)
-			else 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.814814814815)
-						else BooleanDistrib(0.142857142857)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.911764705882)
-						else BooleanDistrib(0.102040816327)
-				else 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(0.95)
-						else BooleanDistrib(0.25)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(1.0)
-						else BooleanDistrib(0.0869565217391)
-	else 
-		if LittleFreeTimeP1
-		then 
-			if ExerciseP1
-			then 
-				if GoodDietP1
-				then 
-					if NormalWeightP1
-					then 
-						if HighCholesterolP1
-						then BooleanDistrib(1.0)
-						else BooleanDistrib(0.0882352941176)
-					else 
-						if HighCholesterolP1
-						then BooleanDistrib(0.857142857143)
-						else BooleanDistrib(
+	if HighCholesterolP1
+	then BooleanDistrib(0.908080206472)
+	else BooleanDistrib(0.0963127140842);
 
-//48337.3454896
+
+//48182.6106177

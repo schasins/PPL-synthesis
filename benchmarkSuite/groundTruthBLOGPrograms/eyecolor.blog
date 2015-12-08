@@ -1,0 +1,19 @@
+type EyeColor;
+type HairColor;
+type HairLength;
+
+distinct EyeColor Brown, Hazel, Blue, Green;
+distinct HairColor Black, Brunette, Blonde, Red, White;
+distinct HairLength Short, Medium, Long;
+
+random EyeColor Color ~ Categorical({Brown -> 0.82, Hazel -> 0.08, Blue -> 0.08, Green -> .02});
+
+random HairColor HColor ~
+  case color in {
+    Brown -> Categorical({Black -> .8, Brunette -> 0.05, Blonde -> 0.04, Red -> 0.01, White -> .1}),
+    Hazel -> Categorical({Black -> .7, Brunette -> 0.15, Blonde -> 0.04, Red -> 0.01, White -> .1}),
+    Blue -> Categorical({Black -> .4, Brunette -> 0.3, Blonde -> 0.18, Red -> 0.02, White -> .1}),
+    Green -> Categorical({Black -> .4, Brunette -> 0.29, Blonde -> 0.18, Red -> 0.03, White -> .1})
+  };
+
+random HairLength Length ~ Categorical({Short -> .6, Medium -> .15, Long -> .25});

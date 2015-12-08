@@ -122,18 +122,14 @@ class Dataset:
 		self.columnMins = columnMins
 
 	def makePathConditionFilter(self, pathCondition):
-		pairs = [] # (index, func) pairs
-		for pathConditionComponent in pathCondition:
-			pairs.append(( map( lambda x: self.namesToIndexes[x], pathConditionComponent.varNames), pathConditionComponent.func))
-		return lambda row : reduce(lambda x, pair : x and apply(pair[1], map( lambda arg: row[arg], pair[0])), pairs, True)
+		return lambda row : reduce(lambda x, condComponent : x and condComponent.func(row), pathCondition, True) # each pathconditioncomponent in the pathcondition has a func associated
 
 	def makeCurrVariableGetter(self, currVariable):
 		index = self.namesToIndexes[currVariable.name]
 		return lambda row: row[index]
 
 class PathConditionComponent:
-	def __init__(self, varNames, func):
-		self.varNames = varNames
+	def __init__(self, func):
 		self.func = func
 
 # **********************************************************************
@@ -349,6 +345,7 @@ class CategoricalDistribNode(DistribNode):
 		currVariableGetter = dataset.makeCurrVariableGetter(currVariable)
 		matchingRowsCounter = 0
 		matchingRowsSums = {}
+		#print ";".join(map(str, pathCondition))
 		for row in dataset.rows:
 			if pathConditionFilter(row):
 				matchingRowsCounter += 1
@@ -360,11 +357,15 @@ class CategoricalDistribNode(DistribNode):
 
 		if matchingRowsCounter < 1:
 			self.valuesToPercentages = None
+			#TODO: do we want to add this to randomizable nodes?
 			return
 
 		self.valuesToPercentages = {}
 		for value in self.values:
-			percentMatching = float(matchingRowsSums[value])/matchingRowsCounter
+			matching = 0
+			if value in matchingRowsSums:
+				matching = matchingRowsSums[value]
+			percentMatching = float(matching)/matchingRowsCounter
 			self.valuesToPercentages[value] = percentMatching
 
 	def reduce(self, dataset, pathCondition, currVariable):
@@ -615,7 +616,7 @@ class IfNode(ASTNode):
 		return nodeToAdd
 
 	def reduce(self, dataset, pathCondition, currVariable):
-		print currVariable.name, len(self.bodyNodes)
+		#print currVariable.name, len(self.bodyNodes)
 		for pair in combinations(range(len(self.bodyNodes)), 2):
 			p1i = pair[0]
 			p2i = pair[1]
@@ -759,10 +760,12 @@ class VariableUseNode(ASTNode):
 		return [self.name]
 
 	def pathCondition(self):
-		return PathConditionComponent([self.name], lambda x: x == "true")
+		index = self.program.dataset.namesToIndexes[self.name]
+		return PathConditionComponent(lambda x: x[index] == "true") # x is a list of args
 
 	def pathConditionFalse(self):
-		return PathConditionComponent([self.name], lambda x: x == "false")
+		index = self.program.dataset.namesToIndexes[self.name]
+		return PathConditionComponent(lambda x: x[index] == "false") # x is a list of args
 
 	def range(self):
 		return self.program.variableRange(self.name)
@@ -790,10 +793,12 @@ class ComparisonNode(ASTNode):
 			return [self.node.name, ""]
 
 	def pathCondition(self):
-		return PathConditionComponent([self.node.name], lambda x: self.ops[self.relationship](x, self.value))
+		index = self.program.dataset.namesToIndexes[self.node.name]
+		return PathConditionComponent(lambda x: self.ops[self.relationship](x[index], self.value)) # x is a list of args
 
 	def pathConditionFalse(self):
-		return PathConditionComponent([self.node.name], lambda x: not self.ops[self.relationship](x, self.value))
+		index = self.program.dataset.namesToIndexes[self.node.name]
+		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], self.value)) # x is a list of args
 
 	def fillHolesRandomly(self):
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
@@ -834,7 +839,7 @@ class BoolBinExpNode(ASTNode):
 	def pathCondition(self):
 		p1 = self.e1.pathCondition()
 		p2 = self.e2.pathCondition()
-		return PathConditionComponent(p1.varNames + p2.varNames, lambda x, y: self.ops[self.op](p1.func(x), p2.func(y)))
+		return PathConditionComponent(lambda x: self.ops[self.op](p1.func(x), p2.func(x)))
 
 class BinExpNode(ASTNode):
 	def __init__(self, op, e1, e2):

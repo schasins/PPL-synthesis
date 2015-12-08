@@ -316,7 +316,7 @@ def main():
 	AST.fillHolesForConcretePathConditions(dataset)
 
 	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
-	# AST.reduce(dataset)
+	AST.reduce(dataset)
 
 	#print prog.programString()
 
@@ -336,7 +336,6 @@ def main():
 
 	# TODO: do we want to figure out the proper params for the distributions we've added?
 	#AST.fillHolesForConcretePathConditions(dataset)
-	#AST.reduce(dataset)
 
 	# below is simulated annealing
 
@@ -356,6 +355,8 @@ def main():
 	if len(prog.randomizeableNodes) > 0:
 		with Capturing() as annealingOutput:
 			ast, distanceFromDataset = saObj.anneal()
+
+	AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
 	scriptStrings = AST.strings()
 	outputString = scriptStrings[0]+"\n\n//"+str(distanceFromDataset)

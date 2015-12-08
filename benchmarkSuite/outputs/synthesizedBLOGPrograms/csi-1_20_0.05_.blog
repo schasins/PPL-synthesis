@@ -1,44 +1,14 @@
 
 random Boolean U ~ BooleanDistrib(0.292);
 
-random Boolean V ~ 
-	if U
-	then BooleanDistrib(0.895205479452)
-	else BooleanDistrib(0.901694915254);
+random Boolean V ~ BooleanDistrib(0.8998);
 
-random Boolean W ~ 
-	if U
-	then 
-		if V
-		then BooleanDistrib(0.0876052027544)
-		else BooleanDistrib(0.0915032679739)
-	else 
-		if V
-		then BooleanDistrib(0.101973684211)
-		else BooleanDistrib(0.104885057471);
+random Boolean W ~ BooleanDistrib(0.0981);
 
 random Boolean X ~ 
-	if U
-	then 
-		if V
-		then 
-			if W
-			then BooleanDistrib(0.777292576419)
-			else BooleanDistrib(0.19035639413)
-		else 
-			if W
-			then BooleanDistrib(0.821428571429)
-			else BooleanDistrib(0.201438848921)
-	else 
-		if V
-		then 
-			if W
-			then BooleanDistrib(0.794162826421)
-			else BooleanDistrib(0.799406942264)
-		else 
-			if W
-			then BooleanDistrib(0.164383561644)
-			else BooleanDistrib(0.202247191011);
+	if W
+	then BooleanDistrib(0.744138634047)
+	else BooleanDistrib(0.578667258011);
 
 
-//36550.9605605
+//36550.7860724

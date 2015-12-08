@@ -1,0 +1,20 @@
+
+type colorType;
+distinct colorType Blue, Brown, Hazel, Green;
+random colorType color ~ Categorical({Blue -> 0.0789, Brown -> 0.8178, Hazel -> 0.0827, Green -> 0.0206});
+
+type hColorType;
+distinct hColorType Blonde, Brunette, Black, White, Red;
+random hColorType hColor ~ 
+	if color == Blue | color == Green
+	then Categorical({Blonde -> 0.201005025126, Brunette -> 0.283417085427, Black -> 0.385929648241, White -> 0.105527638191, Red -> 0.0241206030151})
+	else if color == Brown
+	then Categorical({Blonde -> 0.038517975055, Brunette -> 0.0487894350697, Black -> 0.796894106138, White -> 0.104059672292, Red -> 0.0117388114453})
+	else Categorical({Blonde -> 0.037484885127, Brunette -> 0.16807738815, Black -> 0.691656590085, White -> 0.0906892382104, Red -> 0.0120918984281});
+
+type lengthType;
+distinct lengthType Short, Medium, Long;
+random lengthType length ~ Categorical({Short -> 0.6055, Medium -> 0.1439, Long -> 0.2506});
+
+
+//24533.0636258
