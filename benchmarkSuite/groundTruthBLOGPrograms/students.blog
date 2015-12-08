@@ -1,0 +1,11 @@
+random Boolean tired ~ BooleanDistrib(.5);
+
+random Real skillLevel ~ Gaussian(10, 7);
+
+random Real testPerformance ~
+	if skillLevel > 13.0 then
+		if tired then Gaussian(70, 15)
+		else Gaussian(95, 5)
+	else
+		if tired then Gaussian(30, 15)
+		else Gaussian(70, 5);

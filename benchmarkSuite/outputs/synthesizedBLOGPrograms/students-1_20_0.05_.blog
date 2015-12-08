@@ -1,0 +1,21 @@
+
+random Boolean tired ~ BooleanDistrib(0.5009);
+
+random Real skillLevel ~ 
+	if tired
+	then Gaussian(15.529234,5.751329)
+	else Gaussian(2.405856,8.358493);
+
+random Real testPerformance ~ 
+	if tired
+	then 
+		if skillLevel == 13.4840581114
+		then Gaussian(28.039437,17.632304)
+		else Gaussian(20.294645,43.674977)
+	else 
+		if skillLevel < 8.221771101
+		then Gaussian(102.373388,50.982592)
+		else Gaussian(93.748112,4.361660);
+
+
+//86632.6425357
