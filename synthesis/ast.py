@@ -4,6 +4,8 @@ import random
 import numpy as np
 from copy import deepcopy
 
+debug = False
+
 # **********************************************************************
 # Supported distributions
 # **********************************************************************
@@ -203,12 +205,12 @@ class ASTNode:
 		return outputStrings
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition =[], currVariable = None):
-		print "concrete: ast"
+		if debug: print "concrete: ast"
 		for node in self.children:
 			node.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable)
 
 	def fillHolesRandomly(self):
-		print "randomly: ast"
+		if debug: print "randomly: ast"
 		filledSomeHoles = False
 		for node in self.children:
 			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles
@@ -248,11 +250,11 @@ class VariableDeclNode(ASTNode):
 		return combineStrings([s, RHSStrings, [";\n"]])
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
-		print "concrete: vardecl", self.name
+		if debug: print "concrete: vardecl", self.name
 		self.RHS.fillHolesForConcretePathConditions(dataset, pathCondition, self) # the current node is now the variable being defined
 
 	def fillHolesRandomly(self):
-		print "randomly: vardecl", self.name
+		if debug: print "randomly: vardecl", self.name
 		filledSomeHoles = self.RHS.fillHolesRandomly()
 		return filledSomeHoles
 
@@ -314,7 +316,7 @@ class BooleanDistribNode(DistribNode):
 			percentTrue = float(matchingRowsSum)/matchingRowsCounter
 		self.percentTrue = percentTrue
 		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
-		print "concrete: bool", self.strings()
+		if debug: print "concrete: bool", self.strings()
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		# no reduction to do here
@@ -379,7 +381,7 @@ class CategoricalDistribNode(DistribNode):
 				matching = matchingRowsSums[value]
 			percentMatching = float(matching)/matchingRowsCounter
 			self.valuesToPercentages[value] = percentMatching
-		print "concrete: categorical", self.strings()
+		if debug: print "concrete: categorical", self.strings()
 
 	def reduce(self, dataset, pathCondition, currVariable):
 		# no reduction to do here
@@ -467,7 +469,7 @@ class RealDistribNode(DistribNode):
 			self.program.randomizeableNodes.remove(self)
 			self.randomizeable = False
 
-		print "concrete: real", self.strings()
+		if debug: print "concrete: real", self.strings()
 
 	def fillHolesRandomly(self):
 		if len(self.availableNodes) > 0:
@@ -477,7 +479,7 @@ class RealDistribNode(DistribNode):
 		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
 		self.program.randomizeableNodes.add(self)
 		self.randomizeable = True
-		print "randomly: real", self.strings()
+		if debug: print "randomly: real", self.strings()
 		return True
 
 	def mutate(self):
@@ -526,7 +528,7 @@ class GaussianDistribNode(RealDistribNode):
 			self.sig = np.std(matchingRowsValues)
 			self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
 
-		print "concrete: gaussian", self.strings()
+		if debug: print "concrete: gaussian", self.strings()
 
 class BetaDistribNode(RealDistribNode):
 	def __init__(self, varName, alpha=None, beta=None, percentMatchingRows = None):
@@ -553,7 +555,7 @@ class BetaDistribNode(RealDistribNode):
 		self.mutate()
 		self.program.randomizeableNodes.add(self)
 		self.randomizeable = True
-		print "random: beta", self.strings()
+		if debug: print "random: beta", self.strings()
 		return True
 
 	def getRandomizeableNodes(self):
@@ -819,7 +821,7 @@ class IfNode(ASTNode):
 		self.fillHolesForConcretePathConditions(self.program.dataset, pathCondition, currentVariable)
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
-		print "concrete: if"
+		if debug: print "concrete: if"
 		for i in range(len(self.bodyNodes)):
 			pathConditionAdditional = self.pathConditionForConditionNode(i)
 			if pathConditionAdditional == None:
@@ -839,7 +841,7 @@ class IfNode(ASTNode):
 		return ls
 
 	def fillHolesRandomly(self):
-		print "randomly: if"
+		if debug: print "randomly: if"
 		filledSomeHoles = False
 		for node in self.conditionNodes:
 			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles
@@ -968,7 +970,7 @@ class ComparisonNode(ASTNode):
 		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], self.value)) # x is a list of args
 
 	def fillHolesRandomly(self):
-		print "randomly: comparison", self.strings()
+		if debug: print "randomly: comparison", self.strings()
 		print self.node.typeName
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
 			print "setting comparison randomizeable to true"
