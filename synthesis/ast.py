@@ -328,6 +328,9 @@ class BooleanDistribNode(DistribNode):
 			# make a small adjustment
 			self.percentTrue = self.percentTrue + random.uniform(-.1,.1)
 
+	def getRandomizeableNodes(self):
+		return []
+
 class CategoricalDistribNode(DistribNode):
 	def __init__(self, varName, values, valuesToPercentages = None, percentMatchingRows = None):
 		DistribNode.__init__(self)

@@ -319,7 +319,7 @@ def main():
 	
 	print prog.programString()
 
-	AST.reduce(dataset)
+	#AST.reduce(dataset)
 
 	#print prog.programString()
 
@@ -366,7 +366,7 @@ def main():
 	print "\n".join(annealingOutput)
 	print prog.programString()
 
-	AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
+	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
 	scriptStrings = AST.strings()
 	outputString = scriptStrings[0]+"\n\n//"+str(distanceFromDataset)
