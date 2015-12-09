@@ -160,10 +160,10 @@ class Program:
 
 	def mutate(self):
 		node = random.choice(list(self.randomizeableNodes))
-		#print "********"
-		#print node
-		#print node.strings()
-		#print "********"
+		# print "********"
+		# print node
+		# print node.strings()
+		# print "********"
 		node.mutate()
 
 	def programString(self):
@@ -234,6 +234,9 @@ class VariableDeclNode(ASTNode):
 
 	def setProgram(self, program):
 		self.program = program
+		useNode = VariableUseNode(self.name, self.varType)
+		useNode.setProgram(program)
+		self.program.variables.append(useNode)
 		self.RHS.setProgram(program)
 
 	def replace(self, nodeToCut, nodeToAdd):
@@ -919,6 +922,10 @@ class VariableUseNode(ASTNode):
 	def range(self):
 		return self.program.variableRange(self.name)
 
+	def lambdaToCalculate(self):
+		index = self.program.dataset.namesToIndexes[self.name]
+		return lambda row: row[index]
+
 class ComparisonNode(ASTNode):
 
 	ops = {	"==": operator.eq,
@@ -931,14 +938,19 @@ class ComparisonNode(ASTNode):
 		self.relationship = relationship
 		self.value = value
 		self.randomizeable = False
+		self.allowableVariables = []
 
 	def setProgram(self, program):
 		self.program = program
+		i = next(x for x in range(len(self.program.variables)) if (self.program.variables[x].name == self.node.name))
+		variables = self.program.variables[0:i]
+		self.allowableVariables = variables
 		self.node.setProgram(program)
 
 	def strings(self, tabs=0):
 		if self.relationship:
-			return [self.node.name + " " + self.relationship + " " + str(self.value)]
+			strs = [[self.node.name + " " + self.relationship + " "], self.value.strings()]
+			return combineStrings(strs)
 		else:
 			return [self.node.name, ""]
 
@@ -952,13 +964,15 @@ class ComparisonNode(ASTNode):
 		if self.relationship == None or self.value == None:
 			return None
 		index = self.program.dataset.namesToIndexes[self.node.name]
-		return PathConditionComponent(lambda x: self.ops[self.relationship](x[index], self.value)) # x is a list of args
+		valFunc = self.value.lambdaToCalculate()
+		return PathConditionComponent(lambda x: self.ops[self.relationship](x[index], valFunc(x))) # x is a list of args
 
 	def pathConditionFalse(self):
 		if self.relationship == None or self.value == None:
 			return None
 		index = self.program.dataset.namesToIndexes[self.node.name]
-		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], self.value)) # x is a list of args
+		valFunc = self.value.lambdaToCalculate()
+		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], valFunc(x))) # x is a list of args
 
 	def fillHolesRandomly(self):
 		if debug: print "randomly: comparison", self.strings()
@@ -977,16 +991,36 @@ class ComparisonNode(ASTNode):
 			else:
 				self.relationship = random.choice([self.ops.keys()])
 		else:
-			overwriteOrModifyOneParam(.3, [self.value], lowerBound, upperBound, -1, 1)
+			if random.uniform(0,1) < .5 or len(self.allowableVariables) == 0:
+				if isinstance(self.value, NumericValue):
+					vals = overwriteOrModifyOneParam(.3, [self.value.val], lowerBound, upperBound, -1, 1)
+					self.value.val = vals[0]
+				else:
+					self.value = NumericValue(random.uniform(lowerBound, upperBound))
+			else:
+				self.value = random.choice(self.allowableVariables)
 		if (self.value == None):
-			self.value = random.uniform(lowerBound, upperBound)
+			self.value = NumericValue(random.uniform(lowerBound, upperBound))
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		self.parent.fillHolesForConcretePathConditionsHelper()
 
+class NumericValue(ASTNode):
+
+	def __init__(self, val):
+		ASTNode.__init__(self)
+		self.val = val
+
+	def strings(self, tabs=0):
+		return [str(self.val)]
+
+	def lambdaToCalculate(self):
+		return lambda row: self.val
+
 class BoolBinExpNode(ASTNode):
 
-	ops = {	"&": operator.__and__,
-			"|": operator.__or__}
+	ops = {	"+": operator.__add__,
+			"-": operator.__sub__,
+			"*": operator.__mul__}
 
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
@@ -1003,12 +1037,16 @@ class BoolBinExpNode(ASTNode):
 	def strings(self, tabs=0):
 		return combineStrings([self.e1.strings(), [" "+self.op+" "], self.e2.strings()])
 
-	def pathCondition(self):
-		p1 = self.e1.pathCondition()
-		p2 = self.e2.pathCondition()
-		return PathConditionComponent(lambda x: self.ops[self.op](p1.func(x), p2.func(x)))
+	def lambdaToCalculate(self):
+		l1 = self.e1.lambdaToCalculate()
+		l2 = self.e2.lambdaToCalculate()
+		return lambda row: self.ops[self.op](l1(row), l2row)
 
 class BinExpNode(ASTNode):
+
+	ops = {	"&": operator.__and__,
+				"|": operator.__or__}
+
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
 		# op should be in {'+','-','*'}
@@ -1017,7 +1055,7 @@ class BinExpNode(ASTNode):
 		self.e2 = e2
 
 	def strings(self, tabs=0):
-		return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
+		return ["(" + self.e1.strings(tabs) + self.op + self.e2.strings(tabs) +")"]
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):

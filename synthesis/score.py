@@ -98,7 +98,7 @@ class visitor:
             return self.visit_UnaryExpNode(ast)
         elif isinstance(ast, bool):
             return self.visit_BoolConstant(ast)
-        elif isinstance(ast, int) or isinstance(ast, float):
+        elif isinstance(ast, NumericValue):
             return self.visit_Constant(ast)
         elif isinstance(ast, str):
             return self.visit_String(ast)
@@ -154,7 +154,7 @@ class ScoreEstimator(visitor):
         self.env[ast.name] = self.visit(ast.RHS)
 
     def visit_Constant(self, ast):
-        return MoG(1,np.array([1]),np.array([1.0 * ast]),np.array([0.0]))
+        return MoG(1,np.array([1]),np.array([1.0 * ast.val]),np.array([0.0]))
 
     def visit_BoolConstant(self, ast):
         if ast:
@@ -364,7 +364,7 @@ class Mutator(visitor):
         return VariableDeclNode(ast.name, ast.varType, self.visit(ast.RHS))
 
     def visit_Constant(self, ast):
-        return ast
+        return self.val
 
     def visit_BoolConstant(self, ast):
         return ast
