@@ -501,7 +501,7 @@ class GaussianDistribNode(RealDistribNode):
 
 	def strings(self, tabs=0):
 		if self.mu:
-			return ["Gaussian(%f,%f)" % (self.mu, self.sig)]
+			return ["Gaussian(%f,%f)" % (self.mu, self.sig**2)]
 		else:
 			return ["Gaussian(",",", ")"]
 
