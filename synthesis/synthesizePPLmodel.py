@@ -362,6 +362,8 @@ def main():
 		with Capturing() as annealingOutput:
 			ast, distanceFromDataset = saObj.anneal()
 
+	
+	print "\n".join(annealingOutput)
 	print prog.programString()
 
 	AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
