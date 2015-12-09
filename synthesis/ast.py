@@ -822,7 +822,7 @@ class IfNode(ASTNode):
 		for i in range(len(self.bodyNodes)):
 			pathConditionAdditional = self.pathConditionForConditionNode(i)
 			if pathConditionAdditional == None:
-				# the path condition is no longer concrete
+				# the path condition is no longer concrete, stop descending
 				continue
 			newPathCondition = pathCondition + [pathConditionAdditional]
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
@@ -845,6 +845,7 @@ class IfNode(ASTNode):
 
 		if filledSomeHoles:
 			# we made some new conditions.  let's use them
+			print "going to call concrete: if"
 			self.fillHolesForConcretePathConditionsHelper()
 
 		# but there could still be conditions down there that aren't concrete yet, so keep going
