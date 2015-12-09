@@ -455,8 +455,6 @@ class RealDistribNode(DistribNode):
 		return True
 
 	def mutate(self):
-		print self.availableNodes
-		print self.parent.strings()
 		self.actualDistribNode = random.choice(self.availableNodes)
 
 def overwriteOrModifyOneParam(overWriteProb, paramsLs, lowerLimit, upperLimit, modificationLowerLimit, modificationUpperLimit):
@@ -492,10 +490,15 @@ class GaussianDistribNode(RealDistribNode):
 		return
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable, matchingRowsValues):
-		print matchingRowsValues[0:20]
-		self.mu = np.mean(matchingRowsValues)
-		self.sig = np.std(matchingRowsValues)
-		self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
+		if len(matchingRowsValues) < 1:
+			# can use anything; there's no dataset data on this, so it doesn't matter
+			self.mu = 1
+			self.sig = 1
+			self.percentMatchingRows = 0
+		else:
+			self.mu = np.mean(matchingRowsValues)
+			self.sig = np.std(matchingRowsValues)
+			self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
 
 class BetaDistribNode(RealDistribNode):
 	def __init__(self, varName, alpha=None, beta=None, percentMatchingRows = None):
