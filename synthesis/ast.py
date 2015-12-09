@@ -842,14 +842,11 @@ class IfNode(ASTNode):
 		filledSomeHoles = False
 		for node in self.conditionNodes:
 			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles
-
-		if filledSomeHoles:
-			# we made some new conditions.  let's use them
-			print "going to call concrete: if"
-			self.fillHolesForConcretePathConditionsHelper()
+			# note that calling fillHolesRandomly on comparison nodes will cause us to call fillHolesForConcrete on this node
 
 		# but there could still be conditions down there that aren't concrete yet, so keep going
 		for node in self.bodyNodes:
+			print "calling child random"
 			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles 
 
 		print self.conditionNodes[0].strings()
