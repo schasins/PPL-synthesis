@@ -4,7 +4,7 @@ import random
 import numpy as np
 from copy import deepcopy
 
-debug = True
+debug = False
 
 # **********************************************************************
 # Supported distributions
@@ -846,12 +846,8 @@ class IfNode(ASTNode):
 
 		# but there could still be conditions down there that aren't concrete yet, so keep going
 		for node in self.bodyNodes:
-			print "calling child random"
 			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles 
 
-		print self.conditionNodes[0].strings()
-		print self.conditionNodes[0].randomizeable
-		print "***"
 		if self.conditionNodes[0].randomizeable:
 			# can randomize if this if conditions on a real or int
 			# doesn't make sense to add or remove branches for conditioning on bools, categoricals
@@ -966,9 +962,7 @@ class ComparisonNode(ASTNode):
 
 	def fillHolesRandomly(self):
 		if debug: print "randomly: comparison", self.strings()
-		print self.node.typeName
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
-			print "setting comparison randomizeable to true"
 			self.program.randomizeableNodes.add(self)
 			self.randomizeable = True
 			self.mutate()
