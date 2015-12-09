@@ -429,7 +429,7 @@ class RealDistribNode(DistribNode):
 		self.availableNodes = []
 		for distribType in self.availableNodeTypes:
 			if distribType == BetaDistribNode:
-				if min(self.matchingRowsValues) >= 0 and max(self.matchingRowsValues) <= 1:
+				if len(self.matchingRowsValues) > 0 and min(self.matchingRowsValues) >= 0 and max(self.matchingRowsValues) <= 1:
 					newNode = BetaDistribNode(self.varName)
 					newNode.setProgram(self.program)
 					newNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
