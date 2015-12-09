@@ -796,6 +796,10 @@ class IfNode(ASTNode):
 		currentVariable = parent
 		return conditionSoFar, currentVariable
 
+	def fillHolesForConcretePathConditionsHelper(self):
+		pathCondition, currentVariable = self.pathCondition()
+		self.fillHolesForConcretePathConditions(self.program.dataset, pathCondition, currentVariable)
+
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		print "concrete: if"
 		for i in range(len(self.bodyNodes)):
@@ -824,8 +828,7 @@ class IfNode(ASTNode):
 
 		if filledSomeHoles:
 			# we made some new conditions.  let's use them
-			pathCondition, currentVariable = self.pathCondition()
-			self.fillHolesForConcretePathConditions(self.program.dataset, pathCondition, currentVariable)
+			self.fillHolesForConcretePathConditionsHelper()
 
 		# but there could still be conditions down there that aren't concrete yet, so keep going
 		for node in self.bodyNodes:
@@ -873,8 +876,7 @@ class IfNode(ASTNode):
 			del self.conditionNodes[indexToRemove]
 
 		# we just changed the conditions, better recalculate
-		pathCondition, currentVariable = self.pathCondition()
-		self.fillHolesForConcretePathConditions(self.program.dataset, pathCondition, currentVariable)
+		self.fillHolesForConcretePathConditionsHelper()
 
 def copyNode(node):
 	newNode = deepcopy(node)
@@ -960,12 +962,14 @@ class ComparisonNode(ASTNode):
 
 	def mutate(self):
 		(lowerBound, upperBound) = self.node.range()
-		if (self.relationship == None or random.uniform(0,1) < .1):
+		if (self.relationship == None or random.uniform(0,1) < .3):
 			self.relationship = random.choice(self.ops.keys())
 		else:
-			overwriteOrModifyOneParam(.3, [self.value], lowerBound, upperBound, -.1, .1)
+			overwriteOrModifyOneParam(.3, [self.value], lowerBound, upperBound, -1, 1)
 		if (self.value == None):
 			self.value = random.uniform(lowerBound, upperBound)
+		# we've changed the conditions.  better recalculate the things that depend on path conditions
+		self.parent.fillHolesForConcretePathConditionsHelper()
 
 class BoolBinExpNode(ASTNode):
 
