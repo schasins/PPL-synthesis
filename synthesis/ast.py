@@ -972,7 +972,10 @@ class ComparisonNode(ASTNode):
 	def mutate(self):
 		(lowerBound, upperBound) = self.node.range()
 		if (self.relationship == None or random.uniform(0,1) < .3):
-			self.relationship = random.choice(self.ops.keys())
+			if self.node.typeName == "Real":
+				self.relationship = random.choice([">", "<"]) # using eq for reals is just silly
+			else:
+				self.relationship = random.choice([self.ops.keys()])
 		else:
 			overwriteOrModifyOneParam(.3, [self.value], lowerBound, upperBound, -1, 1)
 		if (self.value == None):
