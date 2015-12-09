@@ -776,6 +776,21 @@ class IfNode(ASTNode):
 
 	def pathConditionForConditionNode(self, i):
 		# todo: must not all preceding branches
+		if i == 0:
+			return self.conditionNodes[i].pathCondition()
+
+		conditionsToNot = map(lambda x: x.pathCondition(), self.conditionNodes[0:i])
+
+		if i == len(self.conditionNodes):
+			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot)
+		else:
+			conditionToAdd = self.conditionNodes[i].pathCondition()
+			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot) and conditionToAdd.func(row)
+
+		return PathConditionComponent(newFunc)
+
+
+
 		if i < len(self.conditionNodes):
 				return self.conditionNodes[i].pathCondition()
 		else:
