@@ -316,8 +316,6 @@ class BooleanDistribNode(DistribNode):
 			percentTrue = .5
 		self.percentTrue = percentTrue
 		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
-		print pathCondition
-		print matchingRowsSum
 		if debug: print "concrete: bool", self.strings()
 
 	def reduce(self, dataset, pathCondition, currVariable):
@@ -782,28 +780,25 @@ class IfNode(ASTNode):
 			self.bodyNodes[i].reduce(dataset, newPathCondition, currVariable)
 
 	def pathConditionForConditionNode(self, i):
-		# todo: must not all preceding branches
-		if i == 0:
-			return self.conditionNodes[i].pathCondition()
+		# must not all preceding branches
 
-		conditionsToNot = map(lambda x: x.pathCondition(), self.conditionNodes[0:i])
+		# if any of the branches have non-concrete conditions, should return None
+		pathConditions = map(lambda x: x.pathCondition(), self.conditionNodes)
+		nonConcrete = reduce(lambda x, y: x or y == None, pathConditions, False)
+		if nonConcrete: return None
+
+		if i == 0:
+			return pathConditions[i]
+
+		conditionsToNot = pathConditions[0:i]
 
 		if i == len(self.conditionNodes):
 			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot)
 		else:
-			conditionToAdd = self.conditionNodes[i].pathCondition()
+			conditionToAdd = pathConditions[i]
 			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot) and conditionToAdd.func(row)
 
 		return PathConditionComponent(newFunc)
-
-
-
-		if i < len(self.conditionNodes):
-				return self.conditionNodes[i].pathCondition()
-		else:
-			# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
-			# TODO: now that we can have more than one branch, have to not all preceding branch
-			return self.conditionNodes[i-1].pathConditionFalse()
 
 	def pathCondition(self):
 		conditionSoFar = []
