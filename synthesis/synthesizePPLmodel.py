@@ -317,13 +317,15 @@ def main():
 
 	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
 	
-	#print prog.programString()
+	print prog.programString()
 
 	AST.reduce(dataset)
 
 	#print prog.programString()
 
 	AST.fillHolesRandomly()
+
+	print prog.programString()
 
 	# print "actual score: ", estimateScore(prog.root, dataset)
 	# for i in range(10):

@@ -1,9 +1,9 @@
 
-random Real Rain ~ Gaussian(0.060823,2.064172);
+random Real Rain ~ Gaussian(1.025898,2.017578);
 
 random Boolean Sprinkler ~ BooleanDistrib(0.0661);
 
 random Boolean GrassWet ~ BooleanDistrib(0.905);
 
 
-//50245.1727769
+//46585.9462915

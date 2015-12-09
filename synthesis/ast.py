@@ -1,6 +1,7 @@
 from itertools import combinations
 import operator
 import random
+import numpy as np
 
 # **********************************************************************
 # Supported distributions
@@ -102,12 +103,16 @@ class Dataset:
 				columnMins[names[i]] = min(self.columns[i])
 				columnMins.append(min(self.columns[i]))
 				columnNumericColumns.append([self.columns[i]])
+				for row in self.rows:
+					row[i] = int(row[i])
 			elif reduce(lambda x, y: x and isFloat(y), currColumnValues, True):
 				columnDistributionInformation.append(RealDistribution())
 				self.columns[i] = (map(lambda x: float(x), currColumnValues))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
 				columnNumericColumns.append([self.columns[i]])
+				for row in self.rows:
+					row[i] = float(row[i])
 			else:
 				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues), names[i]+"Type"))
 				lists = []
@@ -138,7 +143,7 @@ class PathConditionComponent:
 
 class Program:
 	def __init__(self, dataset):
-		self.randomizeableNodes = []
+		self.randomizeableNodes = set()
 		self.variables = []
 		self.dataset = dataset
 		self.root = None
@@ -244,8 +249,6 @@ class VariableDeclNode(ASTNode):
 
 	def fillHolesRandomly(self):
 		filledSomeHoles = self.RHS.fillHolesRandomly()
-		if filledSomeHoles:
-			self.program.variables.append(self)
 		return filledSomeHoles
 
 	def reduce(self, dataset, pathCondition, currVariable):
@@ -394,7 +397,9 @@ class RealDistribNode(DistribNode):
 		DistribNode.__init__(self)
 		self.varName = varName
 		self.actualDistribNode = actualDistribNode
-		self.availableNodeTypes = [GaussianDistribNode]
+		self.availableNodeTypes = [BetaDistribNode, GaussianDistribNode]
+		self.availableNodes = []
+		self.matchingRowsValues = []
 
 	def strings(self, tabs=0):
 		if self.actualDistribNode == None:
@@ -409,17 +414,48 @@ class RealDistribNode(DistribNode):
 		# no reduction to do here
 		return
 
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
+		pathConditionFilter = dataset.makePathConditionFilter(pathCondition)
+		currVariableGetter = dataset.makeCurrVariableGetter(currVariable)
+		matchingRowsCounter = 0
+		matchingRowsValues = []
+		for row in dataset.rows:
+			if pathConditionFilter(row):
+				matchingRowsCounter += 1
+				val = currVariableGetter(row)
+				matchingRowsValues.append(val)
+
+		self.matchingRowsValues = matchingRowsValues
+		self.availableNodes = []
+		for distribType in self.availableNodeTypes:
+			if distribType == BetaDistribNode:
+				if min(self.matchingRowsValues) >= 0 and max(self.matchingRowsValues) <= 1:
+					newNode = BetaDistribNode(self.varName)
+					newNode.setProgram(self.program)
+					newNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
+					self.availableNodes.append(newNode)
+			elif distribType == GaussianDistribNode:
+					newNode = GaussianDistribNode(self.varName)
+					newNode.setProgram(self.program)
+					newNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable, self.matchingRowsValues) # fill in params, add the node to the randomizeable nodes
+					self.availableNodes.append(newNode)
+			else:
+				raise Exception("Tried to make a type of real distribution we don't know about.")
+		self.actualDistribNode = random.choice(self.availableNodes)
+
+		if len(self.availableNodes) > 1:
+			self.program.randomizeableNodes.add(self)
+		elif self in self.program.randomizeableNodes:
+			self.program.randomizeableNodes.remove(self)
+
 	def fillHolesRandomly(self):
 		self.mutate()
 		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
-		self.program.randomizeableNodes.append(self)
+		self.program.randomizeableNodes.add(self)
 		return True
 
 	def mutate(self):
-		nodeType = random.choice(self.availableNodeTypes)
-		self.actualDistribNode = nodeType(self.varName)
-		self.actualDistribNode.setProgram(self.program)
-		self.actualDistribNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
+		self.actualDistribNode = random.choice(self.availableNodes)
 
 def overwriteOrModifyOneParam(overWriteProb, paramsLs, lowerLimit, upperLimit, modificationLowerLimit, modificationUpperLimit):
 	indexToChange = random.choice(range(len(paramsLs)))
@@ -453,24 +489,11 @@ class GaussianDistribNode(RealDistribNode):
 		# no reduction to do here
 		return
 
-	def fillHolesRandomly(self):
-		self.mutate()
-		self.program.randomizeableNodes.append(self)
-		return True
-
-	def mutate(self):
-		(lowerBound, upperBound) = self.program.variableRange(self.varName)
-		if self.mu == None:
-			self.mu = random.uniform(lowerBound, upperBound) # TODO what's actually a good upper limit?
-			self.sig = random.uniform(0, upperBound/2)
-		else:
-			# TODO: putting in a temporary fix for the fact they don't have the same bounds, should do something nicer
-			if random.uniform(0,1) < .5:
-				modParams = overwriteOrModifyOneParam(.3, [self.mu], lowerBound, upperBound, -.5, .5)
-				self.mu = modParams[0]
-			else:
-				modParams = overwriteOrModifyOneParam(.3, [self.sig], 0, upperBound/2, -.5, .5)
-				self.sig = modParams[0]
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable, matchingRowsValues):
+		print matchingRowsValues[0:20]
+		self.mu = np.mean(matchingRowsValues)
+		self.sig = np.std(matchingRowsValues)
+		self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
 
 class BetaDistribNode(RealDistribNode):
 	def __init__(self, varName, alpha=None, beta=None, percentMatchingRows = None):
@@ -494,18 +517,17 @@ class BetaDistribNode(RealDistribNode):
 
 	def fillHolesRandomly(self):
 		self.mutate()
-		self.program.randomizeableNodes.append(self)
+		self.program.randomizeableNodes.add(self)
 		return True
 
 	def mutate(self):
-		(lowerBound, upperBound) = self.program.variableRange(self.varName) # TODO: what is this param?  what's a good limit?
-		# both alpha and beta need to be > 0
 		lowerBound = .000000000000001
+		upperBound = 40
 		if self.alpha == None:
 			self.alpha = random.uniform(lowerBound, upperBound) 
 			self.beta = random.uniform(lowerBound, upperBound)
 		else:
-			modParams = overwriteOrModifyOneParam(.3, [self.alpha, self.beta], lowerBound, upperBound, -.1, .1)
+			modParams = overwriteOrModifyOneParam(.3, [self.alpha, self.beta], lowerBound, upperBound, -3, 3)
 			self.alpha = modParams[0]
 			self.beta = modParams[1]
 
@@ -531,7 +553,7 @@ class UniformRealDistribNode(RealDistribNode):
 
 	def fillHolesRandomly(self):
 		self.mutate()
-		self.program.randomizeableNodes.append(self)
+		self.program.randomizeableNodes.add(self)
 		return True
 
 	def mutate(self):
@@ -704,30 +726,39 @@ class IfNode(ASTNode):
 
 		# once we've gotten rid of all the things we can reduce, go ahead and descend down all the remaining body nodes
 		for i in range(len(self.bodyNodes)):
-			if i < len(self.conditionNodes):
-				pathConditionAdditional = self.conditionNodes[i].pathCondition()
-				if pathConditionAdditional == None:
-					# the path condition is no longer concrete
-					continue
-			else:
-				# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
-				pathConditionAdditional = self.conditionNodes[i-1].pathConditionFalse()
+			pathConditionAdditional = self.pathConditionForConditionNode(i)
+			if pathConditionAdditional == None:
+				# the path condition is no longer concrete
+				continue
 			newPathCondition = pathCondition + [pathConditionAdditional]
 			self.bodyNodes[i].reduce(dataset, newPathCondition, currVariable)
 
+	def pathConditionForConditionNode(self, i):
+		if i < len(self.conditionNodes):
+				return self.conditionNodes[i].pathCondition()
+		else:
+			# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
+			return self.conditionNodes[i-1].pathConditionFalse()
+
+	def pathCondition(self):
+		conditionSoFar = []
+		child = self
+		parent = self.parent
+		while not isinstance(parent, VariableDeclNode):
+			bodyIndex = parent.bodyNodes.index(child)
+			pathConditionAdditional = parent.pathConditionForConditionNode(bodyIndex)
+			conditionSoFar = [pathConditionAdditional]+conditionSoFar
+			child = parent
+			parent = child.parent
+		currentVariable = parent
+		return conditionSoFar, currentVariable
+
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		for i in range(len(self.bodyNodes)):
-			if i < len(self.conditionNodes):
-				pathConditionAdditional = self.conditionNodes[i].pathCondition()
-				if pathConditionAdditional == None:
-					# the path condition is no longer concrete
-					continue
-			else:
-				# if there's no condition associated with the last, it better be because the last one was a condition that has a false associated
-				pathConditionAdditional = self.conditionNodes[i-1].pathConditionFalse()
-				if pathConditionAdditional == None:
-					# the path condition is no longer concrete
-					continue
+			pathConditionAdditional = self.pathConditionForConditionNode(i)
+			if pathConditionAdditional == None:
+				# the path condition is no longer concrete
+				continue
 			newPathCondition = pathCondition + [pathConditionAdditional]
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
 
@@ -735,15 +766,19 @@ class IfNode(ASTNode):
 		filledSomeHoles = False
 		for node in self.conditionNodes:
 			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles
+
+		if filledSomeHoles:
+			# we made some new conditions.  let's use them
+			pathCondition, currentVariable = self.pathCondition()
+			self.fillHolesForConcretePathConditions(self.program.dataset, pathCondition, currentVariable)
+
+		# but there could still be conditions down there that aren't concrete yet, so keep going
 		for node in self.bodyNodes:
 			filledSomeHoles = node.fillHolesRandomly() or filledSomeHoles 
 
-		# TODO: should probably only add this to randomizeable if some subset of the child nodes actually get randomized
-		# should start recording that
-
 		if filledSomeHoles:
-			# can randomize by removing the if
-			self.program.randomizeableNodes.append(self)
+			# can randomize by adding additional conditions
+			self.program.randomizeableNodes.add(self)
 		return filledSomeHoles
 
 	def mutate(self):
@@ -809,8 +844,8 @@ class ComparisonNode(ASTNode):
 
 	def fillHolesRandomly(self):
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
-			self.mutate()
-			self.program.randomizeableNodes.append(self)
+			self.relationship = random.choice(self.ops.keys())
+			self.program.randomizeableNodes.add(self)
 			return True
 		return False
 
