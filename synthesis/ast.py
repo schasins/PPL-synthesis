@@ -449,6 +449,9 @@ class RealDistribNode(DistribNode):
 			self.program.randomizeableNodes.remove(self)
 
 	def fillHolesRandomly(self):
+		if len(self.availableNodes) > 0:
+			# nothing to fill randomly here, already filled it based on a concrete path condition
+			return True
 		self.mutate()
 		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
 		self.program.randomizeableNodes.add(self)
