@@ -4,7 +4,7 @@ import random
 import numpy as np
 from copy import deepcopy
 
-debug = False
+debug = True
 
 # **********************************************************************
 # Supported distributions
@@ -294,10 +294,7 @@ class BooleanDistribNode(DistribNode):
 
 	def strings(self, tabs=0):
 		components = ["BooleanDistrib(", ")"]
-		if self.percentTrue:
-			return [components[0]+str(self.percentTrue)+components[1]]
-		else:
-			return components
+		return [components[0]+str(self.percentTrue)+components[1]]
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		pathConditionFilter = dataset.makePathConditionFilter(pathCondition)
@@ -314,8 +311,13 @@ class BooleanDistribNode(DistribNode):
 		percentTrue = None
 		if matchingRowsCounter > 0:
 			percentTrue = float(matchingRowsSum)/matchingRowsCounter
+		else:
+			# there were no matching rows, doesn't matter what we put here
+			percentTrue = .5
 		self.percentTrue = percentTrue
 		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
+		print pathCondition
+		print matchingRowsSum
 		if debug: print "concrete: bool", self.strings()
 
 	def reduce(self, dataset, pathCondition, currVariable):
