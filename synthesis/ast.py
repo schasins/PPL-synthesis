@@ -455,6 +455,8 @@ class RealDistribNode(DistribNode):
 		return True
 
 	def mutate(self):
+		print self.availableNodes
+		print self.parent.strings()
 		self.actualDistribNode = random.choice(self.availableNodes)
 
 def overwriteOrModifyOneParam(overWriteProb, paramsLs, lowerLimit, upperLimit, modificationLowerLimit, modificationUpperLimit):
@@ -844,8 +846,8 @@ class ComparisonNode(ASTNode):
 
 	def fillHolesRandomly(self):
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
-			self.relationship = random.choice(self.ops.keys())
 			self.program.randomizeableNodes.add(self)
+			self.mutate()
 			return True
 		return False
 

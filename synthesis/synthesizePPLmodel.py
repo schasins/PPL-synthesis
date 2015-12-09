@@ -326,6 +326,7 @@ def main():
 	AST.fillHolesRandomly()
 
 	print prog.programString()
+	print prog.randomizeableNodes
 
 	# print "actual score: ", estimateScore(prog.root, dataset)
 	# for i in range(10):
