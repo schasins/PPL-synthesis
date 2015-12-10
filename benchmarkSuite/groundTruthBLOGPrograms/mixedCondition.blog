@@ -1,0 +1,7 @@
+random Boolean U ~ BooleanDistrib(0.3);
+
+random Real V ~ Gaussian(10, 2);
+
+random Real W ~
+	if (U & (V > 12.0)) then Gaussian(12, 2)
+	else Gaussian(6, 2);

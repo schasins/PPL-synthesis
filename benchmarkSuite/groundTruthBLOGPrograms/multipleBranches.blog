@@ -1,0 +1,9 @@
+random Real contentDifficulty ~ Gaussian(30, 5);
+
+random Real questionsAfterLectureLength ~ 
+	if contentDifficulty < 20.0 then
+		Gaussian(2, 1)
+	else if contentDifficulty < 35.0 then
+		Gaussian(10, 3)
+	else
+		Gaussian(25, 6);
