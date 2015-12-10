@@ -1,0 +1,48 @@
+/**
+ * Tug of war
+ * 
+ * The strength of each person is drawn from a normal distribution. 
+ * A person is lazy 10% of the time. The pulling power of a person 
+ * is half her strength if she is being lazy and otherwise is her 
+ * full strength. The pulling power of a team is the sum of the 
+ * pulling power of the individuals on the team. The team with the 
+ * greater pulling power wins.
+ * 
+ * @author Lei Li
+ * @date 2013/03/30
+ * This one is substantially modified relative to the original!
+ * The original can't be used with --generate to produce a dataset
+ */
+
+random Boolean lazyP1
+  ~ BooleanDistrib(0.1);
+
+random Boolean lazyP2
+  ~ BooleanDistrib(0.1);
+
+random Boolean lazyP3
+  ~ BooleanDistrib(0.1);
+
+random Boolean lazyP4
+  ~ BooleanDistrib(0.1);
+
+random Real pulling_powerP1 ~
+  if lazyP1 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Real pulling_powerP2 ~
+  if lazyP2 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Real pulling_powerP3 ~
+  if lazyP3 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Real pulling_powerP4 ~
+  if lazyP4 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Boolean team1win ~
+  if (pulling_powerP1 + pulling_powerP2 > pulling_powerP3 + pulling_powerP4)
+  then true
+  else false;

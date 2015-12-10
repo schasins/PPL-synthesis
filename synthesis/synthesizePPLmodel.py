@@ -296,7 +296,7 @@ def main():
 					# doesn't make sense to depend on this
 					continue
 				for i in range(numValues):
-					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "==", parent.distribInfo.values[i]))
+					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "==", StringValue(parent.distribInfo.values[i])))
 				for i in range(numValues):
 					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(parent.distribInfo, IntegerDistribution) or isinstance(parent.distribInfo, RealDistribution):
@@ -360,16 +360,17 @@ def main():
 	annealingOutput = []
 	if len(prog.randomizeableNodes) > 0:
 		with Capturing() as annealingOutput:
-			ast, distanceFromDataset = saObj.anneal()
+			progOutput, distanceFromDataset = saObj.anneal()
+	else:
+		progOutput = prog
 
 	
 	print "\n".join(annealingOutput)
-	print prog.programString()
+	print progOutput.programString()
 
 	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
-	scriptStrings = AST.strings()
-	outputString = scriptStrings[0]+"\n\n//"+str(distanceFromDataset)
+	outputString = progOutput.programString()+"\n\n//"+str(distanceFromDataset)
 	output = open(outputDirectory+"/synthesizedBLOGPrograms/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.blog", "w")
 	output.write(outputString)
 	output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.pickle", "w")

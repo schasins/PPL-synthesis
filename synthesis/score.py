@@ -115,9 +115,9 @@ class visitor:
             return self.visit_UnaryExpNode(ast)
         elif isinstance(ast, bool):
             return self.visit_BoolConstant(ast)
-        elif isinstance(ast, int) or isinstance(ast, float):
+        elif isinstance(ast, NumericValue):
             return self.visit_Constant(ast)
-        elif isinstance(ast, str):
+        elif isinstance(ast, StringValue):
             return self.visit_String(ast)
         else:
             return self.visit_ASTNode(ast)
@@ -171,7 +171,7 @@ class ScoreEstimator(visitor):
         self.env[ast.name] = self.visit(ast.RHS)
 
     def visit_Constant(self, ast):
-        return MoG(1,np.array([1]),np.array([1.0 * ast]),np.array([0.0]))
+        return MoG(1,np.array([1]),np.array([1.0 * ast.val]),np.array([0.0]))
 
     def visit_BoolConstant(self, ast):
         if ast:
@@ -180,7 +180,7 @@ class ScoreEstimator(visitor):
             return Bernoulli(0)
 
     def visit_String(self,ast):
-        return Categorical([ast],{ast:1.0})
+        return Categorical([ast.val],{ast.val:1.0})
 
     def visit_BooleanDistribNode(self, ast):
         return Bernoulli(ast.percentTrue)
@@ -391,13 +391,13 @@ class Mutator(visitor):
         return VariableDeclNode(ast.name, ast.varType, self.visit(ast.RHS))
 
     def visit_Constant(self, ast):
-        return ast
+        return self.val
 
     def visit_BoolConstant(self, ast):
         return ast
 
     def visit_String(self, ast):
-        return ast
+        return ast.val
 
     def visit_BooleanDistribNode(self, ast):
         if self.level == "low":

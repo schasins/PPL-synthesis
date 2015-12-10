@@ -160,10 +160,10 @@ class Program:
 
 	def mutate(self):
 		node = random.choice(list(self.randomizeableNodes))
-		#print "********"
-		#print node
-		#print node.strings()
-		#print "********"
+		# print "********"
+		# print node
+		# print node.strings()
+		# print "********"
 		node.mutate()
 
 	def programString(self):
@@ -229,11 +229,19 @@ class VariableDeclNode(ASTNode):
 		self.name = name
 		self.varType = varType
 		self.RHS = RHS
+		self.allowableVariables = []
 		
 		self.RHS.setParent(self)
 
 	def setProgram(self, program):
 		self.program = program
+
+		self.allowableVariables = self.program.variables[:]
+
+		useNode = VariableUseNode(self.name, self.varType)
+		useNode.setProgram(program)
+		self.program.variables.append(useNode)
+
 		self.RHS.setProgram(program)
 
 	def replace(self, nodeToCut, nodeToAdd):
@@ -293,7 +301,7 @@ class BooleanDistribNode(DistribNode):
 		return [("Boolean", self.percentTrue, self.percentMatchingRows)]
 
 	def strings(self, tabs=0):
-		components = ["BooleanDistrib(", ")"]
+		components = ["BooleanDistrib(", ") //"+str(self.percentMatchingRows)]
 		return [components[0]+str(self.percentTrue)+components[1]]
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
@@ -667,6 +675,8 @@ class IfNode(ASTNode):
 		self.conditionNodes = conditionNodes
 		self.bodyNodes = bodyNodes
 		self.randomizeable = False
+
+		self.allowableVariables = []
 		for node in self.conditionNodes:
 			node.setParent(self)
 		for node in self.bodyNodes:
@@ -674,10 +684,14 @@ class IfNode(ASTNode):
 
 	def setProgram(self, program):
 		self.program = program
+
+		self.allowableVariables = self.parent.allowableVariables
+
 		for child in self.conditionNodes:
 			child.setProgram(program)
 		for child in self.bodyNodes:
 			child.setProgram(program)
+
 
 	def params(self):
 		paramsLs = []
@@ -839,10 +853,10 @@ class IfNode(ASTNode):
 		conditionsToNot = pathConditions[0:i]
 
 		if i == len(self.conditionNodes):
-			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot)
+			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot, True)
 		else:
 			conditionToAdd = pathConditions[i]
-			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot) and conditionToAdd.func(row)
+			newFunc = lambda row: conditionToAdd.func(row) and reduce(lambda a, b: a and not b.func(row), conditionsToNot, True) 
 
 		return PathConditionComponent(newFunc)
 
@@ -853,7 +867,7 @@ class IfNode(ASTNode):
 		while not isinstance(parent, VariableDeclNode):
 			bodyIndex = parent.bodyNodes.index(child)
 			pathConditionAdditional = parent.pathConditionForConditionNode(bodyIndex)
-			conditionSoFar = [pathConditionAdditional]+conditionSoFar
+			conditionSoFar = [pathConditionAdditional] + conditionSoFar
 			child = parent
 			parent = child.parent
 		currentVariable = parent
@@ -965,6 +979,10 @@ class VariableUseNode(ASTNode):
 	def range(self):
 		return self.program.variableRange(self.name)
 
+	def lambdaToCalculate(self):
+		index = self.program.dataset.namesToIndexes[self.name]
+		return lambda row: row[index]
+
 class ComparisonNode(ASTNode):
 
 	ops = {	"==": operator.eq,
@@ -977,14 +995,19 @@ class ComparisonNode(ASTNode):
 		self.relationship = relationship
 		self.value = value
 		self.randomizeable = False
+		self.allowableVariables = []
+		self.numberVariables = []
 
 	def setProgram(self, program):
 		self.program = program
+		self.allowableVariables = self.parent.allowableVariables
+		self.numberVariables = filter(lambda x: (x.typeName == "Real" or x.typeName == "Integer") and x.name != self.node.name, self.allowableVariables)
 		self.node.setProgram(program)
 
 	def strings(self, tabs=0):
 		if self.relationship:
-			return [self.node.name + " " + self.relationship + " " + str(self.value)]
+			strs = [[self.node.name + " " + self.relationship + " "], self.value.strings()]
+			return combineStrings(strs)
 		else:
 			return [self.node.name, ""]
 
@@ -998,13 +1021,15 @@ class ComparisonNode(ASTNode):
 		if self.relationship == None or self.value == None:
 			return None
 		index = self.program.dataset.namesToIndexes[self.node.name]
-		return PathConditionComponent(lambda x: self.ops[self.relationship](x[index], self.value)) # x is a list of args
+		valFunc = self.value.lambdaToCalculate()
+		return PathConditionComponent(lambda x: self.ops[self.relationship](x[index], valFunc(x))) # x is a list of args
 
 	def pathConditionFalse(self):
 		if self.relationship == None or self.value == None:
 			return None
 		index = self.program.dataset.namesToIndexes[self.node.name]
-		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], self.value)) # x is a list of args
+		valFunc = self.value.lambdaToCalculate()
+		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], valFunc(x))) # x is a list of args
 
 	def fillHolesRandomly(self):
 		if debug: print "randomly: comparison", self.strings()
@@ -1023,16 +1048,49 @@ class ComparisonNode(ASTNode):
 			else:
 				self.relationship = random.choice([self.ops.keys()])
 		else:
-			overwriteOrModifyOneParam(.3, [self.value], lowerBound, upperBound, -1, 1)
+			if random.uniform(0,1) < .5 or len(self.numberVariables) == 0:
+				if isinstance(self.value, NumericValue):
+					vals = overwriteOrModifyOneParam(.3, [self.value.val], lowerBound, upperBound, -1, 1)
+					self.value.val = vals[0]
+				else:
+					self.value = NumericValue(random.uniform(lowerBound, upperBound))
+			else:
+				print "using one of our variables"
+				self.value = random.choice(self.numberVariables)
 		if (self.value == None):
-			self.value = random.uniform(lowerBound, upperBound)
+			self.value = NumericValue(random.uniform(lowerBound, upperBound))
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		self.parent.fillHolesForConcretePathConditionsHelper()
 
+class NumericValue(ASTNode):
+
+	def __init__(self, val):
+		ASTNode.__init__(self)
+		self.val = val
+
+	def strings(self, tabs=0):
+		return [str(self.val)]
+
+	def lambdaToCalculate(self):
+		return lambda row: self.val
+
+class StringValue(ASTNode):
+
+	def __init__(self, val):
+		ASTNode.__init__(self)
+		self.val = val
+
+	def strings(self, tabs=0):
+		return [str(self.val)]
+
+	def lambdaToCalculate(self):
+		return lambda row: self.val
+
 class BoolBinExpNode(ASTNode):
 
-	ops = {	"&": operator.__and__,
-			"|": operator.__or__}
+	ops = {	"+": operator.__add__,
+			"-": operator.__sub__,
+			"*": operator.__mul__}
 
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
@@ -1049,12 +1107,16 @@ class BoolBinExpNode(ASTNode):
 	def strings(self, tabs=0):
 		return combineStrings([self.e1.strings(), [" "+self.op+" "], self.e2.strings()])
 
-	def pathCondition(self):
-		p1 = self.e1.pathCondition()
-		p2 = self.e2.pathCondition()
-		return PathConditionComponent(lambda x: self.ops[self.op](p1.func(x), p2.func(x)))
+	def lambdaToCalculate(self):
+		l1 = self.e1.lambdaToCalculate()
+		l2 = self.e2.lambdaToCalculate()
+		return lambda row: self.ops[self.op](l1(row), l2row)
 
 class BinExpNode(ASTNode):
+
+	ops = {	"&": operator.__and__,
+				"|": operator.__or__}
+
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
 		# op should be in {'+','-','*'}
@@ -1063,7 +1125,7 @@ class BinExpNode(ASTNode):
 		self.e2 = e2
 
 	def strings(self, tabs=0):
-		return self.e1.strings(tabs) + self.op + self.e2.strings(tabs)
+		return ["(" + self.e1.strings(tabs) + self.op + self.e2.strings(tabs) +")"]
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):
