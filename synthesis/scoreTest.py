@@ -15,6 +15,9 @@ def B(p):
 def Beta(a,b):
     return BetaDistribNode(None,alpha=a,beta=b)
 
+def U(a,b):
+    return UniformRealDistribNode(None,a=a,b=b)
+
 def C(v,m):
     return CategoricalDistribNode(None,v,valuesToPercentages=m)
 
@@ -104,6 +107,12 @@ def testMoG9():
     mog = estimator.visit(ast)
     print mog
 
+def testMoG10():
+    ast = U(0,1)
+    estimator = ScoreEstimator(None)
+    mog = estimator.visit(ast)
+    print mog
+    
 def compare():
     dataset = Dataset("../data-generation/students2.csv")
     ast = ASTNode()
@@ -164,4 +173,4 @@ def compare2():
     print "score =", estimateScore(ast,dataset)
     
 
-testMoG6()
+testMoG10()

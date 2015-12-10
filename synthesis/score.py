@@ -57,6 +57,21 @@ class Categorical:
     def at(self, x):
         return self.valuesToPercentages[x]
 
+def uniform(a,b):
+    L = b - a
+    n = 32
+    w = [1.0/n for i in range(n)]
+    mu = [(i+0.5)*L/n+a for i in range(n)]
+    sig = [1.0*L/n for i in range(n)]
+    mog = MoG(n, w, np.array(mu), np.array(sig))
+    # print mog
+    # xs = np.linspace(a-.2*L,b+.2*L,10000)
+    # ys = [mog.at(x) for x in xs]
+    # #plt.axis((-4,4,0,2))
+    # plt.plot(xs, ys)
+    # plt.show()
+    return mog
+
 # **********************************************************************
 # AST visitor
 # **********************************************************************
@@ -80,7 +95,7 @@ class visitor:
         elif isinstance(ast,BetaDistribNode):
             return self.visit_BetaDistribNode(ast)
         elif isinstance(ast,UniformRealDistribNode):
-            raise ScoreError("Scoring does not support UniformRealDistribNode.")
+            raise self.visit_UniformRealDistribNode(ast)
         elif isinstance(ast,RealDistribNode):
             return self.visit_RealDistribNode(ast)
         
@@ -195,7 +210,10 @@ class ScoreEstimator(visitor):
             for i in xrange(x1.n):
                 my_sig.append(x2.mu[i] + x1.sig[i]**2 + x2.sig[i])
             return MoG(x1.n, x1.w, x1.mu, np.array(my_sig))
-
+        
+    def visit_UniformRealDistribNode(self,ast):
+        return uniform(ast.a,ast.b)
+    
     def visit_VariableUseNode(self, ast):
         return self.env[ast.name]
 
@@ -391,6 +409,9 @@ class Mutator(visitor):
             return GaussianDistribNode(change(ast.mu,2), change(ast.sig,2))
 
     def visit_BetaDistribNode(self, ast):
+        return ast
+
+    def visit_UniformRealDistribNode(self,ast):
         return ast
 
     def visit_RealDistribNode(self, ast):
