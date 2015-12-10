@@ -237,7 +237,6 @@ class VariableDeclNode(ASTNode):
 		self.program = program
 
 		self.allowableVariables = self.program.variables[:]
-		print self.allowableVariables, "decl"
 
 		useNode = VariableUseNode(self.name, self.varType)
 		useNode.setProgram(program)
@@ -302,7 +301,7 @@ class BooleanDistribNode(DistribNode):
 		return [("Boolean", self.percentTrue, self.percentMatchingRows)]
 
 	def strings(self, tabs=0):
-		components = ["BooleanDistrib(", ")"]
+		components = ["BooleanDistrib(", ") //"+str(self.percentMatchingRows)]
 		return [components[0]+str(self.percentTrue)+components[1]]
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
@@ -641,7 +640,6 @@ class IfNode(ASTNode):
 		self.program = program
 
 		self.allowableVariables = self.parent.allowableVariables
-		print map(lambda x: x.name, self.allowableVariables), "if"
 
 		for child in self.conditionNodes:
 			child.setProgram(program)
@@ -809,10 +807,10 @@ class IfNode(ASTNode):
 		conditionsToNot = pathConditions[0:i]
 
 		if i == len(self.conditionNodes):
-			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot)
+			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot, True)
 		else:
 			conditionToAdd = pathConditions[i]
-			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot) and conditionToAdd.func(row)
+			newFunc = lambda row: conditionToAdd.func(row) and reduce(lambda a, b: a and not b.func(row), conditionsToNot, True) 
 
 		return PathConditionComponent(newFunc)
 
@@ -823,7 +821,7 @@ class IfNode(ASTNode):
 		while not isinstance(parent, VariableDeclNode):
 			bodyIndex = parent.bodyNodes.index(child)
 			pathConditionAdditional = parent.pathConditionForConditionNode(bodyIndex)
-			conditionSoFar = [pathConditionAdditional]+conditionSoFar
+			conditionSoFar = [pathConditionAdditional] + conditionSoFar
 			child = parent
 			parent = child.parent
 		currentVariable = parent
@@ -958,7 +956,6 @@ class ComparisonNode(ASTNode):
 		self.program = program
 		self.allowableVariables = self.parent.allowableVariables
 		self.numberVariables = filter(lambda x: (x.typeName == "Real" or x.typeName == "Integer") and x.name != self.node.name, self.allowableVariables)
-		print map(lambda x: x.name, self.numberVariables)
 		self.node.setProgram(program)
 
 	def strings(self, tabs=0):
@@ -1020,6 +1017,18 @@ class ComparisonNode(ASTNode):
 		self.parent.fillHolesForConcretePathConditionsHelper()
 
 class NumericValue(ASTNode):
+
+	def __init__(self, val):
+		ASTNode.__init__(self)
+		self.val = val
+
+	def strings(self, tabs=0):
+		return [str(self.val)]
+
+	def lambdaToCalculate(self):
+		return lambda row: self.val
+
+class StringValue(ASTNode):
 
 	def __init__(self, val):
 		ASTNode.__init__(self)
