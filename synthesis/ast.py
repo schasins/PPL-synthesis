@@ -342,7 +342,7 @@ class BooleanDistribNode(DistribNode):
 		return [("Boolean", self.percentTrue, self.percentMatchingRows)]
 
 	def strings(self, tabs=0):
-		components = ["BooleanDistrib(", ") //"+str(self.percentMatchingRows)]
+		components = ["BooleanDistrib(", ") /*"+str(self.percentMatchingRows)+"*/"]
 		return [components[0]+str(self.percentTrue)+components[1]]
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
@@ -1048,7 +1048,7 @@ class ComparisonNode(ASTNode):
 
 	def strings(self, tabs=0):
 		if self.relationship:
-			strs = [[self.node.name + " " + self.relationship + " "], self.value.strings()]
+			strs = [["(" + self.node.name + " " + self.relationship + " "], self.value.strings(),[")"]]
 			return combineStrings(strs)
 		else:
 			return [self.node.name, ""]
@@ -1202,7 +1202,6 @@ class ComparisonNode(ASTNode):
 		if mutationDebug: print self.strings()
 
 class NumberWrapper(ASTNode):
-
 	def __init__(self, comparisonNode, lowerBound, upperBound):
 		ASTNode.__init__(self)
 		self.comparisonNode = comparisonNode
@@ -1312,8 +1311,8 @@ class BoolBinExpNode(ASTNode):
 		self.e1 = e1
 		self.e2 = e2
 
-	def strings(self, tabs=0):
-		return ["(" + self.e1.strings(tabs)[0] + self.op + self.e2.strings(tabs)[0] +")"]
+        def strings(self, tabs=0):
+		return combineStrings([["("], self.e1.strings(), [" "+self.op+" "], self.e2.strings(), [")"]])
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):

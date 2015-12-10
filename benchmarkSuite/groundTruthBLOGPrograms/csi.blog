@@ -17,4 +17,4 @@ random Boolean X ~
     else case V in {true -> BooleanDistrib(0.8),
                   false -> BooleanDistrib(0.2)}
     ;
-query X;
+//query X;
