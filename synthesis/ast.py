@@ -147,7 +147,7 @@ class PathConditionComponent:
 
 class Program:
 	def __init__(self, dataset):
-		self.randomizeableNodes = set()
+		self.randomizeableNodes = {}
 		self.variables = []
 		self.dataset = dataset
 		self.root = None
@@ -159,13 +159,53 @@ class Program:
 	def variableRange(self, variableName):
 		return (self.dataset.columnMins[variableName], self.dataset.columnMaxes[variableName])
 
+	def instanceToKey(self, instance):
+		return instance.__class__.__name__
+
+	def addRandomizeableNode(self, node):
+		key = self.instanceToKey(node)
+		nodes = self.randomizeableNodes.get(key, set())
+		nodes.add(node)
+		self.randomizeableNodes[key] = nodes
+
+	def removeRandomizeableNode(self, node):
+		key = self.instanceToKey(node)
+		nodes = self.randomizeableNodes.get(key)
+		nodes.remove(node)
+		self.randomizeableNodes[key] = nodes
+
 	def mutate(self):
-		node = random.choice(list(self.randomizeableNodes))
-		# print "********"
-		# print node
-		# print node.strings()
-		# print "********"
-		node.mutate()
+		# TODO: adding too many ifs stop
+
+		totalWeight = 0
+		thresholds = []
+		associatedKeys = []
+		for key in self.randomizeableNodes:
+			nodes = self.randomizeableNodes[key]
+			print key, len(nodes)
+			if key == "IfNode":
+				weight = .05*len(nodes)
+			elif key == "ComparisonNode":
+				weight = .7*len(nodes)
+			elif key == "RealDistribNode":
+				weight = .25*len(nodes)
+			else:
+				raise Exception("hey we haven't handled this key yet: "+key)
+			totalWeight += weight
+			thresholds.append(totalWeight)
+			associatedKeys.append(key)
+		print thresholds
+		print associatedKeys
+		
+		decision = random.uniform(0, totalWeight)
+		for i in range(len(thresholds)):
+			if decision < thresholds[i]:
+				node = random.choice(list(self.randomizeableNodes[associatedKeys[i]]))
+				# print "********"
+				# print node
+				# print node.strings()
+				# print "********"
+				node.mutate()
 
 	def programString(self):
 		return self.root.strings()[0]
@@ -418,7 +458,7 @@ class RealDistribNode(DistribNode):
 		DistribNode.__init__(self)
 		self.varName = varName
 		self.actualDistribNode = actualDistribNode
-		self.availableNodeTypes = [BetaDistribNode, GaussianDistribNode]
+		self.availableNodeTypes = [UniformRealDistribNode, GaussianDistribNode]
 		self.availableNodes = []
 		self.matchingRowsValues = []
 		self.randomizeable = False
@@ -467,15 +507,20 @@ class RealDistribNode(DistribNode):
 					newNode.setProgram(self.program)
 					newNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable, self.matchingRowsValues) # fill in params, add the node to the randomizeable nodes
 					self.availableNodes.append(newNode)
+			elif distribType == UniformRealDistribNode:
+					newNode = UniformRealDistribNode(self.varName)
+					newNode.setProgram(self.program)
+					newNode.fillHolesForConcretePathConditions(dataset, pathCondition, currVariable, self.matchingRowsValues) # fill in params, add the node to the randomizeable nodes
+					self.availableNodes.append(newNode)
 			else:
 				raise Exception("Tried to make a type of real distribution we don't know about.")
 		self.actualDistribNode = random.choice(self.availableNodes)
 
 		if len(self.availableNodes) > 1:
-			self.program.randomizeableNodes.add(self)
+			self.program.addRandomizeableNode(self)
 			self.randomizeable = True
 		elif self in self.program.randomizeableNodes:
-			self.program.randomizeableNodes.remove(self)
+			self.program.removeRandomizeableNodes(self)
 			self.randomizeable = False
 
 		if debug: print "concrete: real", self.strings()
@@ -487,7 +532,7 @@ class RealDistribNode(DistribNode):
 			return True
 		self.mutate()
 		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
-		self.program.randomizeableNodes.add(self)
+		self.program.addRandomizeableNode(self)
 		self.randomizeable = True
 		if debug: print "randomly: real", self.strings()
 		return True
@@ -563,7 +608,7 @@ class BetaDistribNode(RealDistribNode):
 
 	def fillHolesRandomly(self):
 		self.mutate()
-		self.program.randomizeableNodes.add(self)
+		self.program.addRandomizeableNode(self)
 		self.randomizeable = True
 		if debug: print "random: beta", self.strings()
 		return True
@@ -609,7 +654,7 @@ class GammaDistribNode(RealDistribNode):
 
 	def fillHolesRandomly(self):
 		self.mutate()
-		self.program.randomizeableNodes.add(self)
+		self.program.addRandomizeableNode(self)
 		self.randomizeable = True
 		if debug: print "random: beta", self.strings()
 		return True
@@ -631,6 +676,7 @@ class GammaDistribNode(RealDistribNode):
 			self.k = modParams[0]
 			self.l = modParams[1]
 
+
 class UniformRealDistribNode(RealDistribNode):
 	def __init__(self, varName, a=None, b=None, percentMatchingRows = None):
 		RealDistribNode.__init__(self, varName)
@@ -651,25 +697,19 @@ class UniformRealDistribNode(RealDistribNode):
 		# no reduction to do here
 		return
 
-	def fillHolesRandomly(self):
-		self.mutate()
-		self.program.randomizeableNodes.add(self)
-		self.randomizeable = True
-		return True
-
-	def mutate(self):
-		(lowerBound, upperBound) = self.program.variableRange(self.varName)
-		if self.a == None:
-			self.a = random.uniform(lowerBound, upperBound) 
-			self.b = random.uniform(self.a, upperBound)
+	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable, matchingRowsValues):
+		if len(matchingRowsValues) < 1:
+			# can use anything; there's no dataset data on this, so it doesn't matter
+			self.a = 0
+			self.b = 1
+			self.percentMatchingRows = 0
 		else:
-			modParams = overwriteOrModifyOneParam(.3, [self.a, self.b], lowerBound, upperBound, -.1, .1)
-			self.a = modParams[0]
-			self.b = modParams[1]
-			if self.b < self.a:
-				tmp = self.b
-				self.b = self.a
-				self.a = self.b
+			self.a = min(matchingRowsValues)
+			self.b = max(matchingRowsValues)
+			self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
+
+		if debug: print "concrete: uniform", self.strings()
+
 
 class IfNode(ASTNode):
 	def __init__(self, conditionNodes, bodyNodes):
@@ -913,14 +953,14 @@ class IfNode(ASTNode):
 		if self.conditionNodes[0].randomizeable:
 			# can randomize if this if conditions on a real or int
 			# doesn't make sense to add or remove branches for conditioning on bools, categoricals
-			self.program.randomizeableNodes.add(self)
+			self.program.addRandomizeableNode(self)
 			self.randomizeable = True
 		return filledSomeHoles
 
 	def mutate(self):
 		# acck!  we better add and remove all the child nodes ot the randomizeable list as necessary
 
-		if len(self.bodyNodes) < 3 or random.uniform(0,1) > .5:
+		if len(self.bodyNodes) < 3 or random.uniform(0,1) < .2: # adding an if shouldn't be that likely
 			# we may mutate the if statement by adding an additional branch
 			newBodyNode = copyNode(self.bodyNodes[0])
 			newConditionNode = copyNode(self.conditionNodes[0])
@@ -932,7 +972,7 @@ class IfNode(ASTNode):
 			randomizeableNodesToAdd = newBodyNode.getRandomizeableNodes()
 			randomizeableNodesToAdd += newConditionNode.getRandomizeableNodes()
 			for node in randomizeableNodesToAdd:
-				self.program.randomizeableNodes.add(node)
+				self.program.addRandomizeableNode(node)
 
 		else:
 			# or by removing a branch
@@ -942,8 +982,7 @@ class IfNode(ASTNode):
 			randomizeableNodesToRemove = self.bodyNodes[indexToRemove].getRandomizeableNodes()
 			randomizeableNodesToRemove += self.conditionNodes[indexToRemove].getRandomizeableNodes()
 			for node in randomizeableNodesToRemove:
-				if node in self.program.randomizeableNodes:
-					self.program.randomizeableNodes.remove(node)
+				self.program.removeRandomizeableNode(node)
 
 			del self.bodyNodes[indexToRemove]
 			del self.conditionNodes[indexToRemove]
@@ -1037,7 +1076,7 @@ class ComparisonNode(ASTNode):
 	def fillHolesRandomly(self):
 		if debug: print "randomly: comparison before", self.strings()
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
-			self.program.randomizeableNodes.add(self)
+			self.program.addRandomizeableNode(self)
 			self.randomizeable = True
 			self.firstMutate()
 			if debug: print "randomly: comparison", self.strings()

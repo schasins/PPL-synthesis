@@ -97,7 +97,7 @@ class visitor:
         elif isinstance(ast,GammaDistribNode):
             return self.visit_GammaDistribNode(ast)
         elif isinstance(ast,UniformRealDistribNode):
-            raise self.visit_UniformRealDistribNode(ast)
+            return self.visit_UniformRealDistribNode(ast)
         elif isinstance(ast,RealDistribNode):
             return self.visit_RealDistribNode(ast)
         
