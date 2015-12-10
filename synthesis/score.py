@@ -94,6 +94,8 @@ class visitor:
             return self.visit_GaussianDistribNode(ast)
         elif isinstance(ast,BetaDistribNode):
             return self.visit_BetaDistribNode(ast)
+        elif isinstance(ast,GammaDistribNode):
+            return self.visit_GammaDistribNode(ast)
         elif isinstance(ast,UniformRealDistribNode):
             raise self.visit_UniformRealDistribNode(ast)
         elif isinstance(ast,RealDistribNode):
@@ -197,6 +199,13 @@ class ScoreEstimator(visitor):
         return MoG(1,np.array([1]), \
                    np.array([(1.0*alpha)/(alpha + beta)]), \
                    np.array([math.sqrt(1.0*alpha*beta / ((alpha+beta)**2 * (alpha+beta+1)))]))
+
+    def visit_GammaDistribNode(self, ast):
+        k = ast.k
+        l = ast.l
+        return MoG(1,np.array([1]), \
+                   np.array([k*l]), \
+                   np.array([math.sqrt(k*l)]))
 
     def visit_GaussianDistribNode(self, ast):
         if (isinstance(ast.mu,int) or isinstance(ast.mu,float)) and \
@@ -411,6 +420,9 @@ class Mutator(visitor):
             return GaussianDistribNode(change(ast.mu,2), change(ast.sig,2))
 
     def visit_BetaDistribNode(self, ast):
+        return ast
+
+    def visit_GammaDistribNode(self, ast):
         return ast
 
     def visit_UniformRealDistribNode(self,ast):
