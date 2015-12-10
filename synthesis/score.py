@@ -29,6 +29,9 @@ class Bernoulli:
 
 class MoG:
     def __init__(self, n, w, mu, sig):
+        if not(len(w) == n) or not(len(mu) == n) or not(len(sig) == n):
+            print "MoG", n, w, mu, sig
+            raise ScoreError("MoG: length mismatch")
         self.n = n
         self.w = w     # list of mixing fractions
         self.mu = 1.0 * mu   # list of means
@@ -63,7 +66,7 @@ def uniform(a,b):
     w = [1.0/n for i in range(n)]
     mu = [(i+0.5)*L/n+a for i in range(n)]
     sig = [1.0*L/n for i in range(n)]
-    mog = MoG(n, w, np.array(mu), np.array(sig))
+    mog = MoG(n, np.array(w), np.array(mu), np.array(sig))
     # print mog
     # xs = np.linspace(a-.2*L,b+.2*L,10000)
     # ys = [mog.at(x) for x in xs]
@@ -312,8 +315,6 @@ class ScoreEstimator(visitor):
             raise ScoreError("ScoreEstimator: UnaryExpNode: currently only support '!' with bernoulli variable")
 
     def visit_ComparisonNode(self, ast):
-        # print "ast.node = ", ast.node
-        # print "ast.value = ", ast.value
         e1 = self.visit(ast.node)
         e2 = self.visit(ast.value)
         # print "e1 = ", e1
@@ -341,6 +342,10 @@ class ScoreEstimator(visitor):
                 raise ScoreError("ComparisonNode: types mismatch #1")
         # >, < for real
         elif isinstance(e1,MoG) and isinstance(e2,MoG):
+            # print "ast.node = ", ast.node
+            # print "ast.value = ", ast.value
+            # print "e1", e1
+            # print "e2", e2
             if ast.relationship == "<":
                 # swap
                 tmp = e1
