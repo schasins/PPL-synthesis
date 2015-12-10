@@ -229,14 +229,20 @@ class VariableDeclNode(ASTNode):
 		self.name = name
 		self.varType = varType
 		self.RHS = RHS
+		self.allowableVariables = []
 		
 		self.RHS.setParent(self)
 
 	def setProgram(self, program):
 		self.program = program
+
+		self.allowableVariables = self.program.variables[:]
+		print self.allowableVariables, "decl"
+
 		useNode = VariableUseNode(self.name, self.varType)
 		useNode.setProgram(program)
 		self.program.variables.append(useNode)
+
 		self.RHS.setProgram(program)
 
 	def replace(self, nodeToCut, nodeToAdd):
@@ -624,6 +630,8 @@ class IfNode(ASTNode):
 		self.conditionNodes = conditionNodes
 		self.bodyNodes = bodyNodes
 		self.randomizeable = False
+
+		self.allowableVariables = []
 		for node in self.conditionNodes:
 			node.setParent(self)
 		for node in self.bodyNodes:
@@ -631,10 +639,15 @@ class IfNode(ASTNode):
 
 	def setProgram(self, program):
 		self.program = program
+
+		self.allowableVariables = self.parent.allowableVariables
+		print map(lambda x: x.name, self.allowableVariables), "if"
+
 		for child in self.conditionNodes:
 			child.setProgram(program)
 		for child in self.bodyNodes:
 			child.setProgram(program)
+
 
 	def params(self):
 		paramsLs = []
@@ -939,12 +952,13 @@ class ComparisonNode(ASTNode):
 		self.value = value
 		self.randomizeable = False
 		self.allowableVariables = []
+		self.numberVariables = []
 
 	def setProgram(self, program):
 		self.program = program
-		i = next(x for x in range(len(self.program.variables)) if (self.program.variables[x].name == self.node.name))
-		variables = self.program.variables[0:i]
-		self.allowableVariables = variables
+		self.allowableVariables = self.parent.allowableVariables
+		self.numberVariables = filter(lambda x: (x.typeName == "Real" or x.typeName == "Integer") and x.name != self.node.name, self.allowableVariables)
+		print map(lambda x: x.name, self.numberVariables)
 		self.node.setProgram(program)
 
 	def strings(self, tabs=0):
@@ -991,14 +1005,15 @@ class ComparisonNode(ASTNode):
 			else:
 				self.relationship = random.choice([self.ops.keys()])
 		else:
-			if random.uniform(0,1) < .5 or len(self.allowableVariables) == 0:
+			if random.uniform(0,1) < .5 or len(self.numberVariables) == 0:
 				if isinstance(self.value, NumericValue):
 					vals = overwriteOrModifyOneParam(.3, [self.value.val], lowerBound, upperBound, -1, 1)
 					self.value.val = vals[0]
 				else:
 					self.value = NumericValue(random.uniform(lowerBound, upperBound))
 			else:
-				self.value = random.choice(self.allowableVariables)
+				print "using one of our variables"
+				self.value = random.choice(self.numberVariables)
 		if (self.value == None):
 			self.value = NumericValue(random.uniform(lowerBound, upperBound))
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
