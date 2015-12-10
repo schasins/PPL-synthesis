@@ -1,0 +1,11 @@
+random Real Skill1 ~
+  Gaussian(20, 4);
+
+random Real Skill2 ~
+  Gaussian(20, 4);
+
+random Boolean P1Wins ~
+	if Skill1 > 1.3 * Skill2 then
+		true
+	else
+		false;

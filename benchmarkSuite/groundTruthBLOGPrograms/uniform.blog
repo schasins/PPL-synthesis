@@ -1,0 +1,4 @@
+random Real obstacle1 ~ UniformReal(-7, 7);
+random Real obstacle2 ~
+	if obstacle1 < 0 then UniformReal(0,7)
+	else UniformReal(-7,0);
