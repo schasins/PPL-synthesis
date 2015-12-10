@@ -5,6 +5,7 @@ import numpy as np
 from copy import deepcopy
 
 debug = False
+mutationDebug = True
 
 # **********************************************************************
 # Supported distributions
@@ -996,17 +997,14 @@ class ComparisonNode(ASTNode):
 		self.relationship = relationship
 		self.value = value
 		self.randomizeable = False
-		self.allowableVariables = []
+		self.allowableVariables = None
 		self.numberVariables = []
-
-		self.RHSNumericSlots = []
-		self.RHSConstants = []
-		self.RHSOperators = []
 
 	def setProgram(self, program):
 		self.program = program
-		self.allowableVariables = self.parent.allowableVariables
-		self.numberVariables = filter(lambda x: (x.typeName == "Real" or x.typeName == "Integer") and x.name != self.node.name, self.allowableVariables)
+		if self.allowableVariables == None:
+			self.allowableVariables = self.parent.allowableVariables
+			self.numberVariables = filter(lambda x: (x.typeName == "Real" or x.typeName == "Integer") and x.name != self.node.name, self.allowableVariables)
 		self.node.setProgram(program)
 
 	def strings(self, tabs=0):
@@ -1054,12 +1052,31 @@ class ComparisonNode(ASTNode):
 
 	def firstMutate(self):
 		(lowerBound, upperBound) = self.node.range()
-		newNumber = NumberWrapper(self, lowerBound, upperBound, self.numberVariables)
+		newNumber = NumberWrapper(self, lowerBound, upperBound)
 		self.value = newNumber
 		self.randomizeOperator()
 
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		self.parent.fillHolesForConcretePathConditionsHelper()
+
+	def removeOp(self, opToRemove):
+		useLeft = random.choice([True, False])
+		if useLeft:
+			sideToKeep = opToRemove.e1
+		else:
+			sideToKeep = opToRemove.e2
+		parent = opToRemove.parent
+		sideToKeep.setParent(parent)
+		if (isinstance(parent, ComparisonNode)):
+			parent.value = sideToKeep
+		else:
+			# it's another op node
+			if parent.e1 == opToRemove:
+				parent.e1 = sideToKeep
+			elif parent.e2 == opToRemove:
+				parent.e2 = sideToKeep
+			else:
+				raise Exception("Freak out!  Trying to remove op that's not here...")
 
 	def mutate(self):
 
@@ -1074,96 +1091,105 @@ class ComparisonNode(ASTNode):
 		#TODO: change numbers
 		#TODO: add restrictions like shouldn't have 2+4?
 
-		print "*******"
-		print "before"
-		print self.strings()
+		# refresh our lists:
+		RHSNumericSlots = self.value.numericSlots()
+		RHSConstants = map(lambda x: x.val, filter(lambda x: isinstance(x.val, NumericValue), RHSNumericSlots))
+		RHSOperators = []
+		if isinstance(self.value, BinExpNode):
+			RHSOperators = self.value.operators()
+
+		if mutationDebug: print "******"
+		if mutationDebug: print "before"
+		if mutationDebug: print self.strings()
+
+		# sometimes we may go through motions of mutation but not end up with something different
+		# (randomly select same RV to use, attempted mutation not allowed)
+		# so compare strings at end to make sure something actually changed
+		preString = self.strings()
 
 		decision = random.uniform(0,1)
-		if decision < .15 and len(self.RHSNumericSlots) > 0:
+		if decision < .2 and len(RHSNumericSlots) > 0:
 			# Randomly fill a numeric slot with a new constant or variable use
-			random.choice(self.RHSNumericSlots).randomizeVal()
-		elif decision < .3 and len(self.RHSConstants) > 0:
+			if mutationDebug: print "Randomly fill a numeric slot with a new constant or variable use"
+			random.choice(RHSNumericSlots).randomizeVal()
+		elif decision < .5 and len(RHSConstants) > 0:
 			# Slightly adjust a current constant
-			random.choice(self.RHSConstants).adjustVal(-1, 1)
-		elif decision < .4:
+			if mutationDebug: print "Slightly adjust a current constant"
+			random.choice(RHSConstants).adjustVal(-1, 1)
+		elif decision < .6:
 			# Add an operator
+			if mutationDebug: print "Add an operator"
 			(lowerBound, upperBound) = self.node.range()
-			subExps = [self.value, NumberWrapper(self, lowerBound, upperBound, self.numberVariables)]
+			subExps = [self.value, NumberWrapper(self, lowerBound, upperBound)]
 			random.shuffle(subExps)
 			newExpression = BinExpNode("+", subExps[0], subExps[1])
 			newExpression.randomizeOp()
-			self.RHSOperators.append(newExpression)
+			RHSOperators.append(newExpression)
 			self.value = newExpression
-		elif decision < .5 and len(self.RHSOperators) > 0:
+			for expr in subExps:
+				expr.setParent(newExpression)
+			newExpression.setParent(self)
+		elif decision < .8 and len(RHSOperators) > 0:
 			# Remove an operator
-			# TODO: choose a random operator from list and get rid of it, also remove it from list
-			opToRemove = random.choice(self.RHSOperators)
-			useLeft = random.choice([True, False])
-			if useLeft:
-				sideToKeep = opToRemove.e1
-				sideToRemove = opToRemove.e2
-			else:
-				sideToKeep = opToRemove.e2
-				sideToRemove = opToRemove.e1
-			numericSlotsToRemove = opToRemove.numericSlots()
-			for slot in numericSlotsToRemove:
-				self.RHSNumericSlots.remove(slot)
-				if isinstance(slot.val, NumericValue):
-					self.RHSConstants.remove(slot.val)
-			parent = opToRemove.parent
-			if (isinstance(parent, ComparisonNode)):
-				parent.val = sideToKeep
-			else:
-				# it's another op node
-				if parent.e1 == opToRemove:
-					parent.e1 = sideToKeep
-				elif parent.e2 == opToRemove:
-					parent.e2 = sideToKeep
-				else:
-					raise Exception("Freak out!  Trying to remove op that's not here...")
-			self.RHSOperators.remove(opToRemove)
-
-		elif decision < .6 and len(self.RHSOperators) > 0:
+			if mutationDebug: print "Remove an operator"
+			opToRemove = random.choice(RHSOperators)
+			self.removeOp(opToRemove)
+		elif decision < .9 and len(RHSOperators) > 0:
 			# Change an operator
-			random.choice(self.RHSOperators).randomizeOp()
+			if mutationDebug: print "Change an operator"
+			random.choice(RHSOperators).randomizeOp()
 		else:
 			# Change the top level comparison
+			if mutationDebug: print "Change the top level comparison"
 			self.randomizeOperator()		
 
+		# we don't want to be needlessly combining constants
+		print RHSOperators
+		for op in RHSOperators:
+			if isinstance(op.e1, NumberWrapper) and isinstance(op.e2, NumberWrapper) and isinstance(op.e1.val, NumericValue) and isinstance(op.e2.val, NumericValue):
+				print "need to remove op"
+				self.removeOp(op)
+
+		postString = self.strings()
+		if postString == preString:
+			# it's the same.  try again
+			return self.mutate()
+
+		# ok we've made a mutation that works
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		self.parent.fillHolesForConcretePathConditionsHelper()
 
-		print "after"
-		print self.strings()
+		if mutationDebug: print "after"
+		if mutationDebug: print self.strings()
 
 class NumberWrapper(ASTNode):
-
-	def __init__(self, comparisonNode, lowerBound, upperBound, allowableVariables,val=None):
+	def __init__(self, comparisonNode, lowerBound, upperBound):
 		ASTNode.__init__(self)
 		self.comparisonNode = comparisonNode
 		self.lowerBound = lowerBound
 		self.upperBound = upperBound
-		self.allowableVariables = allowableVariables
-		self.val = val
-                if comparisonNode:
-                        self.randomizeVal()
-                        self.comparisonNode.RHSNumericSlots.append(self)
+		self.val = None
+		self.randomizeVal()
 
 	def randomizeVal(self):
-		if self.val in self.comparisonNode.RHSConstants:
-			self.comparisonNode.RHSConstants.remove(self.val)
+		if isinstance(self.val, VariableUseNode):
+			# we've been using an R.V. but we're about to overwrite it, so we should put it back into circulation
+			self.comparisonNode.numberVariables.append(self.val)
 
-		if random.uniform(0,1) > .5 or len(self.allowableVariables) < 1:
+		if random.uniform(0,1) > .5 or len(self.comparisonNode.numberVariables) < 1:
 			self.val = NumericValue(random.uniform(self.lowerBound, self.upperBound))
-			self.comparisonNode.RHSConstants.append(self.val)
 		else:
-			self.val = random.choice(self.allowableVariables)
+			self.val = random.choice(self.comparisonNode.numberVariables)
+			self.comparisonNode.numberVariables.remove(self.val) # so an R.V. can only be used once in a comparison expression
 
 	def strings(self):
 		return self.val.strings()
 
 	def lambdaToCalculate(self):
 		return self.val.lambdaToCalculate()
+
+	def numericSlots(self):
+		return [self]
 
 class NumericValue(ASTNode):
 
@@ -1224,13 +1250,16 @@ class BinExpNode(ASTNode):
 	def numericSlots(self):
 		ls = []
 		for e in [self.e1, self.e2]:
-			if isinstance(e, NumberWrapper):
-				ls.append(e)
-			elif isinstance(e, BinExpNode):
-				ls = ls + e.numericSlots
-			else:
-				raise Exception("Freak out!  We have a type of node we can't handle!")
+			ls = ls + e.numericSlots()
 		return ls
+
+	def operators(self):
+		ls = [self]
+		for e in [self.e1, self.e2]:
+			if isinstance(e, BinExpNode):
+				ls = ls + e.operators()
+		return ls
+
 
 class BoolBinExpNode(ASTNode):
 

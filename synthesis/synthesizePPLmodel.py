@@ -358,11 +358,12 @@ def main():
 	distanceFromDataset = -1*estimateScore(prog.root, dataset)
 	#print len(prog.randomizeableNodes)
 	annealingOutput = []
-	if len(prog.randomizeableNodes) > 0:
-		with Capturing() as annealingOutput:
-			progOutput, distanceFromDataset = saObj.anneal()
-	else:
-		progOutput = prog
+	progOutput, distanceFromDataset = saObj.anneal()
+	# if len(prog.randomizeableNodes) > 0:
+	# 	with Capturing() as annealingOutput:
+	# 		progOutput, distanceFromDataset = saObj.anneal()
+	# else:
+	# 	progOutput = prog
 
 	
 	print "\n".join(annealingOutput)
