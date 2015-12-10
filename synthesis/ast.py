@@ -480,6 +480,7 @@ class RealDistribNode(DistribNode):
 		if debug: print "concrete: real", self.strings()
 
 	def fillHolesRandomly(self):
+		if debug: print "randomly: real before", self.strings()
 		if len(self.availableNodes) > 0:
 			# nothing to fill randomly here, already filled it based on a concrete path condition
 			return True
@@ -952,6 +953,10 @@ class ComparisonNode(ASTNode):
 		self.allowableVariables = []
 		self.numberVariables = []
 
+		self.RHSNumericSlots = []
+		self.RHSConstants = []
+		self.RHSOperators = []
+
 	def setProgram(self, program):
 		self.program = program
 		self.allowableVariables = self.parent.allowableVariables
@@ -986,35 +991,132 @@ class ComparisonNode(ASTNode):
 		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], valFunc(x))) # x is a list of args
 
 	def fillHolesRandomly(self):
-		if debug: print "randomly: comparison", self.strings()
+		if debug: print "randomly: comparison before", self.strings()
 		if self.node.typeName == "Real" or self.node.typeName == "Integer":
 			self.program.randomizeableNodes.add(self)
 			self.randomizeable = True
-			self.mutate()
+			self.firstMutate()
+			if debug: print "randomly: comparison", self.strings()
 			return True
 		return False
 
-	def mutate(self):
-		(lowerBound, upperBound) = self.node.range()
-		if (self.relationship == None or random.uniform(0,1) < .3):
-			if self.node.typeName == "Real":
-				self.relationship = random.choice([">", "<"]) # using eq for reals is just silly
-			else:
-				self.relationship = random.choice([self.ops.keys()])
+	def randomizeOperator(self):
+		if self.node.typeName == "Real":
+			self.relationship = random.choice([">", "<"]) # using eq for reals is just silly
 		else:
-			if random.uniform(0,1) < .5 or len(self.numberVariables) == 0:
-				if isinstance(self.value, NumericValue):
-					vals = overwriteOrModifyOneParam(.3, [self.value.val], lowerBound, upperBound, -1, 1)
-					self.value.val = vals[0]
-				else:
-					self.value = NumericValue(random.uniform(lowerBound, upperBound))
-			else:
-				print "using one of our variables"
-				self.value = random.choice(self.numberVariables)
-		if (self.value == None):
-			self.value = NumericValue(random.uniform(lowerBound, upperBound))
+			self.relationship = random.choice([self.ops.keys()])
+
+	def firstMutate(self):
+		(lowerBound, upperBound) = self.node.range()
+		newNumber = NumberWrapper(self, lowerBound, upperBound, self.numberVariables)
+		self.value = newNumber
+		self.randomizeOperator()
+
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		self.parent.fillHolesForConcretePathConditionsHelper()
+
+	def mutate(self):
+
+		# We can:
+		# 1. Randomly fill a numeric slot with a new constant or variable use
+		# 2. Slightly adjust a current constant
+		# 3. Add an operator
+		# 4. Remove an operator
+		# 5. Change an operator
+		# 6. Change the top level comparison
+
+		#TODO: change numbers
+		#TODO: add restrictions like shouldn't have 2+4?
+
+		print "*******"
+		print "before"
+		print self.strings()
+
+		decision = random.uniform(0,1)
+		if decision < .15 and len(self.RHSNumericSlots) > 0:
+			# Randomly fill a numeric slot with a new constant or variable use
+			random.choice(self.RHSNumericSlots).randomizeVal()
+		elif decision < .3 and len(self.RHSConstants) > 0:
+			# Slightly adjust a current constant
+			random.choice(self.RHSConstants).adjustVal(-1, 1)
+		elif decision < .4:
+			# Add an operator
+			(lowerBound, upperBound) = self.node.range()
+			subExps = [self.value, NumberWrapper(self, lowerBound, upperBound, self.numberVariables)]
+			random.shuffle(subExps)
+			newExpression = BinExpNode("+", subExps[0], subExps[1])
+			newExpression.randomizeOp()
+			self.RHSOperators.append(newExpression)
+			self.value = newExpression
+		elif decision < .5 and len(self.RHSOperators) > 0:
+			# Remove an operator
+			# TODO: choose a random operator from list and get rid of it, also remove it from list
+			opToRemove = random.choice(self.RHSOperators)
+			useLeft = random.choice([True, False])
+			if useLeft:
+				sideToKeep = opToRemove.e1
+				sideToRemove = opToRemove.e2
+			else:
+				sideToKeep = opToRemove.e2
+				sideToRemove = opToRemove.e1
+			numericSlotsToRemove = opToRemove.numericSlots()
+			for slot in numericSlotsToRemove:
+				self.RHSNumericSlots.remove(slot)
+				if isinstance(slot.val, NumericValue):
+					self.RHSConstants.remove(slot.val)
+			parent = opToRemove.parent
+			if (isinstance(parent, ComparisonNode)):
+				parent.val = sideToKeep
+			else:
+				# it's another op node
+				if parent.e1 == opToRemove:
+					parent.e1 = sideToKeep
+				elif parent.e2 == opToRemove:
+					parent.e2 = sideToKeep
+				else:
+					raise Exception("Freak out!  Trying to remove op that's not here...")
+			self.RHSOperators.remove(opToRemove)
+
+		elif decision < .6 and len(self.RHSOperators) > 0:
+			# Change an operator
+			random.choice(self.RHSOperators).randomizeOp()
+		else:
+			# Change the top level comparison
+			self.randomizeOperator()		
+
+		# we've changed the conditions.  better recalculate the things that depend on path conditions
+		self.parent.fillHolesForConcretePathConditionsHelper()
+
+		print "after"
+		print self.strings()
+
+class NumberWrapper(ASTNode):
+
+	def __init__(self, comparisonNode, lowerBound, upperBound, allowableVariables):
+		ASTNode.__init__(self)
+		self.comparisonNode = comparisonNode
+		self.lowerBound = lowerBound
+		self.upperBound = upperBound
+		self.allowableVariables = allowableVariables
+		self.val = None
+		self.randomizeVal()
+		self.comparisonNode.RHSNumericSlots.append(self)
+
+	def randomizeVal(self):
+		if self.val in self.comparisonNode.RHSConstants:
+			self.comparisonNode.RHSConstants.remove(self.val)
+
+		if random.uniform(0,1) > .5 or len(self.allowableVariables) < 1:
+			self.val = NumericValue(random.uniform(self.lowerBound, self.upperBound))
+			self.comparisonNode.RHSConstants.append(self.val)
+		else:
+			self.val = random.choice(self.allowableVariables)
+
+	def strings(self):
+		return self.val.strings()
+
+	def lambdaToCalculate(self):
+		return self.val.lambdaToCalculate()
 
 class NumericValue(ASTNode):
 
@@ -1024,6 +1126,9 @@ class NumericValue(ASTNode):
 
 	def strings(self, tabs=0):
 		return [str(self.val)]
+
+	def adjustVal(self, lower, upper):
+		self.val = self.val + random.uniform(lower, upper)
 
 	def lambdaToCalculate(self):
 		return lambda row: self.val
@@ -1040,7 +1145,7 @@ class StringValue(ASTNode):
 	def lambdaToCalculate(self):
 		return lambda row: self.val
 
-class BoolBinExpNode(ASTNode):
+class BinExpNode(ASTNode):
 
 	ops = {	"+": operator.__add__,
 			"-": operator.__sub__,
@@ -1058,22 +1163,35 @@ class BoolBinExpNode(ASTNode):
 		self.e1.setProgram(program)
 		self.e2.setProgram(program)
 
+	def randomizeOp(self):
+		self.op = random.choice(self.ops.keys())
+
 	def strings(self, tabs=0):
-		return combineStrings([self.e1.strings(), [" "+self.op+" "], self.e2.strings()])
+		return combineStrings([["("], self.e1.strings(), [" "+self.op+" "], self.e2.strings(), [")"]])
 
 	def lambdaToCalculate(self):
 		l1 = self.e1.lambdaToCalculate()
 		l2 = self.e2.lambdaToCalculate()
-		return lambda row: self.ops[self.op](l1(row), l2row)
+		return lambda row: self.ops[self.op](l1(row), l2(row))
 
-class BinExpNode(ASTNode):
+	def numericSlots(self):
+		ls = []
+		for e in [self.e1, self.e2]:
+			if isinstance(e, NumberWrapper):
+				ls.append(e)
+			elif isinstance(e, BinExpNode):
+				ls = ls + e.numericSlots
+			else:
+				raise Exception("Freak out!  We have a type of node we can't handle!")
+		return ls
+
+class BoolBinExpNode(ASTNode):
 
 	ops = {	"&": operator.__and__,
 				"|": operator.__or__}
 
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
-		# op should be in {'+','-','*'}
 		self.op = op
 		self.e1 = e1
 		self.e2 = e2

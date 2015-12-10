@@ -115,6 +115,8 @@ class visitor:
             return self.visit_BoolConstant(ast)
         elif isinstance(ast, NumericValue):
             return self.visit_Constant(ast)
+        elif isinstance(ast, NumberWrapper):
+            return self.visit(ast.val)
         elif isinstance(ast, StringValue):
             return self.visit_String(ast)
         else:
