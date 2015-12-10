@@ -19,7 +19,8 @@ reserved = {
 tokens = [
     'TILDA', 
     'ID','NUMBER',
-    'PLUS','MINUS','TIMES','DIVIDE','CEQ','EQ','POINT','GE','GT','LE','LT',
+    'PLUS','MINUS','TIMES','DIVIDE','AND','OR',
+    'CEQ','EQ','POINT','GE','GT','LE','LT',
     'LPAREN','RPAREN','LBRACK','RBRACK','SEMICOL','COMMA'
     ] + list(reserved.values())
 
@@ -30,6 +31,8 @@ t_POINT   = r'->'
 t_MINUS   = r'-'
 t_TIMES   = r'\*'
 t_DIVIDE  = r'/'
+t_AND     = r'\&'
+t_OR      = r'\|'
 t_GE      = r'<='
 t_GT      = r'<'
 t_LE      = r'>='
@@ -80,6 +83,7 @@ from ast import *
 
 # Parsing rules
 precedence = (
+    ('left','AND','OR'),
     ('left','GE','GT','LE','LT','CEQ'),
     ('left','PLUS','MINUS'),
     ('left','TIMES','DIVIDE'),
@@ -153,17 +157,32 @@ def p_expr_const(t):
     'expr : NUMBER'
     t[0] = t[1]
 
-def p_expr_boolbin(t):
-    'expr : expr boolop expr'
-    t[0] = BoolBinExpNode(t[2],t[1],t[3])
-
-def p_boolop(t):
-    '''boolop : GE
-              | GT
-              | LE
-              | LT
-              | CEQ'''
+def p_expr_bin(t):
+    '''expr : boolbin
+            | arithbin'''
     t[0] = t[1]
+
+def p_expr_binparen(t):
+    '''expr : LPAREN boolbin RPAREN
+            | LPAREN arithbin RPAREN'''
+    t[0] = t[2]
+    
+def p_boolbin(t):
+    '''boolbin : expr GE expr
+               | expr GT expr
+               | expr LE expr
+               | expr LT expr
+               | expr CEQ expr
+               | expr AND expr
+               | expr OR expr'''
+    t[0] = BoolBinExpNode(t[2],t[1],t[3])
+    
+def p_arithbin(t):
+    '''arithbin : expr PLUS expr
+           | expr MINUS expr
+           | expr TIMES expr
+           | expr DIVIDE expr'''
+    t[0] = BinExpNode(t[2],t[1],t[3])
     
 def p_expr_if(t):
     'expr : IF expr THEN expr ELSE expr'
@@ -218,8 +237,38 @@ def parse(p):
     print ast.strings()[0]
 
 p1 = """
-random Real tired ~ UniformReal(.5,.1);
-random Real tired ~ Beta(.5,.1);
-random Real tired ~ Gamma(.5,.1);
+
+random Boolean lazyP1
+  ~ BooleanDistrib(0.1);
+
+random Boolean lazyP2
+  ~ BooleanDistrib(0.1);
+
+random Boolean lazyP3
+  ~ BooleanDistrib(0.1);
+
+random Boolean lazyP4
+  ~ BooleanDistrib(0.1);
+
+random Real pulling_powerP1 ~
+  if lazyP1 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Real pulling_powerP2 ~
+  if lazyP2 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Real pulling_powerP3 ~
+  if lazyP3 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Real pulling_powerP4 ~
+  if lazyP4 then Gaussian(5, 2)
+  else Gaussian(10, 2);
+
+random Boolean team1win ~
+  if (pulling_powerP1 + pulling_powerP2 > pulling_powerP3 + pulling_powerP4)
+  then BooleanDistrib(0.1)
+  else BooleanDistrib(0.1);
 """
 parse(p1)

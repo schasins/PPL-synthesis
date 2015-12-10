@@ -1105,7 +1105,7 @@ class BoolBinExpNode(ASTNode):
 		self.e2.setProgram(program)
 
 	def strings(self, tabs=0):
-		return combineStrings([self.e1.strings(), [" "+self.op+" "], self.e2.strings()])
+		return combineStrings([["("],self.e1.strings(), [" "+self.op+" "], self.e2.strings(),[")"]])
 
 	def lambdaToCalculate(self):
 		l1 = self.e1.lambdaToCalculate()
@@ -1125,7 +1125,7 @@ class BinExpNode(ASTNode):
 		self.e2 = e2
 
 	def strings(self, tabs=0):
-		return ["(" + self.e1.strings(tabs) + self.op + self.e2.strings(tabs) +")"]
+		return ["(" + self.e1.strings(tabs)[0] + self.op + self.e2.strings(tabs)[0] +")"]
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):
