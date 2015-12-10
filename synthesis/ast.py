@@ -4,7 +4,8 @@ import random
 import numpy as np
 from copy import deepcopy
 
-debug = True
+debug = False
+mutationDebug = True
 
 # **********************************************************************
 # Supported distributions
@@ -1067,7 +1068,7 @@ class ComparisonNode(ASTNode):
 		parent = opToRemove.parent
 		sideToKeep.setParent(parent)
 		if (isinstance(parent, ComparisonNode)):
-			parent.val = sideToKeep
+			parent.value = sideToKeep
 		else:
 			# it's another op node
 			if parent.e1 == opToRemove:
@@ -1097,8 +1098,9 @@ class ComparisonNode(ASTNode):
 		if isinstance(self.value, BinExpNode):
 			RHSOperators = self.value.operators()
 
-		if debug: print "before"
-		if debug: print self.strings()
+		if mutationDebug: print "******"
+		if mutationDebug: print "before"
+		if mutationDebug: print self.strings()
 
 		# sometimes we may go through motions of mutation but not end up with something different
 		# (randomly select same RV to use, attempted mutation not allowed)
@@ -1108,15 +1110,15 @@ class ComparisonNode(ASTNode):
 		decision = random.uniform(0,1)
 		if decision < .2 and len(RHSNumericSlots) > 0:
 			# Randomly fill a numeric slot with a new constant or variable use
-			if debug: print "Randomly fill a numeric slot with a new constant or variable use"
+			if mutationDebug: print "Randomly fill a numeric slot with a new constant or variable use"
 			random.choice(RHSNumericSlots).randomizeVal()
 		elif decision < .5 and len(RHSConstants) > 0:
 			# Slightly adjust a current constant
-			if debug: print "Slightly adjust a current constant"
+			if mutationDebug: print "Slightly adjust a current constant"
 			random.choice(RHSConstants).adjustVal(-1, 1)
 		elif decision < .6:
 			# Add an operator
-			if debug: print "Add an operator"
+			if mutationDebug: print "Add an operator"
 			(lowerBound, upperBound) = self.node.range()
 			subExps = [self.value, NumberWrapper(self, lowerBound, upperBound)]
 			random.shuffle(subExps)
@@ -1129,21 +1131,23 @@ class ComparisonNode(ASTNode):
 			newExpression.setParent(self)
 		elif decision < .8 and len(RHSOperators) > 0:
 			# Remove an operator
-			if debug: print "Remove an operator"
+			if mutationDebug: print "Remove an operator"
 			opToRemove = random.choice(RHSOperators)
 			self.removeOp(opToRemove)
 		elif decision < .9 and len(RHSOperators) > 0:
 			# Change an operator
-			if debug: print "Change an operator"
+			if mutationDebug: print "Change an operator"
 			random.choice(RHSOperators).randomizeOp()
 		else:
 			# Change the top level comparison
-			if debug: print "Change the top level comparison"
+			if mutationDebug: print "Change the top level comparison"
 			self.randomizeOperator()		
 
 		# we don't want to be needlessly combining constants
+		print RHSOperators
 		for op in RHSOperators:
 			if isinstance(op.e1, NumberWrapper) and isinstance(op.e2, NumberWrapper) and isinstance(op.e1.val, NumericValue) and isinstance(op.e2.val, NumericValue):
+				print "need to remove op"
 				self.removeOp(op)
 
 		postString = self.strings()
@@ -1155,8 +1159,8 @@ class ComparisonNode(ASTNode):
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		self.parent.fillHolesForConcretePathConditionsHelper()
 
-		if debug: print "after"
-		if debug: print self.strings()
+		if mutationDebug: print "after"
+		if mutationDebug: print self.strings()
 
 class NumberWrapper(ASTNode):
 
@@ -1185,6 +1189,9 @@ class NumberWrapper(ASTNode):
 	def lambdaToCalculate(self):
 		return self.val.lambdaToCalculate()
 
+	def numericSlots(self):
+		return [self]
+
 class NumericValue(ASTNode):
 
 	def __init__(self, val):
@@ -1199,9 +1206,6 @@ class NumericValue(ASTNode):
 
 	def lambdaToCalculate(self):
 		return lambda row: self.val
-
-	def numericSlots(self):
-		return [self]
 
 class StringValue(ASTNode):
 
