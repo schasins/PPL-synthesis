@@ -575,6 +575,52 @@ class BetaDistribNode(RealDistribNode):
 			self.alpha = modParams[0]
 			self.beta = modParams[1]
 
+                        
+class GammaDistribNode(RealDistribNode):
+	def __init__(self, varName, k=None, l=None, percentMatchingRows = None):
+		RealDistribNode.__init__(self, varName)
+		self.k = k
+		self.l = l
+		self.percentMatchingRows = percentMatchingRows
+		self.randomizeable = False
+
+	def strings(self, tabs=0):
+		if self.k:
+			return ["Gamma(%f,%f)" % (self.k, self.l)]
+		else:
+			return ["Gamma(",",", ")"]
+
+	def params(self):
+		return [("Gamma", (self.k, self.l), self.percentMatchingRows)]
+
+	def reduce(self, dataset, pathCondition, currVariable):
+		# no reduction to do here
+		return
+
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.randomizeableNodes.add(self)
+		self.randomizeable = True
+		if debug: print "random: beta", self.strings()
+		return True
+
+	def getRandomizeableNodes(self):
+		ls = []
+		if self.randomizeable:
+			ls.append(self)
+		return ls
+
+	def mutate(self):
+		lowerBound = .000000000000001
+		upperBound = 40
+		if self.alpha == None:
+			self.k = random.uniform(lowerBound, upperBound) 
+			self.l = random.uniform(lowerBound, upperBound)
+		else:
+			modParams = overwriteOrModifyOneParam(.3, [self.k, self.l], lowerBound, upperBound, -3, 3)
+			self.k = modParams[0]
+			self.l = modParams[1]
+
 class UniformRealDistribNode(RealDistribNode):
 	def __init__(self, varName, a=None, b=None, percentMatchingRows = None):
 		RealDistribNode.__init__(self, varName)

@@ -15,6 +15,9 @@ def B(p):
 def Beta(a,b):
     return BetaDistribNode(None,alpha=a,beta=b)
 
+def Gamma(k,l):
+    return GammaDistribNode(None,k=k,l=l)
+
 def U(a,b):
     return UniformRealDistribNode(None,a=a,b=b)
 
@@ -112,6 +115,12 @@ def testMoG10():
     estimator = ScoreEstimator(None)
     mog = estimator.visit(ast)
     print mog
+
+def testMoG11():
+    ast = Gamma(2,3)
+    estimator = ScoreEstimator(None)
+    mog = estimator.visit(ast)
+    print mog
     
 def compare():
     dataset = Dataset("../data-generation/students2.csv")
@@ -173,4 +182,4 @@ def compare2():
     print "score =", estimateScore(ast,dataset)
     
 
-testMoG10()
+testMoG11()
