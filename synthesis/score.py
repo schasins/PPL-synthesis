@@ -173,7 +173,7 @@ class ScoreEstimator(visitor):
         self.env[ast.name] = self.visit(ast.RHS)
 
     def visit_Constant(self, ast):
-        return MoG(1,np.array([1]),np.array([1.0 * ast.val]),np.array([0.0]))
+        return MoG(1,np.array([1]),np.array([ast.val]),np.array([0.0]))
 
     def visit_BoolConstant(self, ast):
         if ast:

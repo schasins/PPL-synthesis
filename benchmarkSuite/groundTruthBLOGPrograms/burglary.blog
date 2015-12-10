@@ -27,11 +27,13 @@ random Boolean MaryCalls ~
  * of Burglary is 0.284 (see p. 505 of "AI: A Modern Approach", 2nd ed.).
  */
 
+/*
 obs JohnCalls = true;
 obs MaryCalls = true;
+*/
 
 /* Query for the burglary model asking whether Burglary 
  * is true.
  */
 
-query Burglary;
+//query Burglary;

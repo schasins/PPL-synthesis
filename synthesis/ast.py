@@ -301,7 +301,7 @@ class BooleanDistribNode(DistribNode):
 		return [("Boolean", self.percentTrue, self.percentMatchingRows)]
 
 	def strings(self, tabs=0):
-		components = ["BooleanDistrib(", ") //"+str(self.percentMatchingRows)]
+		components = ["BooleanDistrib(", ") /*"+str(self.percentMatchingRows)+"*/"]
 		return [components[0]+str(self.percentTrue)+components[1]]
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
@@ -1011,7 +1011,7 @@ class ComparisonNode(ASTNode):
 
 	def strings(self, tabs=0):
 		if self.relationship:
-			strs = [[self.node.name + " " + self.relationship + " "], self.value.strings()]
+			strs = [["(" + self.node.name + " " + self.relationship + " "], self.value.strings(),[")"]]
 			return combineStrings(strs)
 		else:
 			return [self.node.name, ""]
@@ -1138,15 +1138,16 @@ class ComparisonNode(ASTNode):
 
 class NumberWrapper(ASTNode):
 
-	def __init__(self, comparisonNode, lowerBound, upperBound, allowableVariables):
+	def __init__(self, comparisonNode, lowerBound, upperBound, allowableVariables,val=None):
 		ASTNode.__init__(self)
 		self.comparisonNode = comparisonNode
 		self.lowerBound = lowerBound
 		self.upperBound = upperBound
 		self.allowableVariables = allowableVariables
-		self.val = None
-		self.randomizeVal()
-		self.comparisonNode.RHSNumericSlots.append(self)
+		self.val = val
+                if comparisonNode:
+                        self.randomizeVal()
+                        self.comparisonNode.RHSNumericSlots.append(self)
 
 	def randomizeVal(self):
 		if self.val in self.comparisonNode.RHSConstants:
@@ -1242,8 +1243,8 @@ class BoolBinExpNode(ASTNode):
 		self.e1 = e1
 		self.e2 = e2
 
-	def strings(self, tabs=0):
-		return ["(" + self.e1.strings(tabs)[0] + self.op + self.e2.strings(tabs)[0] +")"]
+        def strings(self, tabs=0):
+		return combineStrings([["("], self.e1.strings(), [" "+self.op+" "], self.e2.strings(), [")"]])
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):
