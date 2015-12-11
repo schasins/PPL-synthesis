@@ -1021,6 +1021,9 @@ class VariableUseNode(ASTNode):
 		index = self.program.dataset.namesToIndexes[self.name]
 		return lambda row: row[index]
 
+	def getRandomizeableNodes(self):
+		return []
+
 class ComparisonNode(ASTNode):
 
 	ops = {	"==": operator.eq,
@@ -1212,6 +1215,9 @@ class NumberWrapper(ASTNode):
 	def partiallyEvaluate(self):
 		return
 
+	def getRandomizeableNodes(self):
+		return []
+
 class NumericValue(ASTNode):
 
 	def __init__(self, val):
@@ -1227,6 +1233,9 @@ class NumericValue(ASTNode):
 	def lambdaToCalculate(self):
 		return lambda row: self.val
 
+	def getRandomizeableNodes(self):
+		return []
+
 class StringValue(ASTNode):
 
 	def __init__(self, val):
@@ -1238,6 +1247,9 @@ class StringValue(ASTNode):
 
 	def lambdaToCalculate(self):
 		return lambda row: self.val
+
+	def getRandomizeableNodes(self):
+		return []
 
 class BinExpNode(ASTNode):
 
@@ -1299,6 +1311,9 @@ class BinExpNode(ASTNode):
 				parent.e2 = replacement
 			else:
 				raise Exception("Freak out!  Trying to remove op that's not here...")
+
+	def getRandomizeableNodes(self):
+		return []
 
 	def partiallyEvaluate(self):
 		# first descend
@@ -1375,6 +1390,9 @@ class BoolBinExpNode(ASTNode):
 
         def strings(self, tabs=0):
 		return combineStrings([["("], self.e1.strings(), [" "+self.op+" "], self.e2.strings(), [")"]])
+
+	def getRandomizeableNodes(self):
+		return []
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):
