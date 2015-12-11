@@ -201,12 +201,20 @@ def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshol
 			#correlation = pearsonr(dataset.columns[i], dataset.columns[j])
 			correlationsMatrix[i][j] = correlation
 			correlationsMatrix[j][i] = correlation
-	for row in correlationsMatrix:
-		print row
 
 	x = np.array(correlationsMatrix)
-	print ND(x)
-	exit()
+
+	g = Graph()
+	for i in range(dataset.numColumns):
+		name1 = dataset.indexesToNames[i]
+		a1 = g.getNode(name1, dataset.columnDistributionInformation[i])
+		for j in range(i + 1, dataset.numColumns):
+			if x[i][j] > connectionThreshold:
+				name2 = dataset.indexesToNames[j]
+				a2 = g.getNode(name2, dataset.columnDistributionInformation[j])
+				a1.children.insert(0, a2)
+				a2.parents.insert(0, a1)
+	return g
 
 
 def generateReducibleStructuresFromDataset(dataset):
@@ -242,12 +250,12 @@ def generatePotentialStructuresFromDataset(dataset):
 		name2 = dataset.indexesToNames[correlation[0][1]]
 		statisticalSignificance = correlation[1][1]
 		correlationAmount = abs(correlation[1][0])
-		print name1, name2
+		#print name1, name2
 		if statisticalSignificance > statisticalSignificanceThreshold:
-			print "non sig:", statisticalSignificance
+			#print "non sig:", statisticalSignificance
 			continue
 		if correlationAmount < correlationThreshold:
-			print "not cor:", correlationAmount
+			#print "not cor:", correlationAmount
 			break
 		if not g.isDescendedFrom(name1, name2):
 			# we don't yet have an explanation from the connection between these two.  add one.
@@ -257,10 +265,10 @@ def generatePotentialStructuresFromDataset(dataset):
 			# TODO: eventually should create multiple different prog structures from single dataset
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1) # for how we process, it's nicer to have parents in reverse order of correlation
-			print name1, "->", name2, correlation[1]
-		else:
-			print "already descended"
-	return [g]
+		# 	print name1, "->", name2, correlation[1]
+		# else:
+		# 	print "already descended"
+	return g
 
 # **********************************************************************
 # Consume the structure hints, generate a program
@@ -281,14 +289,25 @@ def main():
 	connectionThreshold = float(sys.argv[3])
 	outputDirectory = sys.argv[4]
 	outputFilename = sys.argv[5]
+	structureGenerationStrategy = sys.argv[6]
 
 	startTime = time.clock()
 
 	dataset = Dataset(inputFile)
 
-	#g = generateReducibleStructuresFromDataset(dataset)[0]
-	#g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
-	g = generateReducibleStructuresFromDataset(dataset)
+	g = None
+	if structureGenerationStrategy == "n":
+		# naive generation strategy
+		g = generateReducibleStructuresFromDataset(dataset)
+	elif structureGenerationStrategy == "d":
+		# deconvolution strategy
+		g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
+	elif structureGenerationStrategy == "c":
+		# simple correlation strategy
+		g = generatePotentialStructuresFromDataset(dataset)
+	else:
+		raise Exception("We don't know this structure generation strategy.")
+	
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
@@ -394,7 +413,7 @@ def main():
 
 	
 	#print "\n".join(annealingOutput)
-	#print progOutput.programString()
+	print progOutput.programString()
 
 	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
