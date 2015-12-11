@@ -1,0 +1,21 @@
+type Season;
+
+distinct Season Winter, Spring, Summer, Fall;
+
+random Season CurrentSeason ~ Categorical({Winter -> 0.25, Spring -> 0.25, Summer -> 0.25, Fall -> .25});
+
+random Real IceCreamConsumption ~
+  case CurrentSeason in {
+    Winter -> Gaussian(10, 1),
+    Spring -> Gaussian(15, 3),
+    Summer -> Gaussian(50, 6),
+    Fall -> Gaussian(17, 4)
+    };
+
+random Real Crime ~
+  case CurrentSeason in {
+    Winter -> Gaussian(10, 1),
+    Spring -> Gaussian(15, 3),
+    Summer -> Gaussian(50, 6),
+    Fall -> Gaussian(17, 4)
+    };
