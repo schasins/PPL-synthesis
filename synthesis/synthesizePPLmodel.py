@@ -293,7 +293,7 @@ cleanTimingData = []
 def main():
 	global startTime, cleanTimingData
 
-	debug = True
+	debug = False
 
 	inputFile = sys.argv[1]
 	SAiterations = int(sys.argv[2])

@@ -1,4 +1,4 @@
-for strategy in "n" "d" "c"
+for strategy in "n" "d" "c"; do
 	for entry in `ls datasets/`; do
 		echo $entry
 		SUBSTRING=$(echo $entry| cut -d '.' -f 1)
