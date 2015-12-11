@@ -339,7 +339,6 @@ def main():
 	AST.fillHolesRandomly()
 
 	print prog.programString()
-	print prog.randomizeableNodes
 
 	# print "actual score: ", estimateScore(prog.root, dataset)
 	# for i in range(10):
@@ -375,7 +374,6 @@ def main():
 	cleanTimingData.append([endTime, distanceFromDataset])
 	#print len(prog.randomizeableNodes)
 	annealingOutput = []
-	progOutput, distanceFromDataset = saObj.anneal()
 	if len(prog.randomizeableNodes) > 0:
 		with Capturing() as annealingOutput:
 			progOutput, distanceFromDataset = saObj.anneal()
