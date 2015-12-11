@@ -578,8 +578,8 @@ class GaussianDistribNode(RealDistribNode):
 		else:
 			self.mu = np.mean(matchingRowsValues)
 			self.sig = np.std(matchingRowsValues)
-			if abs(self.sig) < .0001:
-				self.sig = .0001 # shouldn't be using Gaussian to model constants
+			if abs(self.sig) < .00001:
+				self.sig = .00001 # shouldn't be using Gaussian to model constants
 			self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
 
 		if debug: print "concrete: gaussian", self.strings()
@@ -703,8 +703,8 @@ class UniformRealDistribNode(RealDistribNode):
 			self.b = 1
 			self.percentMatchingRows = 0
 		else:
-			self.a = min(matchingRowsValues)
-			self.b = max(matchingRowsValues)
+			self.a = min(matchingRowsValues) - .00001
+			self.b = max(matchingRowsValues) + .00001
 			self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
 
 		if debug: print "concrete: uniform", self.strings()
