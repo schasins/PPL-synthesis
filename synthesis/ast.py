@@ -415,17 +415,14 @@ class CategoricalDistribNode(DistribNode):
 
 		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
 
-		if matchingRowsCounter < 1:
-			self.valuesToPercentages = None
-			#TODO: do we want to add this to randomizable nodes?
-			return
-
 		self.valuesToPercentages = {}
 		for value in self.values:
 			matching = 0
 			if value in matchingRowsSums:
 				matching = matchingRowsSums[value]
-			percentMatching = float(matching)/matchingRowsCounter
+			percentMatching = 0
+			if matchingRowsCounter > 0:
+				percentMatching = float(matching)/matchingRowsCounter
 			self.valuesToPercentages[value] = percentMatching
 		if debug: print "concrete: categorical", self.strings()
 
@@ -557,7 +554,7 @@ class GaussianDistribNode(RealDistribNode):
 		self.percentMatchingRows = percentMatchingRows
 
 	def strings(self, tabs=0):
-		if self.mu:
+		if self.mu != None:
 			return ["Gaussian(%f,%f)" % (self.mu, self.sig**2)]
 		else:
 			return ["Gaussian(",",", ")"]
@@ -684,7 +681,7 @@ class UniformRealDistribNode(RealDistribNode):
 		self.percentMatchingRows = percentMatchingRows
 
 	def strings(self, tabs=0):
-		if self.a:
+		if self.a != None:
 			return ["UniformReal(%f,%f)" % (self.a, self.b)]
 		else:
 			return ["UniformReal(",",", ")"]

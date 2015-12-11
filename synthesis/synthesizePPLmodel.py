@@ -293,6 +293,8 @@ cleanTimingData = []
 def main():
 	global startTime, cleanTimingData
 
+	debug = True
+
 	inputFile = sys.argv[1]
 	SAiterations = int(sys.argv[2])
 	connectionThreshold = float(sys.argv[3])
@@ -370,13 +372,14 @@ def main():
 
 	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
 	
-	#print prog.programString()
 
 	#AST.reduce(dataset)
 
 	#print prog.programString()
 
 	AST.fillHolesRandomly()
+	if debug: print prog.programString()
+	if debug: print AST.strings()
 
 	#print prog.programString()
 
@@ -423,7 +426,7 @@ def main():
 
 	
 	#print "\n".join(annealingOutput)
-	#print progOutput.programString()
+	if debug: print progOutput.programString()
 
 	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
