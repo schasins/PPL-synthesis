@@ -297,10 +297,9 @@ def main():
 
 	inputFile = sys.argv[1]
 	SAiterations = int(sys.argv[2])
-	connectionThreshold = float(sys.argv[3])
-	outputDirectory = sys.argv[4]
-	outputFilename = sys.argv[5]
-	structureGenerationStrategy = sys.argv[6]
+	outputDirectory = sys.argv[3]
+	outputFilename = sys.argv[4]
+	structureGenerationStrategy = sys.argv[5]
 
 	startTime = time.clock()
 
@@ -312,7 +311,7 @@ def main():
 		g = generateReducibleStructuresFromDataset(dataset)
 	elif structureGenerationStrategy == "d":
 		# deconvolution strategy
-		g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
+		g = generateStructureFromDatasetNetworkDeconvolution(dataset, .2)
 	elif structureGenerationStrategy == "c":
 		# simple correlation strategy
 		g = generatePotentialStructuresFromDataset(dataset)
@@ -431,13 +430,13 @@ def main():
 	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
 	outputString = progOutput.programString()+"\n\n//"+str(distanceFromDataset)
-	output = open(outputDirectory+"/synthesizedBLOGPrograms/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.blog", "w")
+	output = open(outputDirectory+"/synthesizedBLOGPrograms/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.blog", "w")
 	output.write(outputString)
-	output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.pickle", "w")
+	output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.pickle", "w")
 	pickle.dump(prog, output2)
-	output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.timing", "w")
+	output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
 	output3.write("\n".join(annealingOutput))
-	output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.timing", "w")
+	output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
 	output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
 
 
