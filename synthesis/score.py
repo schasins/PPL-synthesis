@@ -15,9 +15,17 @@ def guass(x, mu, sig):
     
 class Bernoulli:
     def __init__(self, p):
+        if p < 0 and p > -0.000001:
+            p = 0
+        if p > 1 and p < 1.000001:
+            p = 1
+            
         if p < 0:
             print "Bernoulli", p
-            raise ScoreError("Bernoulli: negative p")
+            raise ScoreError("Bernoulli: p < 0")
+        if p > 1:
+            print "Bernoulli", p
+            raise ScoreError("Bernoulli: p > 1")
         self.p = 1.0 * p
 
     def __str__(self):
@@ -305,11 +313,19 @@ class ScoreEstimator(visitor):
         if len(conditions) == len(bodies):
             conditions = conditions[:-1]
 
-        if len(conditions) > 1 and self.dependent(ast.conditionNodes):
-            not_p = 1 - conditions[0].p
-            for b in conditions[1:]:
-                b.p = b.p/not_p
-                not_p = not_p * (1 - b.p)
+        # if len(conditions) > 1 and self.dependent(ast.conditionNodes):
+        #     print "IfNode ADJUSTMENT"
+        #     print ast.strings()[0]
+        #     print "conditions"
+        #     for x in conditions:
+        #         print x
+        #     print "bodies"
+        #     for x in bodies:
+        #         print x
+        #     not_p = 1 - conditions[0].p
+        #     for b in conditions[1:]:
+        #         b.p = b.p/not_p
+        #         not_p = not_p * (1 - b.p)
 
         working = bodies[-1]
         # traverse in reversed order
