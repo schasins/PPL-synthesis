@@ -348,8 +348,8 @@ class ScoreEstimator(visitor):
             mu_op = lambda x,y,s1,s2: x-y
             sig_op = lambda x,y: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
         elif ast.op == '*':
-            mu_op = lambda m1,m2,s1,s2: (m1*(s2**1) + m2*(s1**2))/(s1**2 + s2**2)
-            sig_op = lambda x,y: ((x**2) * (y**2))/(x**2 + y**2)
+            mu_op = lambda m1,m2,s1,s2: mu_times(m1,m2,s1,s2)
+            sig_op = lambda x,y: sig_times(x,y)
         else:
             raise ScoreError("ScoreEstimator: BinExpNode: do not support " + ast.op)
 
@@ -424,6 +424,17 @@ def erf(mu1,mu2,sig1,sig2):
     x = (mu1 - mu2)/d
     return scipy.special.erf(x)
 
+def mu_times(m1,m2,s1,s2):
+    if (s1**2 + s2**2) == 0:
+        return m1*m2
+    else:
+        return (m1*(s2**1) + m2*(s1**2))/(s1**2 + s2**2)
+
+def sig_times(x,y):
+    if (x**2 + y**2) == 0:
+        return 0
+    else:
+        return ((x**2) * (y**2))/(x**2 + y**2)
 
 # **********************************************************************
 # AST Mutator
