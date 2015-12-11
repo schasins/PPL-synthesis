@@ -132,8 +132,9 @@ class visitor:
 # **********************************************************************
 
 class ScoreEstimator(visitor):
-    def __init__(self, dataset):
+    def __init__(self, dataset=None):
         self.dataset = dataset
+        self.env = {}
 
     def reset(self):
         self.env = {}
@@ -261,6 +262,14 @@ class ScoreEstimator(visitor):
     def visit_IfNode(self, ast):
         conditions = [self.visit(x) for x in ast.conditionNodes]
         bodies = [self.visit(x) for x in ast.bodyNodes]
+        if len(conditions) == len(bodies):
+            conditions = conditions[:-1]
+
+        if len(conditions) > 1:
+            not_p = 1 - conditions[0].p
+            for b in conditions[1:]:
+                b.p = b.p/not_p
+                not_p = not_p * (1 - b.p)
 
         working = bodies[-1]
         # traverse in reversed order
@@ -459,6 +468,13 @@ class Mutator(visitor):
 def estimateScore(ast, dataset):
     estimator = ScoreEstimator(dataset)
     return estimator.evaluate(ast)
+
+def getMoG(ast):
+    print ast.strings()[0]
+    estimator = ScoreEstimator()
+    estimator.visit(ast)
+    for name in estimator.env:
+        print name, "~", estimator.env[name]
 
 def testEstimateScore(ast, dataset):
     estimator = ScoreEstimator(dataset)
