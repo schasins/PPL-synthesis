@@ -10,7 +10,7 @@ type DamageLevel;
 
 random City First ~ Categorical({A -> 1.0});
 
-random PrepLevel PrepA ~ Categorical({High -> 0.5, Medium -> 0.2, Low -> 0.3})
+random PrepLevel PrepA ~ Categorical({High -> 0.5, Medium -> 0.2, Low -> 0.3});
 
 random DamageLevel DamageA ~
   case PrepA in {

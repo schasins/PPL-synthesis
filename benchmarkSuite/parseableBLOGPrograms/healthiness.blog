@@ -13,7 +13,7 @@
  * @date: 2012-09-13
  */
 
-random Boolean HealthConscious ~ BooleanDistrib(0.5);
+random Boolean HealthConsciousP1 ~ BooleanDistrib(0.5);
 random Boolean LittleFreeTimeP1 ~ BooleanDistrib(0.5);
 random Boolean ExerciseP1
   ~ case [HealthConsciousP1, LittleFreeTimeP1] in

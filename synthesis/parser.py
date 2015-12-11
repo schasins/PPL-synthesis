@@ -19,7 +19,8 @@ reserved = {
     'else' : 'ELSE',
     'case' : 'CASE',
     'in'   : 'IN',
-    'distinct' : 'DISTINCT'
+    'distinct' : 'DISTINCT',
+    'type' : 'TYPE'
 }
 
 tokens = [
@@ -112,6 +113,14 @@ def p_program_list(t):
     t[1].addChild(t[2])
     t[0] = t[1]
 
+def p_program_ignore1(t):
+    'program : ignore'
+    t[0] = ASTNode()
+
+def p_program_ignore2(t):
+    'program : program ignore'
+    t[0] = t[1]
+
 def p_statement_vardecl(t):
     'statement : RANDOM ID ID TILDA expr SEMICOL'
     names[t[3]] = t[2]
@@ -119,7 +128,7 @@ def p_statement_vardecl(t):
 
 ################# Distributions ##################
 def p_expr_bool(t):
-    'expr : BOOLDIST LPAREN NUMBER RPAREN'
+    'expr : BOOLDIST LPAREN const RPAREN'
     t[0] = BooleanDistribNode(None,t[3])
 
 def p_expr_categorical(t):
@@ -132,23 +141,23 @@ def p_expr_categorical(t):
     t[0] = CategoricalDistribNode(None,values,map)
 
 def p_expr_gauss(t):
-    'expr : GAUSS LPAREN NUMBER COMMA NUMBER RPAREN'
+    'expr : GAUSS LPAREN const COMMA const RPAREN'
     t[0] = GaussianDistribNode(None,t[3],t[5])
 
 def p_expr_beta(t):
-    'expr : BETA LPAREN NUMBER COMMA NUMBER RPAREN'
+    'expr : BETA LPAREN const COMMA const RPAREN'
     t[0] = BetaDistribNode(None,t[3],t[5])
 
 def p_expr_gamma(t):
-    'expr : GAMMA LPAREN NUMBER COMMA NUMBER RPAREN'
+    'expr : GAMMA LPAREN const COMMA const RPAREN'
     t[0] = GammaDistribNode(None,t[3],t[5])
 
 def p_expr_uniform(t):
-    'expr : UNIFORM LPAREN NUMBER COMMA NUMBER RPAREN'
+    'expr : UNIFORM LPAREN const COMMA const RPAREN'
     t[0] = UniformRealDistribNode(None,t[3],t[5])
 
 def p_pair(t):
-    'pair : ID POINT NUMBER'
+    'pair : ID POINT const'
     t[0] = (t[1],t[3])
 
 def p_pairs_unit(t):
@@ -178,8 +187,16 @@ def p_var(t):
         t[0] = StringValue(t[1])
 
 def p_expr_const(t):
-    'expr : NUMBER'
+    'expr : const'
     t[0] = NumericValue(t[1])
+
+def p_const_pos(t):
+    'const : NUMBER'
+    t[0] = t[1]
+
+def p_const_neg(t):
+    'const : MINUS NUMBER'
+    t[0] = -t[2]
 
 def p_expr_bin(t):
     '''expr : boolbin
@@ -225,6 +242,7 @@ def p_expr_case(t):
     l = t[5]
     #print "CASE", t[2], l
     cond = [CreateComparisonNode(t[2],"==",x[0]) for x in l[:-1]]
+    #print "CASE cond", cond
     body = [x[1] for x in l]
     t[0] = IfNode(cond,body)
 
@@ -256,7 +274,11 @@ def p_varlist_list(t):
 
 ################# Type declaration #################
 
-def p_statement_type(t):
+def p_ignore_type(t):
+    'ignore : TYPE ID SEMICOL'
+    pass
+
+def p_statement_distinct(t):
     'statement : DISTINCT ID idlist SEMICOL'
     t[0] = TypeDeclNode(t[2],t[3])
 
@@ -305,34 +327,7 @@ def parse_from_file(name):
 
 if __name__ == "__main__":
     p = """
-random Boolean HealthConscious ~ BooleanDistrib(0.5);
-random Boolean LittleFreeTime ~ BooleanDistrib(0.5);
-random Boolean Exercise
-  ~ case [HealthConscious, LittleFreeTime] in
-               {[true, true] -> BooleanDistrib(0.5),
-                [true, false] -> BooleanDistrib(0.9),
-                [false, true] -> BooleanDistrib(0.1),
-                [false, false] -> BooleanDistrib(0.5)}
-    ;
-random Boolean GoodDiet
-  ~ case HealthConscious in {true -> BooleanDistrib(0.7),
-                false -> BooleanDistrib(0.3)};
-random Boolean NormalWeight 
-  ~ case [GoodDiet, Exercise] in 
-               {[true, true] -> BooleanDistrib(0.8),
-                [true, false] -> BooleanDistrib(0.5),
-                [false, true] -> BooleanDistrib(0.5),
-                [false, false] -> BooleanDistrib(0.2)}
-    ;
-random Boolean HighCholesterol
-  ~ case GoodDiet in 
-                {true -> BooleanDistrib(0.3),
-                 false -> BooleanDistrib(0.7)}
-    ;
-random Boolean TestedHighCholesterol
-  ~ case HighCholesterol in {true -> BooleanDistrib(0.9),
-               false -> BooleanDistrib(0.1)}
-    ;
+random Real obstacle1 ~ UniformReal(-7, 7);
 """
     ast = parser.parse(p)
     print ast.strings()[0]
