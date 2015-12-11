@@ -23,8 +23,9 @@ def run():
             test_list = open(test_file,'r')
             for name in test_list:
                 name = name.rstrip()
-                test(dir + '/groundTruthBLOGPrograms/' + name + '.blog', \
-                     dir + '/datasets/' + name + '.csv')
+                nameSuffix = name.split("/")[-1]
+                test(dir + "/" + name + '.blog', \
+                     dir + '/datasets/' + nameSuffix + '.csv')
             test_list.close()
             return
         elif flag == "--mog":

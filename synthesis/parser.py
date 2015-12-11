@@ -292,7 +292,13 @@ parser = yacc.yacc()
 
 def parse_from_file(name):
     f = open(name,'r')
-    ast = parser.parse(f.read())
+    # silly hack to deal with commonest difference between real BLOG programs and what we can parse
+    lines = []
+    fileContent = f.readlines()
+    for line in fileContent:
+        if "type" not in line:
+            lines.append(line)
+    ast = parser.parse("\n".join(lines))
     f.close()
     #print ast.strings()[0]
     return ast

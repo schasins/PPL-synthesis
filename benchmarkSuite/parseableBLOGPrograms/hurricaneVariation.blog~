@@ -1,0 +1,20 @@
+/**
+ * Hurricane 
+ * Figure 4.2 in Milch's thesis
+ * this one doesnot have deterministic relationship
+ */
+ 
+type City;
+type PrepLevel;
+type DamageLevel;
+
+random City First ~ Categorical({A -> 1.0});
+
+random PrepLevel Prep(A) ~ Categorical({High -> 0.5, Medium -> 0.2, Low -> 0.3})
+
+random DamageLevel Damage(A) ~
+  case Prep(A) in {
+    High -> Categorical({Severe -> 0.2, Mild -> 0.8}),
+    Medium -> Categorical({Severe -> 0.2, Mild -> 0.8}),
+    Low -> Categorical({Severe -> 0.8, Mild -> 0.2})
+  };
