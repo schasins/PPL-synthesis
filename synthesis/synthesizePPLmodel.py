@@ -53,9 +53,9 @@ class Graph:
 			Graph.addNodeToDepOrderLs(outputLs, node)
 		return outputLs
 
-	def isDescendedFrom(self, name1, name2):
-		n1 = self.getNode(name1)
-		n2 = self.getNode(name2)
+	def isDescendedFrom(self, name1, info1, name2, info2):
+		n1 = self.getNode(name1, info1)
+		n2 = self.getNode(name2, info2)
 		frontier = []
 		for child in n1.children:
 			frontier.append(child)
@@ -177,12 +177,12 @@ def correlationHelper(dataset, i, j):
 		for jCol in jCols:
 			res = spearmanr(iCol, jCol)
 			#res2 = pearsonr(iCol, jCol)
-			correlations.append(res[0])
+			correlations.append(res)
 			#correlations_2.append(res2[0])
-	correlation1 = max(correlations)
-	correlation2 = min(correlations)
+	correlation1 = max(correlations, key=lambda item:item[1])
+	correlation2 = min(correlations, key=lambda item:item[1])
 	correlation = correlation1
-	if abs(correlation2) > abs(correlation1):
+	if abs(correlation2[0]) > abs(correlation1[0]):
 		correlation = correlation2
 
 	#correlation1_2 = max(correlations_2)
@@ -196,7 +196,7 @@ def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshol
 	correlationsMatrix = [ [ 0 for i in range(dataset.numColumns) ] for j in range(dataset.numColumns) ]
 	for i in range(dataset.numColumns):
 		for j in range(i + 1, dataset.numColumns):
-			correlation = correlationHelper(dataset, i, j)
+			correlation = correlationHelper(dataset, i, j)[0]
 
 			#correlation = pearsonr(dataset.columns[i], dataset.columns[j])
 			correlationsMatrix[i][j] = correlation
@@ -232,7 +232,7 @@ def generateReducibleStructuresFromDataset(dataset):
 	return g
 
 statisticalSignificanceThreshold = 0.05
-correlationThreshold = .05
+correlationThreshold = 0.01
 
 def generatePotentialStructuresFromDataset(dataset):
 	global statisticalSignificanceThreshold, correlationThreshold
@@ -240,32 +240,41 @@ def generatePotentialStructuresFromDataset(dataset):
 	combos = combinations(columns, 2)
 	correlations = []
 	for combo in combos:
-		correlationPair = pearsonr(dataset.columns[combo[0]], dataset.columns[combo[1]])
+		correlationPair = correlationHelper(dataset, combo[0], combo[1])
+		#correlationPair = pearsonr(dataset.columns[combo[0]], dataset.columns[combo[1]])
 		correlations.append((combo, correlationPair))
 	sortedCorrelations = sorted(correlations, key=lambda x: abs(x[1][0]), reverse=True)
+	#print sortedCorrelations
 
 	g = Graph()
+	# make sure we add all nodes
+	for i in range(dataset.numColumns):
+		name1 = dataset.indexesToNames[i]
+		a1 = g.getNode(name1, dataset.columnDistributionInformation[i])
+	# now add relationships
 	for correlation in sortedCorrelations:
-		name1 = dataset.indexesToNames[correlation[0][0]]
-		name2 = dataset.indexesToNames[correlation[0][1]]
+		i = correlation[0][0]
+		j = correlation[0][1]
+		name1 = dataset.indexesToNames[i]
+		name2 = dataset.indexesToNames[j]
 		statisticalSignificance = correlation[1][1]
 		correlationAmount = abs(correlation[1][0])
-		#print name1, name2
+		#print name1, name2, correlationAmount, statisticalSignificance
 		if statisticalSignificance > statisticalSignificanceThreshold:
 			#print "non sig:", statisticalSignificance
 			continue
 		if correlationAmount < correlationThreshold:
 			#print "not cor:", correlationAmount
 			break
-		if not g.isDescendedFrom(name1, name2):
+		if not g.isDescendedFrom(name1, dataset.columnDistributionInformation[i], name2, dataset.columnDistributionInformation[j]):
 			# we don't yet have an explanation from the connection between these two.  add one.
-			a1 = g.getNode(name1)
-			a2 = g.getNode(name2)
+			a1 = g.getNode(name1, dataset.columnDistributionInformation[i])
+			a2 = g.getNode(name2, dataset.columnDistributionInformation[j])
 			# for now we'll assume the causation goes from left to right in input dataset
 			# TODO: eventually should create multiple different prog structures from single dataset
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1) # for how we process, it's nicer to have parents in reverse order of correlation
-		# 	print name1, "->", name2, correlation[1]
+		 	#print name1, "->", name2, correlation[1]
 		# else:
 		# 	print "already descended"
 	return g
@@ -404,6 +413,7 @@ def main():
 	distanceFromDataset = -1*estimateScore(prog.root, dataset)
 	cleanTimingData.append([endTime, distanceFromDataset])
 	#print len(prog.randomizeableNodes)
+	#print prog.randomizeableNodes
 	annealingOutput = []
 	if len(prog.randomizeableNodes) > 0:
 		with Capturing() as annealingOutput:
@@ -413,7 +423,7 @@ def main():
 
 	
 	#print "\n".join(annealingOutput)
-	print progOutput.programString()
+	#print progOutput.programString()
 
 	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
