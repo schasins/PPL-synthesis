@@ -3,7 +3,7 @@ for entry in `ls datasets/`; do
 	SUBSTRING=$(echo $entry| cut -d '.' -f 1)
 	echo $SUBSTRING
     for i in {1..5}; do
-		python ../synthesis/synthesizePPLmodel.py datasets/$entry 20 .2 outputs $SUBSTRING-$i &
+		python ../synthesis/synthesizePPLmodel.py datasets/$entry 150 .2 outputs $SUBSTRING-$i &
     done
     wait
 done
