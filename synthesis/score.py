@@ -15,6 +15,9 @@ def guass(x, mu, sig):
     
 class Bernoulli:
     def __init__(self, p):
+        if p < 0:
+            print "Bernoulli", p
+            raise ScoreError("Bernoulli: negative p")
         self.p = 1.0 * p
 
     def __str__(self):
@@ -32,6 +35,16 @@ class MoG:
         if not(len(w) == n) or not(len(mu) == n) or not(len(sig) == n):
             print "MoG", n, w, mu, sig
             raise ScoreError("MoG: length mismatch")
+        
+        neg_w = False
+        for wi in w:
+            if wi < 0:
+                neg_w = True
+                break
+        if neg_w:
+            print "MoG w=", w
+            raise ScoreError("MoG: negative weight")
+            
         self.n = n
         self.w = w     # list of mixing fractions
         self.mu = 1.0 * mu   # list of means
@@ -128,6 +141,33 @@ class visitor:
             return self.visit_ASTNode(ast)
 
 # **********************************************************************
+# VariableUseNode collector
+# **********************************************************************
+
+class VarCollector():
+    def __init__(self, dataset=None):
+        self.vars = set()
+
+    def visit(self, ast):
+        if isinstance(ast, VariableUseNode):
+            self.vars.add(ast.name)
+        elif isinstance(ast, ComparisonNode):
+            self.visit(ast.node)
+            self.visit(ast.value)
+        elif isinstance(ast, BoolBinExpNode) or isinstance(ast, BinExpNode):
+            self.visit(ast.e1)
+            self.visit(ast.e2)
+        elif isinstance(ast, UnaryExpNode):
+            self.visit(ast.e)
+        elif isinstance(ast, NumberWrapper):
+            return self.visit(ast.val)
+
+    def getVars(self,ast):
+        self.vars = set()
+        self.visit(ast)
+        return self.vars
+
+# **********************************************************************
 # Likelihood estimator
 # **********************************************************************
 
@@ -135,6 +175,7 @@ class ScoreEstimator(visitor):
     def __init__(self, dataset=None):
         self.dataset = dataset
         self.env = {}
+        self.varcollector = VarCollector()
 
     def reset(self):
         self.env = {}
@@ -173,7 +214,6 @@ class ScoreEstimator(visitor):
             self.visit(c)
 
     def visit_VariableDeclNode(self, ast):
-        rhs = self.visit(ast.RHS)
         self.env[ast.name] = self.visit(ast.RHS)
 
     def visit_Constant(self, ast):
@@ -265,7 +305,7 @@ class ScoreEstimator(visitor):
         if len(conditions) == len(bodies):
             conditions = conditions[:-1]
 
-        if len(conditions) > 1:
+        if len(conditions) > 1 and self.dependent(ast.conditionNodes):
             not_p = 1 - conditions[0].p
             for b in conditions[1:]:
                 b.p = b.p/not_p
@@ -277,6 +317,14 @@ class ScoreEstimator(visitor):
             working = self.ite(conditions[i],bodies[i],working)
 
         return working
+
+    def dependent(self, exprs):
+        ref = self.varcollector.getVars(exprs[0])
+        for i in range(1,len(exprs)):
+            vars = self.varcollector.getVars(exprs[i])
+            if not(vars == ref):
+                return False
+        return True
 
     def visit_BoolBinExpNode(self, ast):
         x1 = self.visit(ast.e1)
