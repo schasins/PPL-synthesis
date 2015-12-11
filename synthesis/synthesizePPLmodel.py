@@ -342,7 +342,7 @@ def main():
 
 	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
 	
-	print prog.programString()
+	#print prog.programString()
 
 	#AST.reduce(dataset)
 
@@ -350,7 +350,7 @@ def main():
 
 	AST.fillHolesRandomly()
 
-	print prog.programString()
+	#print prog.programString()
 
 	# print "actual score: ", estimateScore(prog.root, dataset)
 	# for i in range(10):
@@ -393,8 +393,8 @@ def main():
 		progOutput = prog
 
 	
-	print "\n".join(annealingOutput)
-	print progOutput.programString()
+	#print "\n".join(annealingOutput)
+	#print progOutput.programString()
 
 	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
