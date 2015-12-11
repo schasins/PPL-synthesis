@@ -11,6 +11,7 @@ from ND import *
 from scipy.stats import spearmanr
 from cStringIO import StringIO
 import pickle
+import time
 
 # **********************************************************************
 # Helpers
@@ -150,7 +151,11 @@ class PPLSynthesisProblem(Annealer):
 		self.state.mutate()
 
 	def energy(self):
-		return -1*estimateScore(self.state.root, self.dataset)
+		global startTime, cleanTimingData
+		currTime = time.clock()
+		score = -1*estimateScore(self.state.root, self.dataset)
+		cleanTimingData.append([currTime, score])
+		return score
 
 	@staticmethod
 	def makeInitialState(prog):
@@ -253,14 +258,22 @@ def deepcopyNode(node):
 	newNode = deepcopy(node)
 	return newNode
 
+startTime = 0
+cleanTimingData = []
+
 def main():
+	global startTime, cleanTimingData
+
 	inputFile = sys.argv[1]
 	SAiterations = int(sys.argv[2])
 	connectionThreshold = float(sys.argv[3])
 	outputDirectory = sys.argv[4]
 	outputFilename = sys.argv[5]
 
+	startTime = time.clock()
+
 	dataset = Dataset(inputFile)
+
 	#g = generateReducibleStructuresFromDataset(dataset)[0]
 	#g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
 	g = generateReducibleStructuresFromDataset(dataset)
@@ -345,6 +358,8 @@ def main():
 
 	# below is simulated annealing
 
+	cleanTimingData = []
+
 	initState = PPLSynthesisProblem.makeInitialState(prog)
 	saObj = PPLSynthesisProblem(initState)
 	saObj.setNeeded(dataset)
@@ -355,15 +370,17 @@ def main():
 	saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
 	#print AST.strings()
+	endTime = time.clock()
 	distanceFromDataset = -1*estimateScore(prog.root, dataset)
+	cleanTimingData.append([endTime, distanceFromDataset])
 	#print len(prog.randomizeableNodes)
 	annealingOutput = []
 	progOutput, distanceFromDataset = saObj.anneal()
-	# if len(prog.randomizeableNodes) > 0:
-	# 	with Capturing() as annealingOutput:
-	# 		progOutput, distanceFromDataset = saObj.anneal()
-	# else:
-	# 	progOutput = prog
+	if len(prog.randomizeableNodes) > 0:
+		with Capturing() as annealingOutput:
+			progOutput, distanceFromDataset = saObj.anneal()
+	else:
+		progOutput = prog
 
 	
 	print "\n".join(annealingOutput)
@@ -378,6 +395,8 @@ def main():
 	pickle.dump(prog, output2)
 	output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.timing", "w")
 	output3.write("\n".join(annealingOutput))
+	output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.timing", "w")
+	output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
 
 
 	#print scriptStrings
