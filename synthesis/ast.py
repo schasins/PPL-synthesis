@@ -5,7 +5,7 @@ import numpy as np
 from copy import deepcopy
 
 debug = False
-mutationDebug = True
+mutationDebug = False
 
 # **********************************************************************
 # Supported distributions
@@ -182,7 +182,6 @@ class Program:
 		associatedKeys = []
 		for key in self.randomizeableNodes:
 			nodes = self.randomizeableNodes[key]
-			print key, len(nodes)
 			if key == "IfNode":
 				weight = .05*len(nodes)
 			elif key == "ComparisonNode":
@@ -194,8 +193,6 @@ class Program:
 			totalWeight += weight
 			thresholds.append(totalWeight)
 			associatedKeys.append(key)
-		print thresholds
-		print associatedKeys
 		
 		decision = random.uniform(0, totalWeight)
 		for i in range(len(thresholds)):
@@ -1130,14 +1127,14 @@ class ComparisonNode(ASTNode):
 		preString = self.strings()
 
 		decision = random.uniform(0,1)
-		if decision < .2 and len(RHSNumericSlots) > 0:
+		if decision < .15 and len(RHSNumericSlots) > 0:
 			# Randomly fill a numeric slot with a new constant or variable use
 			if mutationDebug: print "Randomly fill a numeric slot with a new constant or variable use"
 			random.choice(RHSNumericSlots).randomizeVal()
 		elif decision < .5 and len(RHSConstants) > 0:
 			# Slightly adjust a current constant
 			if mutationDebug: print "Slightly adjust a current constant"
-			random.choice(RHSConstants).adjustVal(-1, 1)
+			random.choice(RHSConstants).adjustVal(-2, 2)
 		elif decision < .6:
 			# Add an operator
 			if mutationDebug: print "Add an operator"
