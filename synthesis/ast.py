@@ -1091,31 +1091,14 @@ class ComparisonNode(ASTNode):
 
 	def firstMutate(self):
 		(lowerBound, upperBound) = self.node.range()
+		if lowerBound > -1:
+			lowerBound = -1 # you never know when you might need some low numbers for multiplying and such...
 		newNumber = NumberWrapper(self, lowerBound, upperBound)
 		self.value = newNumber
 		self.randomizeOperator()
 
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		self.parent.fillHolesForConcretePathConditionsHelper()
-
-	def removeOp(self, opToRemove):
-		useLeft = random.choice([True, False])
-		if useLeft:
-			sideToKeep = opToRemove.e1
-		else:
-			sideToKeep = opToRemove.e2
-		parent = opToRemove.parent
-		sideToKeep.setParent(parent)
-		if (isinstance(parent, ComparisonNode)):
-			parent.value = sideToKeep
-		else:
-			# it's another op node
-			if parent.e1 == opToRemove:
-				parent.e1 = sideToKeep
-			elif parent.e2 == opToRemove:
-				parent.e2 = sideToKeep
-			else:
-				raise Exception("Freak out!  Trying to remove op that's not here...")
 
 	def mutate(self):
 
@@ -1159,6 +1142,8 @@ class ComparisonNode(ASTNode):
 			# Add an operator
 			if mutationDebug: print "Add an operator"
 			(lowerBound, upperBound) = self.node.range()
+			if lowerBound > -1:
+				lowerBound = -1 # you never know when you might need some low numbers for multiplying and such...
 			subExps = [self.value, NumberWrapper(self, lowerBound, upperBound)]
 			random.shuffle(subExps)
 			newExpression = BinExpNode("+", subExps[0], subExps[1])
@@ -1172,7 +1157,7 @@ class ComparisonNode(ASTNode):
 			# Remove an operator
 			if mutationDebug: print "Remove an operator"
 			opToRemove = random.choice(RHSOperators)
-			self.removeOp(opToRemove)
+			opToRemove.remove()
 		elif decision < .9 and len(RHSOperators) > 0:
 			# Change an operator
 			if mutationDebug: print "Change an operator"
@@ -1183,11 +1168,8 @@ class ComparisonNode(ASTNode):
 			self.randomizeOperator()		
 
 		# we don't want to be needlessly combining constants
-		print RHSOperators
-		for op in RHSOperators:
-			if isinstance(op.e1, NumberWrapper) and isinstance(op.e2, NumberWrapper) and isinstance(op.e1.val, NumericValue) and isinstance(op.e2.val, NumericValue):
-				print "need to remove op"
-				self.removeOp(op)
+		if isinstance(self.value, BinExpNode):
+			self.value.partiallyEvaluate()
 
 		postString = self.strings()
 		if postString == preString:
@@ -1202,12 +1184,12 @@ class ComparisonNode(ASTNode):
 		if mutationDebug: print self.strings()
 
 class NumberWrapper(ASTNode):
-	def __init__(self, comparisonNode, lowerBound, upperBound):
+	def __init__(self, comparisonNode, lowerBound, upperBound, val = None):
 		ASTNode.__init__(self)
 		self.comparisonNode = comparisonNode
 		self.lowerBound = lowerBound
 		self.upperBound = upperBound
-		self.val = None
+		self.val = val
 		self.randomizeVal()
 
 	def randomizeVal(self):
@@ -1229,6 +1211,9 @@ class NumberWrapper(ASTNode):
 
 	def numericSlots(self):
 		return [self]
+
+	def partiallyEvaluate(self):
+		return
 
 class NumericValue(ASTNode):
 
@@ -1265,7 +1250,6 @@ class BinExpNode(ASTNode):
 
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
-		# op should be in {'&&','||'}
 		self.op = op
 		self.e1 = e1
 		self.e2 = e2
@@ -1299,6 +1283,79 @@ class BinExpNode(ASTNode):
 				ls = ls + e.operators()
 		return ls
 
+	def removeOp(self, replacement = None):
+		if replacement == None:
+			useLeft = random.choice([True, False])
+			if useLeft:
+				replacement = self.e1
+			else:
+				replacement = self.e2
+		parent = self.parent
+		replacement.setParent(parent)
+		if (isinstance(parent, ComparisonNode)):
+			parent.value = replacement
+		else:
+			# it's another op node
+			if parent.e1 == self:
+				parent.e1 = replacement
+			elif parent.e2 == self:
+				parent.e2 = replacement
+			else:
+				raise Exception("Freak out!  Trying to remove op that's not here...")
+
+	def partiallyEvaluate(self):
+		# first descend
+		n1 = self.e1
+		n2 = self.e2
+		n1.partiallyEvaluate()
+		n2.partiallyEvaluate()
+		# nodes may have changed now that we did partial eval
+		n1 = self.e1
+		n2 = self.e2
+		if isinstance(n1, NumberWrapper) and isinstance(n2, NumberWrapper):
+			val1 = n1.val.val
+			val2 = n2.val.val
+			output = self.ops[self.op](val1, val2)
+			newNum = NumberWrapper(self.e1.val.comparisonNode, self.e1.val.lowerBound, self.e1.val.upperBound, NumericValue(output))
+			self.removeOp(newNum)
+		else:
+			if (self.op == "+" or self.op == "*"):
+				if isinstance(n1, BinExpNode) and isinstance(n2, BinExpNode):
+					# both are bin expnodes.  these are interesting if we're in the case of (+ (+ A 5) (+ B 6))
+					if (self.op == n1.op and self.op == n2.op):
+
+						numberWrapperNodes = []
+						otherNodes = []
+						for node in [n1.e1, n1.e2, n2.e1, n2.e2]:
+							if isinstance(node, NumberWrapper):
+								numberWrapperNodes.append(node)
+							elif isinstance(node, BinExpNode):
+								otherNodes.append(node)
+						if len(numberWrapperNodes) > 1:
+							# we can collapse some stuff!  the length is 2 because otherwise we'd have collapsed one of those child nodes
+							newExpNode = BinExpNode(self.op, otherNodes[0], otherNodes[1])
+							for node in otherNodes:
+								node.setParent(newExpNode)
+							numberWrapperNodes[0].val.val = self.ops[self.op](numberWrapperNodes[0].val.val, numberWrapperNodes[1].val.val)
+							newExpNode2 = BinExpNode(self.op, newExpNode, numberWrapperNodes[0]) # let's try to make constants rise to the top so we can combine.  not thorough, but...
+							numberWrapperNodes[0].setParent(newExpNode2)
+							newExpNode.setParent(newExpNode2)
+							self.removeOp(newExpNode2)
+					return
+
+				# one of this is a numbuerwrapper and the other is a binexpnode or we would have gone into one of the other cases
+				expNode = n1
+				numberWrapperNode = n2
+				if isinstance(n1, NumberWrapper) and isinstance(n2, BinExpNode):
+					expNode = n2
+					numberWrapperNode = n1
+				if isinstance(expNode.e1, NumberWrapper) or isinstance(expNode.e2, NumberWrapper):
+					# we can collapse some stuff!
+					expNodeNumberWrapperNode = expNode.e1
+					if isinstance(expNode.e2, NumberWrapper):
+						expNodeNumberWrapperNode = expNode.e2
+						expNodeNumberWrapperNode.val.val = expNodeNumberWrapperNode.val.val + numberWrapperNode.val.val
+						self.removeOp(expNode)
 
 class BoolBinExpNode(ASTNode):
 
