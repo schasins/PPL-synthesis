@@ -1,8 +1,6 @@
-/*
 type EyeColor;
 type HairColor;
 type HairLength;
-*/
 
 distinct EyeColor Brown, Hazel, Blue, Green;
 distinct HairColor Black, Brunette, Blonde, Red, White;

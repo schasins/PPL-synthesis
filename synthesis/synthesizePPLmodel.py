@@ -11,6 +11,7 @@ from ND import *
 from scipy.stats import spearmanr
 from cStringIO import StringIO
 import pickle
+import time
 
 # **********************************************************************
 # Helpers
@@ -150,7 +151,11 @@ class PPLSynthesisProblem(Annealer):
 		self.state.mutate()
 
 	def energy(self):
-		return -1*estimateScore(self.state.root, self.dataset)
+		global startTime, cleanTimingData
+		currTime = time.clock()
+		score = -1*estimateScore(self.state.root, self.dataset)
+		cleanTimingData.append([currTime, score])
+		return score
 
 	@staticmethod
 	def makeInitialState(prog):
@@ -163,24 +168,35 @@ class PPLSynthesisProblem(Annealer):
 # Generate structures based on input dataset correlation
 # **********************************************************************
 
+def correlationHelper(dataset, i, j):
+	iCols = dataset.columnNumericColumns[i]
+	jCols = dataset.columnNumericColumns[j]
+	correlations = []
+	correlations_2 = []
+	for iCol in iCols:
+		for jCol in jCols:
+			res = spearmanr(iCol, jCol)
+			#res2 = pearsonr(iCol, jCol)
+			correlations.append(res[0])
+			#correlations_2.append(res2[0])
+	correlation1 = max(correlations)
+	correlation2 = min(correlations)
+	correlation = correlation1
+	if abs(correlation2) > abs(correlation1):
+		correlation = correlation2
+
+	#correlation1_2 = max(correlations_2)
+	#correlation2_2 = min(correlations_2)
+	#correlation_2 = correlation1_2
+	#if abs(correlation2_2) > abs(correlation1_2):
+	#	correlation_2 = correlation2_2	
+	return correlation
+
 def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold):
 	correlationsMatrix = [ [ 0 for i in range(dataset.numColumns) ] for j in range(dataset.numColumns) ]
 	for i in range(dataset.numColumns):
 		for j in range(i + 1, dataset.numColumns):
-			iCols = dataset.columnNumericColumns[i]
-			jCols = dataset.columnNumericColumns[j]
-			correlations = []
-			for iCol in iCols:
-				for jCol in jCols:
-					print len(iCol), len(jCol)
-					res = spearmanr(iCol, jCol)
-					correlations.append(res[0])
-			print correlations
-			correlation1 = max(correlations)
-			correlation2 = min(correlations)
-			correlation = correlation1
-			if abs(correlation2) > abs(correlation1):
-				correlation = correlation2
+			correlation = correlationHelper(dataset, i, j)
 
 			#correlation = pearsonr(dataset.columns[i], dataset.columns[j])
 			correlationsMatrix[i][j] = correlation
@@ -203,6 +219,7 @@ def generateReducibleStructuresFromDataset(dataset):
 			a2 = g.getNode(name2, dataset.columnDistributionInformation[j])
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1)
+			#print name1, "->", name2, correlationHelper(dataset, i, j)
 
 	return g
 
@@ -253,14 +270,22 @@ def deepcopyNode(node):
 	newNode = deepcopy(node)
 	return newNode
 
+startTime = 0
+cleanTimingData = []
+
 def main():
+	global startTime, cleanTimingData
+
 	inputFile = sys.argv[1]
 	SAiterations = int(sys.argv[2])
 	connectionThreshold = float(sys.argv[3])
 	outputDirectory = sys.argv[4]
 	outputFilename = sys.argv[5]
 
+	startTime = time.clock()
+
 	dataset = Dataset(inputFile)
+
 	#g = generateReducibleStructuresFromDataset(dataset)[0]
 	#g = generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold)
 	g = generateReducibleStructuresFromDataset(dataset)
@@ -326,7 +351,6 @@ def main():
 	AST.fillHolesRandomly()
 
 	print prog.programString()
-	print prog.randomizeableNodes
 
 	# print "actual score: ", estimateScore(prog.root, dataset)
 	# for i in range(10):
@@ -345,6 +369,8 @@ def main():
 
 	# below is simulated annealing
 
+	cleanTimingData = []
+
 	initState = PPLSynthesisProblem.makeInitialState(prog)
 	saObj = PPLSynthesisProblem(initState)
 	saObj.setNeeded(dataset)
@@ -355,15 +381,16 @@ def main():
 	saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
 	#print AST.strings()
+	endTime = time.clock()
 	distanceFromDataset = -1*estimateScore(prog.root, dataset)
+	cleanTimingData.append([endTime, distanceFromDataset])
 	#print len(prog.randomizeableNodes)
 	annealingOutput = []
-	progOutput, distanceFromDataset = saObj.anneal()
-	# if len(prog.randomizeableNodes) > 0:
-	# 	with Capturing() as annealingOutput:
-	# 		progOutput, distanceFromDataset = saObj.anneal()
-	# else:
-	# 	progOutput = prog
+	if len(prog.randomizeableNodes) > 0:
+		with Capturing() as annealingOutput:
+			progOutput, distanceFromDataset = saObj.anneal()
+	else:
+		progOutput = prog
 
 	
 	print "\n".join(annealingOutput)
@@ -378,6 +405,8 @@ def main():
 	pickle.dump(prog, output2)
 	output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.timing", "w")
 	output3.write("\n".join(annealingOutput))
+	output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(correlationThreshold)+"_.timing", "w")
+	output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
 
 
 	#print scriptStrings
