@@ -2,7 +2,7 @@
 
 from parser import parse_from_file
 from ast import Dataset
-from score import estimateScore
+from score import estimateScore, getMoG
 import sys
 
 def test(ast_file,dataset_file):
@@ -27,9 +27,14 @@ def run():
                      dir + '/datasets/' + name + '.csv')
             test_list.close()
             return
+        elif flag == "--mog":
+            ast_file = sys.argv[2]
+            print getMoG(parse_from_file(ast_file))
+            return
         
     print "Usage: ./benchmarkScore.py -I/--input [PROGRAM] [DATASET]"
     print "Usage: ./benchmarkScore.py -A/--all ../benchmarkSuite/tests.list"
+    print "Usage: ./benchmarkScore.py --mog [PROGRAM]"
 
 run()
     
