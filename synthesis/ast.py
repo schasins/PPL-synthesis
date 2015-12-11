@@ -1157,7 +1157,7 @@ class ComparisonNode(ASTNode):
 			# Remove an operator
 			if mutationDebug: print "Remove an operator"
 			opToRemove = random.choice(RHSOperators)
-			opToRemove.remove()
+			opToRemove.removeOp()
 		elif decision < .9 and len(RHSOperators) > 0:
 			# Change an operator
 			if mutationDebug: print "Change an operator"
@@ -1313,11 +1313,13 @@ class BinExpNode(ASTNode):
 		n1 = self.e1
 		n2 = self.e2
 		if isinstance(n1, NumberWrapper) and isinstance(n2, NumberWrapper):
-			val1 = n1.val.val
-			val2 = n2.val.val
-			output = self.ops[self.op](val1, val2)
-			newNum = NumberWrapper(self.e1.val.comparisonNode, self.e1.val.lowerBound, self.e1.val.upperBound, NumericValue(output))
-			self.removeOp(newNum)
+			if isinstance(n1.val, NumericValue) and isinstance(n2.val, NumericValue):
+				# we can collapse some stuff!
+				val1 = n1.val.val
+				val2 = n2.val.val
+				output = self.ops[self.op](val1, val2)
+				newNum = NumberWrapper(n1.comparisonNode, n1.lowerBound, n1.upperBound, NumericValue(output))
+				self.removeOp(newNum)
 		else:
 			if (self.op == "+" or self.op == "*"):
 				if isinstance(n1, BinExpNode) and isinstance(n2, BinExpNode):
@@ -1327,12 +1329,12 @@ class BinExpNode(ASTNode):
 						numberWrapperNodes = []
 						otherNodes = []
 						for node in [n1.e1, n1.e2, n2.e1, n2.e2]:
-							if isinstance(node, NumberWrapper):
+							if isinstance(node, NumberWrapper) and isinstance(node.val, NumericValue):
 								numberWrapperNodes.append(node)
 							elif isinstance(node, BinExpNode):
 								otherNodes.append(node)
 						if len(numberWrapperNodes) > 1:
-							# we can collapse some stuff!  the length is 2 because otherwise we'd have collapsed one of those child nodes
+							# we can collapse some stuff!  the length is 2 because if it was bigger we'd have collapsed n1 or n2 further
 							newExpNode = BinExpNode(self.op, otherNodes[0], otherNodes[1])
 							for node in otherNodes:
 								node.setParent(newExpNode)
@@ -1343,19 +1345,25 @@ class BinExpNode(ASTNode):
 							self.removeOp(newExpNode2)
 					return
 
-				# one of this is a numbuerwrapper and the other is a binexpnode or we would have gone into one of the other cases
-				expNode = n1
-				numberWrapperNode = n2
-				if isinstance(n1, NumberWrapper) and isinstance(n2, BinExpNode):
+				# one of these is a numberwrapper and the other is a binexpnode or we would have gone into one of the other cases
+				# the question is whether we have a couple numericvalues
+				expNode = None
+				numberWrapperNode = None
+				if isinstance(n2, NumberWrapper) and isinstance(n2.val, NumericValue) and isinstance(n1, BinExpNode):
+					expNode = n1
+					numberWrapperNode = n2
+				elif isinstance(n1, NumberWrapper) and isinstance(n1.val, NumericValue) and isinstance(n2, BinExpNode):
 					expNode = n2
 					numberWrapperNode = n1
-				if isinstance(expNode.e1, NumberWrapper) or isinstance(expNode.e2, NumberWrapper):
+				if expNode == None:
+					return
+				if (isinstance(expNode.e1, NumberWrapper) and isinstance(expNode.e1.val, NumericValue)) or (isinstance(expNode.e2, NumberWrapper) and isinstance(expNode.e2.val, NumericValue)):
 					# we can collapse some stuff!
 					expNodeNumberWrapperNode = expNode.e1
-					if isinstance(expNode.e2, NumberWrapper):
+					if (isinstance(expNode.e2, NumberWrapper) and isinstance(expNode.e2.val, NumericValue)):
 						expNodeNumberWrapperNode = expNode.e2
-						expNodeNumberWrapperNode.val.val = expNodeNumberWrapperNode.val.val + numberWrapperNode.val.val
-						self.removeOp(expNode)
+					expNodeNumberWrapperNode.val.val = expNodeNumberWrapperNode.val.val + numberWrapperNode.val.val
+					self.removeOp(expNode)
 
 class BoolBinExpNode(ASTNode):
 
