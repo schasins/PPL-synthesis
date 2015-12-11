@@ -168,24 +168,35 @@ class PPLSynthesisProblem(Annealer):
 # Generate structures based on input dataset correlation
 # **********************************************************************
 
+def correlationHelper(dataset, i, j):
+	iCols = dataset.columnNumericColumns[i]
+	jCols = dataset.columnNumericColumns[j]
+	correlations = []
+	correlations_2 = []
+	for iCol in iCols:
+		for jCol in jCols:
+			res = spearmanr(iCol, jCol)
+			#res2 = pearsonr(iCol, jCol)
+			correlations.append(res[0])
+			#correlations_2.append(res2[0])
+	correlation1 = max(correlations)
+	correlation2 = min(correlations)
+	correlation = correlation1
+	if abs(correlation2) > abs(correlation1):
+		correlation = correlation2
+
+	#correlation1_2 = max(correlations_2)
+	#correlation2_2 = min(correlations_2)
+	#correlation_2 = correlation1_2
+	#if abs(correlation2_2) > abs(correlation1_2):
+	#	correlation_2 = correlation2_2	
+	return correlation
+
 def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshold):
 	correlationsMatrix = [ [ 0 for i in range(dataset.numColumns) ] for j in range(dataset.numColumns) ]
 	for i in range(dataset.numColumns):
 		for j in range(i + 1, dataset.numColumns):
-			iCols = dataset.columnNumericColumns[i]
-			jCols = dataset.columnNumericColumns[j]
-			correlations = []
-			for iCol in iCols:
-				for jCol in jCols:
-					print len(iCol), len(jCol)
-					res = spearmanr(iCol, jCol)
-					correlations.append(res[0])
-			print correlations
-			correlation1 = max(correlations)
-			correlation2 = min(correlations)
-			correlation = correlation1
-			if abs(correlation2) > abs(correlation1):
-				correlation = correlation2
+			correlation = correlationHelper(dataset, i, j)
 
 			#correlation = pearsonr(dataset.columns[i], dataset.columns[j])
 			correlationsMatrix[i][j] = correlation
@@ -208,6 +219,7 @@ def generateReducibleStructuresFromDataset(dataset):
 			a2 = g.getNode(name2, dataset.columnDistributionInformation[j])
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1)
+			#print name1, "->", name2, correlationHelper(dataset, i, j)
 
 	return g
 
