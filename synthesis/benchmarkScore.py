@@ -5,10 +5,13 @@ from ast import Dataset
 from score import estimateScore, getMoG
 import sys
 
+scores = {}
+
 def test(ast_file,dataset_file):
     ast = parse_from_file(ast_file)
     dataset = Dataset(dataset_file)
-    print ast_file[ast_file.rfind('/')+1:], "\t", estimateScore(ast, dataset)
+    scores[(ast_file[ast_file.rfind('/')+1:]).lower().split(".")[0]] = -1.0*estimateScore(ast, dataset)
+    #print ast_file[ast_file.rfind('/')+1:], "\t", estimateScore(ast, dataset)
 
 def run():
     if len(sys.argv) > 1:
@@ -38,4 +41,5 @@ def run():
     print "Usage: ./benchmarkScore.py --mog [PROGRAM]"
 
 run()
+print scores
     
