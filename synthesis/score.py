@@ -307,11 +307,59 @@ class ScoreEstimator(visitor):
         else:
             raise ScoreError("if-else: condition type should be boolean distribution")
 
+    def ite_list(self, conds, bodies):
+        (conds, bodies) = self.uniqueConditions(conds, bodies)
+        if len(conds) == len(bodies):
+            conds = conds[:-1]
+            
+        conds = [self.visit(x) for x in conds]
+        bodies = [self.visit(x) for x in bodies]
+        ps = [x.p for x in conds]
+        ps.append(1-sum(ps))
+        
+        if isinstance(bodies[0],Bernoulli):
+            ans = sum([p*body.p for (p,body) in zip(ps,bodies)])
+            return Bernoulli(ans)
+        elif isinstance(bodies[0], MoG):
+            all_n = 0
+            all_w = np.array([])
+            all_mu = np.array([])
+            all_sig = np.array([])
+            for (p,body) in zip(ps,bodies):
+                all_n = all_n + body.n
+                all_w = np.concatenate((all_w,body.w * p), axis=0)
+                all_mu = np.concatenate((all_mu,body.mu), axis=0)
+                all_sig = np.concatenate((all_sig,body.sig), axis=0)
+            return MoG(all_n, all_w, all_mu, all_sig)
+        elif isinstance(bodies[0], Categorical):
+            values = sorted(bodies[0].values)
+            newmap = {}
+            for val in values:
+                newmap[val] = 0
+            for (p,body) in zip(ps,bodies):
+                if not(sorted(body.values) == values):
+                    raise ScoreError("if-else: categorical distributions of branches mismatch.")
+                oldmap = body.valuesToPercentages
+                for val in values:
+                    newmap[val] = newmap[val] + p * oldmap[val]
+            return Categorical(values,newmap)
+        else:
+            raise ScoreError("if-else: true and false branches' types mistmatch")
+
     def visit_IfNode(self, ast):
-        conditions = [self.visit(x) for x in ast.conditionNodes]
-        bodies = [self.visit(x) for x in ast.bodyNodes]
+        
+        conditions = ast.conditionNodes
+        bodies = ast.bodyNodes
+        
+        if self.compareCategorical(conditions):
+            return self.ite_list(conditions,bodies)
+        
         if len(conditions) == len(bodies):
             conditions = conditions[:-1]
+            
+        conditions = [self.visit(x) for x in conditions]
+        bodies = [self.visit(x) for x in bodies]
+            
 
         # if len(conditions) > 1 and self.dependent(ast.conditionNodes):
         #     print "IfNode ADJUSTMENT"
@@ -327,12 +375,47 @@ class ScoreEstimator(visitor):
         #         b.p = b.p/not_p
         #         not_p = not_p * (1 - b.p)
 
+
         working = bodies[-1]
         # traverse in reversed order
         for i in range(len(conditions))[::-1]:
             working = self.ite(conditions[i],bodies[i],working)
 
         return working
+
+    def compareCategorical(self, exprs):
+        name = None
+        for expr in exprs:
+            if isinstance(expr, ComparisonNode) and \
+               expr.relationship == "==":
+                if isinstance(expr.value, VariableUseNode) and \
+                   not(isinstance(expr.node, VariableUseNode)):
+                    tmp = expr.value
+                    expr.value = expr.node
+                    expr.node = tmp
+
+                if isinstance(expr.node, VariableUseNode) and \
+                   isinstance(expr.value, StringValue) and \
+                   (name == None or expr.node.name == name):
+                    name = expr.node.name
+                else:
+                    return False
+            else:
+                return False
+        return True
+
+    def uniqueConditions(self, conds, bodies):
+        ret_conds = []
+        ret_bodies = []
+        vals = []
+        for i in range(len(conds)):
+            if not(conds[i].value.val in vals):
+                vals.append(conds[i].value.val)
+                ret_conds.append(conds[i])
+                ret_bodies.append(bodies[i])
+        if len(bodies) == len(conds) + 1:
+            ret_bodies.append(bodies[-1])
+        return (ret_conds,ret_bodies)
 
     def dependent(self, exprs):
         ref = self.varcollector.getVars(exprs[0])
