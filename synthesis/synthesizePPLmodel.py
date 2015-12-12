@@ -375,10 +375,24 @@ def main():
 	#AST.reduce(dataset)
 
 	#print prog.programString()
+	#exit()
 
 	AST.fillHolesRandomly()
 	if debug: print prog.programString()
 	if debug: print AST.strings()
+
+	for i in range(0,300,5):
+		progCopy = deepcopy(prog)
+		progCopy.root.setProgram(progCopy)
+		progCopy.thresholdMaker = i
+		progCopy.root.reduce(dataset)
+		progCopy.distribNodes = 0 # let's count those nodes now
+		progCopy.varUseNodes = 0
+		progCopy.comparisonNodes = 0
+		progCopy.root.setProgram(progCopy)
+		print i,",", -1 * estimateScore(progCopy.root, dataset),",",progCopy.distribNodes,",",progCopy.varUseNodes,",",progCopy.comparisonNodes
+		#print progCopy.programString()
+	exit()
 
 	#print prog.programString()
 

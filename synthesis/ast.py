@@ -146,11 +146,15 @@ class PathConditionComponent:
 # **********************************************************************
 
 class Program:
-	def __init__(self, dataset):
+	def __init__(self, dataset, thresholdMaker = 75):
 		self.randomizeableNodes = {}
 		self.variables = []
 		self.dataset = dataset
 		self.root = None
+		self.thresholdMaker = thresholdMaker
+		self.varUseNodes = 0
+		self.comparisonNodes = 0
+		self.distribNodes = 0
 
 	def setRoot(self, root):
 		self.root = root
@@ -277,7 +281,7 @@ class VariableDeclNode(ASTNode):
 		self.allowableVariables = self.program.variables[:]
 
 		useNode = VariableUseNode(self.name, self.varType)
-		useNode.setProgram(program)
+		useNode.setProgram(program, False)
 		self.program.variables.append(useNode)
 
 		self.RHS.setProgram(program)
@@ -327,6 +331,7 @@ class DistribNode(ASTNode):
 
 	def setProgram(self, program):
 		self.program = program
+		self.program.distribNodes = self.program.distribNodes + 1
 
 class BooleanDistribNode(DistribNode):
 	def __init__(self, varName, percentTrue=None, percentMatchingRows = None):
@@ -386,6 +391,10 @@ class CategoricalDistribNode(DistribNode):
 		self.values = values
 		self.valuesToPercentages = valuesToPercentages
 		self.percentMatchingRows = percentMatchingRows
+
+	def setProgram(self, program):
+		self.program = program
+		self.program.distribNodes = self.program.distribNodes + 1
 
 	def params(self):
 		return [("Categorical", self.valuesToPercentages, self.percentMatchingRows)]
@@ -807,14 +816,17 @@ class IfNode(ASTNode):
 					# for a dataset of size 10,000, I've found .02 seems pretty good (thresholdmaker 200)
 					# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
 
-					thresholdMaker = 150.0
+					thresholdMaker = float(self.program.thresholdMaker)
 					thresholdToBeat = thresholdMaker/dataset.numRows
 					# the threshold to beat should depend on how much data we used to make each estimate
 					# if the data is evenly divided between the if and the else, we should use the base thresholdToBeat.  else, should use higher
 					minNumRows = min(param1[2], param2[2])
-					rowsRatio = minNumRows/.5
 					# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
-					thresholdToBeat = thresholdToBeat/rowsRatio
+					if minNumRows != 0:
+						thresholdToBeat = thresholdToBeat/minNumRows
+					else:
+						thresholdToBeat = 1.5 # if you based one of these on 0 rows - just guessing -- then just automatically collapse it
+
 					if (abs(param1[1] - param2[1]) > thresholdToBeat):
 						match = False
 						break
@@ -999,8 +1011,10 @@ class VariableUseNode(ASTNode):
 		self.typeName = typeName
 		self.randomizeable = False
 
-	def setProgram(self, program):
+	def setProgram(self, program, count = True):
 		self.program = program
+		if count:
+			self.program.varUseNodes = self.program.varUseNodes + 1
 
 	def strings(self, tabs=0):
 		return [self.name]
@@ -1040,6 +1054,7 @@ class ComparisonNode(ASTNode):
 
 	def setProgram(self, program):
 		self.program = program
+		self.program.comparisonNodes = self.program.comparisonNodes + 1
 		if self.allowableVariables == None:
 			self.allowableVariables = self.parent.allowableVariables
 			self.numberVariables = filter(lambda x: (x.typeName == "Real" or x.typeName == "Integer") and x.name != self.node.name, self.allowableVariables)
@@ -1387,7 +1402,7 @@ class BoolBinExpNode(ASTNode):
 		self.e1 = e1
 		self.e2 = e2
 
-        def strings(self, tabs=0):
+	def strings(self, tabs=0):
 		return combineStrings([["("], self.e1.strings(), [" "+self.op+" "], self.e2.strings(), [")"]])
 
 	def getRandomizeableNodes(self):
