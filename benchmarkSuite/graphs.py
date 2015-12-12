@@ -180,7 +180,7 @@ if makeLowestScore:
 	# Get the bounding box of the original legend
 	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	plt.ylabel('Time in Seconds', size=18)
+	plt.ylabel('Lowest Achieved Score (Normalized to Ground Truth Score)', size=18)
 
 	ax.legend(loc='upper left')
 
@@ -260,7 +260,7 @@ if makeLowestScore2:
 	# Get the bounding box of the original legend
 	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	plt.ylabel('Time in Seconds', size=18)
+	plt.ylabel('Lowest Achieved Score (Normalized to Ground Truth Score)', size=18)
 
 	ax.legend(loc='upper left')
 
