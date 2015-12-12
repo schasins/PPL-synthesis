@@ -6,7 +6,9 @@ import math
 stringToSeek = "_100_"
 structureGenerationStrategyNames = {"n": "Naive", "c": "Simple Correlation", "d": "Network Deconvolution"}
 
-groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 17043.29694642003, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48001.39437425706, 'uniform': 53189.889449844784, 'eyecolor': 24542.81097722689, 'icecream': 79082.25931616548, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
+groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 16969.33744363283, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48520.30263912328, 'uniform': 53189.889449844784, 'eyecolor': 24531.8331725655, 'icecream': 77940.73111092609, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
+# the scores below were calculated with the old score approach, before we fixed it to handle ifs with more than 2 branches better
+#groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 17043.29694642003, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48001.39437425706, 'uniform': 53189.889449844784, 'eyecolor': 24542.81097722689, 'icecream': 79082.25931616548, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 
 dataSets = {}
 
