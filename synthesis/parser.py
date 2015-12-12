@@ -241,7 +241,7 @@ def p_expr_case(t):
     'expr : CASE expr IN LBRACK exprpairs RBRACK'
     l = t[5]
     #print "CASE", t[2], l
-    cond = [CreateComparisonNode(t[2],"==",x[0]) for x in l[:-1]]
+    cond = [CreateComparisonNode(t[2],"==",x[0]) for x in l]
     #print "CASE cond", cond
     body = [x[1] for x in l]
     t[0] = IfNode(cond,body)
