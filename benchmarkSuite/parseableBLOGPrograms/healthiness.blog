@@ -15,23 +15,33 @@
 
 random Boolean HealthConsciousP1 ~ BooleanDistrib(0.5);
 random Boolean LittleFreeTimeP1 ~ BooleanDistrib(0.5);
-random Boolean ExerciseP1
-  ~ case [HealthConsciousP1, LittleFreeTimeP1] in
-               {[true, true] -> BooleanDistrib(0.5),
-                [true, false] -> BooleanDistrib(0.9),
-                [false, true] -> BooleanDistrib(0.1),
-                [false, false] -> BooleanDistrib(0.5)}
+random Boolean ExerciseP1 ~ 
+  if HealthConscious(P1)
+  then 
+    if LittleFreeTime(P1)
+    then BooleanDistrib(0.5)
+    else BooleanDistrib(0.9)
+  else 
+    if LittleFreeTime(P1)
+    then BooleanDistrib(0.1)
+    else BooleanDistrib(0.5)
     ;
+
 random Boolean GoodDietP1
   ~ case HealthConsciousP1 in {true -> BooleanDistrib(0.7),
                 false -> BooleanDistrib(0.3)};
-random Boolean NormalWeightP1 
-  ~ case [GoodDietP1, ExerciseP1] in 
-               {[true, true] -> BooleanDistrib(0.8),
-                [true, false] -> BooleanDistrib(0.5),
-                [false, true] -> BooleanDistrib(0.5),
-                [false, false] -> BooleanDistrib(0.2)}
+random Boolean NormalWeightP1 ~ 
+  if Exercise(P1)
+  then 
+    if GoodDiet(P1)
+    then BooleanDistrib(0.8)
+    else BooleanDistrib(0.5)
+  else 
+    if GoodDiet(P1)
+    then BooleanDistrib(0.5)
+    else BooleanDistrib(0.2)
     ;
+
 random Boolean HighCholesterolP1
   ~ case GoodDietP1 in 
                 {true -> BooleanDistrib(0.3),
