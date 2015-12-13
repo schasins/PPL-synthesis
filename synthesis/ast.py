@@ -833,11 +833,10 @@ class IfNode(ASTNode):
 				if (param1[0] == "Categorical" and param2[0] == "Categorical"):
 					if (param1[1] == None or param2[1] == None):
 						continue
-					thresholdMaker = 150.0
+					thresholdMaker = float(self.program.thresholdMaker)
 					thresholdToBeat = thresholdMaker/dataset.numRows
 					minNumRows = min(param1[2], param2[2])
-					rowsRatio = minNumRows/.5
-					thresholdToBeat = thresholdToBeat/rowsRatio
+					thresholdToBeat = thresholdToBeat/minNumRows
 
 					allValuesMatch = True
 					dict1 = param1[1]
@@ -1407,6 +1406,11 @@ class BoolBinExpNode(ASTNode):
 
 	def getRandomizeableNodes(self):
 		return []
+
+	def pathCondition(self):
+		p1 = self.e1.pathCondition()
+		p2 = self.e2.pathCondition()
+		return PathConditionComponent(lambda x: self.ops[self.op](p1.func(x),p2.func(x)))
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):

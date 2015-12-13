@@ -381,7 +381,9 @@ def main():
 	if debug: print prog.programString()
 	if debug: print AST.strings()
 
-	for i in range(0,300,5):
+	print  -1,",",-1 * estimateScore(prog.root, dataset),",",prog.distribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
+
+	for i in range(0,155,5):
 		progCopy = deepcopy(prog)
 		progCopy.root.setProgram(progCopy)
 		progCopy.thresholdMaker = i
