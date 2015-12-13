@@ -141,6 +141,7 @@ if makeMaxTimeToReachGroundtruth2:
 					break
 				timeLs.append(newTime)
 			avg = np.mean(timeLs)
+			print avg
 			stderr = np.std(timeLs)
 			if avg + stderr > maxTimeToReachScore:
 				maxTimeToReachScore = avg + stderr
@@ -149,6 +150,7 @@ if makeMaxTimeToReachGroundtruth2:
 			print benchmarkname, ":", timeLs
 		allBars.append(bars)
 		allBarErros.append(barErrors)
+		print "mean: ", np.mean(bars)
 	print allBars
 
 	timeoutTime = maxTimeToReachScore + 20

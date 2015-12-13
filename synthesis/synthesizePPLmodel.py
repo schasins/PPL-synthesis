@@ -202,7 +202,8 @@ def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshol
 			correlationsMatrix[i][j] = correlation
 			correlationsMatrix[j][i] = correlation
 
-	x = np.array(correlationsMatrix)
+	a = np.array(correlationsMatrix)
+	x = ND(a)
 
 	g = Graph()
 	for i in range(dataset.numColumns):
@@ -311,7 +312,7 @@ def main():
 		g = generateReducibleStructuresFromDataset(dataset)
 	elif structureGenerationStrategy == "d":
 		# deconvolution strategy
-		g = generateStructureFromDatasetNetworkDeconvolution(dataset, .2)
+		g = generateStructureFromDatasetNetworkDeconvolution(dataset, .1)
 	elif structureGenerationStrategy == "c":
 		# simple correlation strategy
 		g = generatePotentialStructuresFromDataset(dataset)
@@ -383,7 +384,9 @@ def main():
 
 	print  -1,",",-1 * estimateScore(prog.root, dataset),",",prog.distribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
 
-	for i in range(0,155,5):
+	i = .7
+	while i < .8:
+		i += .01
 		progCopy = deepcopy(prog)
 		progCopy.root.setProgram(progCopy)
 		progCopy.thresholdMaker = i
