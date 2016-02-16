@@ -843,15 +843,17 @@ class IfNode(ASTNode):
 					# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
 
 					thresholdMaker = float(self.program.thresholdMaker)
-					thresholdToBeat = thresholdMaker/dataset.numRows
+					thresholdToBeat = thresholdMaker
 					# the threshold to beat should depend on how much data we used to make each estimate
 					# if the data is evenly divided between the if and the else, we should use the base thresholdToBeat.  else, should use higher
-					minNumRows = min(param1[2], param2[2])
+					minPercentRows = min(param1[2], param2[2])
+                                        minNumRows = minPercentRows * dataset.numRows
 					# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
 					if minNumRows != 0:
-						thresholdToBeat = thresholdToBeat/minNumRows
+						thresholdToBeat = (thresholdToBeat / (minNumRows**.7)) + .02
 					else:
 						thresholdToBeat = 1.5 # if you based one of these on 0 rows - just guessing -- then just automatically collapse it
+                                        #print thresholdToBeat
 
 					if (abs(param1[1] - param2[1]) > thresholdToBeat):
 						match = False

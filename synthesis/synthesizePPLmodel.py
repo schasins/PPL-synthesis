@@ -386,11 +386,11 @@ def main():
 	if debug: print prog.programString()
 	if debug: print AST.strings()
 
-	print  -1,",",-1 * estimateScore(prog.root, dataset),",",prog.distribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
+	print "noreduction,",-1 * estimateScore(prog.root, dataset),",",prog.distribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
 
-	i = .7
-	while i < .8:
-		i += .01
+	i = -2
+	while i < 30:
+		i += 1
 		progCopy = deepcopy(prog)
 		progCopy.root.setProgram(progCopy)
 		progCopy.thresholdMaker = i
