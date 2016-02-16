@@ -179,6 +179,7 @@ def correlationHelper(dataset, i, j):
 			#res2 = pearsonr(iCol, jCol)
 			correlations.append(res)
 			#correlations_2.append(res2[0])
+        print correlations
 	correlation1 = max(correlations, key=lambda item:item[1])
 	correlation2 = min(correlations, key=lambda item:item[1])
 	correlation = correlation1
@@ -201,6 +202,9 @@ def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshol
 			#correlation = pearsonr(dataset.columns[i], dataset.columns[j])
 			correlationsMatrix[i][j] = correlation
 			correlationsMatrix[j][i] = correlation
+
+        for i in range(len(correlationsMatrix)):
+                print correlationsMatrix[i]
 
 	a = np.array(correlationsMatrix)
 	x = ND(a)
