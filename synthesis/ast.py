@@ -46,13 +46,43 @@ def isFloat(s):
     except ValueError:
         return False
 
+
+def removeColumns(dataset, indexes):
+        sortedIndexes = sorted(indexes, reverse=True)
+        for row in dataset:
+                for index in sortedIndexes:
+                        try:
+                                del row[index]
+                        except Exception:
+                                print "row len", len(row)
+                                print "index to remove", index
+                                print "last row len", len(dataset[-1])
+                                raise Exception("gah")
+        return dataset
+
 class Dataset:
 	def __init__(self, filename):
 		f = open(filename, "r")
 		lines = f.readlines()
 
-		line = lines[0].strip()
-		lineItems = line.split(",")
+                # first let's filter out any constant columns.  no need to waste time modeling that
+                dataset = []
+                for line in lines:
+                        dataset.append(line.strip().split(","))
+
+                colsToRemove = []
+                for i in range(len(dataset[0])):
+                        firstVal = dataset[1][i]
+                        allSame = True
+                        for row in dataset[1:]: # is there no andmap?
+                                if row[i] != firstVal:
+                                        allSame = False
+                                        break
+                        if allSame:
+                                colsToRemove.append(i)
+                dataset = removeColumns(dataset, colsToRemove)
+
+		lineItems = dataset[0]
 		names = {}
 		indexes = {}
 		numItems = 0
@@ -75,16 +105,12 @@ class Dataset:
 		for i in range(numItems):
 			columns.append([])
 			columnValues.append(set())
-		rows = []
-		for line in lines[1:]:
-			cells = []
-			entries = line.strip().split(",")
+		rows = dataset[1:]
+		for cells in rows:
 			for i in range(numItems):
-				entry = entries[i]
-				cells.append(entry)
-				columns[i].append(entry)
-				columnValues[i].add(entry)
-			rows.append(cells)
+				cell = cells[i]
+				columns[i].append(cell)
+				columnValues[i].add(cell)
 
 		self.columns = columns
 		self.rows = rows
@@ -817,15 +843,17 @@ class IfNode(ASTNode):
 					# for a dataset of size 500,000, .0001 was better (thresholdmaker 50)
 
 					thresholdMaker = float(self.program.thresholdMaker)
-					thresholdToBeat = thresholdMaker/dataset.numRows
+					thresholdToBeat = thresholdMaker
 					# the threshold to beat should depend on how much data we used to make each estimate
 					# if the data is evenly divided between the if and the else, we should use the base thresholdToBeat.  else, should use higher
-					minNumRows = min(param1[2], param2[2])
+					minPercentRows = min(param1[2], param2[2])
+                                        minNumRows = minPercentRows * dataset.numRows
 					# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
 					if minNumRows != 0:
-						thresholdToBeat = thresholdToBeat/minNumRows
+						thresholdToBeat = (thresholdToBeat / (minNumRows**.7)) + .02
 					else:
 						thresholdToBeat = 1.5 # if you based one of these on 0 rows - just guessing -- then just automatically collapse it
+                                        #print thresholdToBeat
 
 					if (abs(param1[1] - param2[1]) > thresholdToBeat):
 						match = False
