@@ -180,7 +180,6 @@ def correlationHelper(dataset, i, j):
 			#res2 = pearsonr(iCol, jCol)
 			correlations.append(res)
 			#correlations_2.append(res2[0])
-        print correlations
 	correlation1 = max(correlations, key=lambda item:item[1])
 	correlation2 = min(correlations, key=lambda item:item[1])
 	correlation = correlation1
@@ -204,8 +203,8 @@ def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshol
 			correlationsMatrix[i][j] = correlation
 			correlationsMatrix[j][i] = correlation
 
-        for i in range(len(correlationsMatrix)):
-                print correlationsMatrix[i]
+			for i in range(len(correlationsMatrix)):
+				print correlationsMatrix[i]
 
 	a = np.array(correlationsMatrix)
 	x = ND(a)
@@ -280,7 +279,7 @@ def generatePotentialStructuresFromDataset(dataset):
 			# TODO: eventually should create multiple different prog structures from single dataset
 			a1.children.insert(0, a2)
 			a2.parents.insert(0, a1) # for how we process, it's nicer to have parents in reverse order of correlation
-		 	#print name1, "->", name2, correlation[1]
+			#print name1, "->", name2, correlation[1]
 		# else:
 		# 	print "already descended"
 	return g
@@ -307,6 +306,9 @@ def main():
 	outputFilename = sys.argv[4]
 	structureGenerationStrategy = sys.argv[5]
 	mode = sys.argv[6]
+	if len(sys.argv) > 7:
+		debug = True if sys.argv[7] == "t" else False
+		print "Debugging messages on."
 
 	startTime = time.clock()
 
@@ -340,7 +342,9 @@ def main():
 			AST.addChild(typeDecl)
 			internal = CategoricalDistribNode(node.name, node.distribInfo.values)
 		elif isinstance(node.distribInfo, IntegerDistribution):
-			internal = IntegerDistribNode(node.name)
+			# don't currently have integerdistribnode :(  use reals for now
+			# internal = IntegerDistribNode(node.name)
+			internal = RealDistribNode(node.name)
 		elif isinstance(node.distribInfo, RealDistribution):
 			internal = RealDistribNode(node.name)
 
@@ -372,12 +376,36 @@ def main():
 	prog = Program(dataset)
 	prog.setRoot(AST)
 
-
+	if debug: print "filling holes for concrete path conditions."
 
 	AST.fillHolesForConcretePathConditions(dataset)
 
-	if mode == "reduction":
-		print  "noreduction,", blogLikelihoodScore(prog, dataset),",",prog.distribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
+	if mode == "reduction" or mode == "reductionProg":
+
+		def writeFile(prog, label):
+			outputString = prog.programString()
+			inputName = inputFile.split("/")[-1].split(".")[0]
+			outputFilename = inputName+"_"+label+"_"+str(prog.distribNodes)+".blog"
+			output = open(outputDirectory+"/reducedPrograms/"+outputFilename, "w")
+			output.write(outputString)
+
+		def printStats(prog, label, lastNumDistribNodes, lastScore):
+			numDistribNodes = prog.distribNodes
+			score = lastScore
+			if numDistribNodes != lastNumDistribNodes: # let's avoid extra score calculations for equivalent programs, since they're expensive
+				score = blogLikelihoodScore(prog, dataset)
+			print  label,",", score,",",numDistribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
+			return numDistribNodes, lastScore
+
+		lastScore = None
+		lastNumDistribNodes = -1
+
+		# now let's actually do some stuff!
+		if mode == "reduction":
+			lastNumDistribNodes, lastScore = printStats(prog, str(i), lastNumDistribNodes, lastScore)
+		else :
+			writeFile(prog, str(i))
+								
 		i = -.5
 		while i < 20:
 			i += .5
@@ -389,8 +417,11 @@ def main():
 			progCopy.varUseNodes = 0
 			progCopy.comparisonNodes = 0
 			progCopy.root.setProgram(progCopy)
-			print i,",", blogLikelihoodScore(progCopy, dataset),",",progCopy.distribNodes,",",progCopy.varUseNodes,",",progCopy.comparisonNodes
-
+			if mode == "reduction":
+				lastNumDistribNodes, lastScore = printStats(progCopy, str(i), lastNumDistribNodes, lastScore)
+			else :
+				writeFile(progCopy, str(i))
+								
 	elif mode == "annealing":
 		# below is simulated annealing
 
@@ -409,13 +440,11 @@ def main():
 
 		saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
-		#print AST.strings()
 		endTime = time.clock()
-		distanceFromDataset = blogLikelihoodScore(prog, dataset)
-		cleanTimingData.append([endTime, distanceFromDataset])
-		#print len(prog.randomizeableNodes)
-		#print prog.randomizeableNodes
+		# distanceFromDataset = blogLikelihoodScore(prog, dataset)
+		cleanTimingData.append([endTime]) #, distanceFromDataset])
 		annealingOutput = []
+		if debug: print "About to anneal."
 		if len(prog.randomizeableNodes) > 0:
 			with Capturing() as annealingOutput:
 				progOutput, distanceFromDataset = saObj.anneal()

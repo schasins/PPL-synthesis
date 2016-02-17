@@ -131,7 +131,6 @@ class Dataset:
 				self.columns[i] = (map(lambda x: int(x), currColumnValues))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
-				columnMins.append(min(self.columns[i]))
 				columnNumericColumns.append([self.columns[i]])
 				for row in self.rows:
 					row[i] = int(row[i])
@@ -1128,7 +1127,7 @@ class ComparisonNode(ASTNode):
 		if self.node.typeName == "Real":
 			self.relationship = random.choice([">", "<"]) # using eq for reals is just silly
 		else:
-			self.relationship = random.choice([self.ops.keys()])
+			self.relationship = random.choice(self.ops.keys())
 
 	def firstMutate(self):
 		(lowerBound, upperBound) = self.node.range()

@@ -12,7 +12,7 @@ def generateQueryString(dataset):
     for row in rows:
         equalities = []
         for i in range(len(varNames)):
-            equalities.append(varNames[i]+" == "+row[i])
+            equalities.append(varNames[i]+" == "+str(row[i]))
         queryStr += "query " + (" & ".join(equalities)) + ";\n"
     return queryStr
 
@@ -31,7 +31,7 @@ def parseBLOGOutputForSumLikelihood(blogOutputStr, numRows):
             logNum = math.log(num)
             logLikelihood += logNum
     if numRowsFound < numRows:
-        print "SOME ROWS HAD 0 PROBABILITY."
+        print "SOME ROWS HAD 0 PROBABILITY.", numRows - numRowsFound
         diff = numRows - numRowsFound
         for i in range(diff):
             logLikelihood += math.log(.0000000000000000000000000000000000001)
@@ -50,7 +50,7 @@ def blogLikelihoodScore(ast, dataset):
     # run the new BLOG program from the file
 
     try:
-        strOutput = subprocess.check_output("blog -n 20000 tmp.blog".split(" "))
+        strOutput = subprocess.check_output("blog -n 100000 tmp.blog".split(" "))
     except:
         raise Exception("Couldn't get output from running BLOG to calculate score.")
 
