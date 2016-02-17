@@ -1,0 +1,7 @@
+To remove rows that are missing cells:
+python processData.py
+
+To run our synthesis tool on the processed data:
+python ../../synthesis/synthesizePPLmodel.py airlineDelayDataProcessed.csv 350 . synthesizedAirlineDelayModel n annealing t
+
+Synthesized program will be synthesizedBLOGPrograms/synthesizedAirlineDelayModel.blog
