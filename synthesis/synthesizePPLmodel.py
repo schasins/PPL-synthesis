@@ -1,6 +1,7 @@
 import random
 from ast import *
 from score import *
+from BLOGScore import *
 from subprocess import call
 from copy import deepcopy
 from scipy.stats.stats import pearsonr
@@ -301,6 +302,7 @@ def main():
 	outputDirectory = sys.argv[3]
 	outputFilename = sys.argv[4]
 	structureGenerationStrategy = sys.argv[5]
+	mode = sys.argv[6]
 
 	startTime = time.clock()
 
@@ -370,96 +372,70 @@ def main():
 
 	AST.fillHolesForConcretePathConditions(dataset)
 
-	# TODO: no longer want to reduce ahead of time, but may want to reduce the final output?  after we use BLOG inference?
-	
+	if mode == "reduction":
+		print  "noreduction,", blogLikelihoodScore(prog, dataset),",",prog.distribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
+		i = -.5
+		while i < 20:
+			i += .5
+			progCopy = deepcopy(prog)
+			progCopy.root.setProgram(progCopy)
+			progCopy.thresholdMaker = i
+			progCopy.root.reduce(dataset)
+			progCopy.distribNodes = 0 # let's count those nodes now
+			progCopy.varUseNodes = 0
+			progCopy.comparisonNodes = 0
+			progCopy.root.setProgram(progCopy)
+			print i,",", blogLikelihoodScore(progCopy, dataset),",",progCopy.distribNodes,",",progCopy.varUseNodes,",",progCopy.comparisonNodes
 
-	#AST.reduce(dataset)
+	elif mode == "annealing":
+		# below is simulated annealing
 
-	#print prog.programString()
-	#exit()
+		AST.fillHolesRandomly()
+		if debug: print prog.programString()
+		if debug: print AST.strings()
 
-	AST.fillHolesRandomly()
-	if debug: print prog.programString()
-	if debug: print AST.strings()
+		cleanTimingData = []
 
-	print  -1,",",-1 * estimateScore(prog.root, dataset),",",prog.distribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
+		initState = PPLSynthesisProblem.makeInitialState(prog)
+		saObj = PPLSynthesisProblem(initState)
+		saObj.setNeeded(dataset)
+		saObj.steps = SAiterations # 100000 #how many iterations will we do?
+		saObj.updates = SAiterations # 100000 # how many times will we print current status
+		saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
 
-	i = .7
-	while i < .8:
-		i += .01
-		progCopy = deepcopy(prog)
-		progCopy.root.setProgram(progCopy)
-		progCopy.thresholdMaker = i
-		progCopy.root.reduce(dataset)
-		progCopy.distribNodes = 0 # let's count those nodes now
-		progCopy.varUseNodes = 0
-		progCopy.comparisonNodes = 0
-		progCopy.root.setProgram(progCopy)
-		print i,",", -1 * estimateScore(progCopy.root, dataset),",",progCopy.distribNodes,",",progCopy.varUseNodes,",",progCopy.comparisonNodes
-		#print progCopy.programString()
-	exit()
+		saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
-	#print prog.programString()
+		#print AST.strings()
+		endTime = time.clock()
+		distanceFromDataset = blogLikelihoodScore(prog, dataset)
+		cleanTimingData.append([endTime, distanceFromDataset])
+		#print len(prog.randomizeableNodes)
+		#print prog.randomizeableNodes
+		annealingOutput = []
+		if len(prog.randomizeableNodes) > 0:
+			with Capturing() as annealingOutput:
+				progOutput, distanceFromDataset = saObj.anneal()
+		else:
+			progOutput = prog
 
-	# print "actual score: ", estimateScore(prog.root, dataset)
-	# for i in range(10):
-	# 	prog.mutate()
-	# 	print estimateScore(prog.root, dataset)
-	# print prog.root.randomizeableVariables
-	# prog.mutate()
-	# print prog.programString()
-	# prog.mutate()
-	# print prog.programString()
-	# prog.mutate()
-	# print prog.programString()
 
-	# TODO: do we want to figure out the proper params for the distributions we've added?
-	#AST.fillHolesForConcretePathConditions(dataset)
+		#print "\n".join(annealingOutput)
+		if debug: print progOutput.programString()
 
-	# below is simulated annealing
+		#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
-	cleanTimingData = []
+		outputString = progOutput.programString()+"\n\n//"+str(distanceFromDataset)
+		output = open(outputDirectory+"/synthesizedBLOGPrograms/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.blog", "w")
+		output.write(outputString)
+		output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.pickle", "w")
+		pickle.dump(prog, output2)
+		output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+		output3.write("\n".join(annealingOutput))
+		output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+		output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
 
-	initState = PPLSynthesisProblem.makeInitialState(prog)
-	saObj = PPLSynthesisProblem(initState)
-	saObj.setNeeded(dataset)
-	saObj.steps = SAiterations # 100000 #how many iterations will we do?
-	saObj.updates = SAiterations # 100000 # how many times will we print current status
-	saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
-
-	saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
-
-	#print AST.strings()
-	endTime = time.clock()
-	distanceFromDataset = -1*estimateScore(prog.root, dataset)
-	cleanTimingData.append([endTime, distanceFromDataset])
-	#print len(prog.randomizeableNodes)
-	#print prog.randomizeableNodes
-	annealingOutput = []
-	if len(prog.randomizeableNodes) > 0:
-		with Capturing() as annealingOutput:
-			progOutput, distanceFromDataset = saObj.anneal()
 	else:
-		progOutput = prog
-
-	
-	#print "\n".join(annealingOutput)
-	if debug: print progOutput.programString()
-
-	#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
-
-	outputString = progOutput.programString()+"\n\n//"+str(distanceFromDataset)
-	output = open(outputDirectory+"/synthesizedBLOGPrograms/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.blog", "w")
-	output.write(outputString)
-	output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.pickle", "w")
-	pickle.dump(prog, output2)
-	output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
-	output3.write("\n".join(annealingOutput))
-	output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
-	output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
-
-
-	#print scriptStrings
+		raise Exception("Don't recognize the requested mode: "+mode)
 
 main()
 

@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import os
 import math
 
-stringToSeek = "_100_"
+stringToSeek = "_350_"
 structureGenerationStrategyNames = {"n": "Naive", "c": "Simple Correlation", "d": "Network Deconvolution"}
 
 groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 16969.33744363283, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48520.30263912328, 'uniform': 53189.889449844784, 'eyecolor': 24531.8331725655, 'icecream': 77940.73111092609, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
@@ -47,8 +47,13 @@ if makeMaxTimeToReachGroundtruth:
 		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
-		for benchmarkname in sorted(strategyBenchmarks.keys()):
-			benchmarkRuns = strategyBenchmarks[benchmarkname]
+		for benchmarkname in sorted(groundTruthScores.keys()):
+			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+			if benchmarkRuns == None:
+				print "freak out freak out"
+				bars.append(-1)
+				barErrors.append(0)
+				continue
 			timeLs = []
 			for run in benchmarkRuns:
 				newTime = timeToReachScore(run, groundTruthScores[benchmarkname])
@@ -67,6 +72,8 @@ if makeMaxTimeToReachGroundtruth:
 		allBarErros.append(barErrors)
 	print allBars
 
+
+
 	timeoutTime = maxTimeToReachScore + 20
 	yAxisMax = int(20 * math.floor(float(timeoutTime)/20)) # round to lower multiple of 20
 	for i in range(len(allBars)):
@@ -77,6 +84,19 @@ if makeMaxTimeToReachGroundtruth:
 	locs, labels = plt.xticks(x, my_xticks)
 
 	strategies = sorted(dataSets.keys())
+	print ",".join([""] +strategies)
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i],",",
+		for j in range(len(allBars)):
+			print allBars[j][i], ",",
+		print
+
+	print ",".join([""] +strategies)
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i],",",
+		for j in range(len(allBars)):
+			print allBarErros[j][i], ",",
+		print
 
 	ax = plt.subplot(111)
 	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
@@ -131,8 +151,13 @@ if makeMaxTimeToReachGroundtruth2:
 		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
-		for benchmarkname in sorted(strategyBenchmarks.keys()):
-			benchmarkRuns = strategyBenchmarks[benchmarkname]
+		for benchmarkname in sorted(groundTruthScores.keys()):
+			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+			if benchmarkRuns == None:
+				print "freak out freak out"
+				bars.append(-1)
+				barErrors.append(0)
+				continue
 			timeLs = []
 			for run in benchmarkRuns:
 				newTime = timeToReachScore(run, groundTruthScores[benchmarkname]*1.01) # for this one, we just want something close
@@ -163,6 +188,21 @@ if makeMaxTimeToReachGroundtruth2:
 	locs, labels = plt.xticks(x, my_xticks)
 
 	strategies = sorted(dataSets.keys())
+
+	strategies = sorted(dataSets.keys())
+	print ",".join([""] +strategies)
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i],",",
+		for j in range(len(allBars)):
+			print allBars[j][i], ",",
+		print
+
+	print ",".join([""] +strategies)
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i],",",
+		for j in range(len(allBars)):
+			print allBarErros[j][i], ",",
+		print
 
 	ax = plt.subplot(111)
 	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
@@ -205,7 +245,7 @@ if makeMaxTimeToReachGroundtruth2:
 	fig.savefig('timeToReachScore2.pdf', edgecolor='none', format='pdf')
 	plt.close()
 
-makeLowestScore = False
+makeLowestScore = True
 if makeLowestScore:
 	highestLowesScore = 0
 	allBars = []
@@ -217,8 +257,12 @@ if makeLowestScore:
 		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
-		for benchmarkname in sorted(strategyBenchmarks.keys()):
-			benchmarkRuns = strategyBenchmarks[benchmarkname]
+		for benchmarkname in sorted(groundTruthScores.keys()):
+			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+			if benchmarkRuns == None:
+				print "freak out freak out"
+				bars.append(16968.4986115/groundTruthScores[benchmarkname]) #hurricane best score from the 300 run for deconvolution
+				continue
 			lowestScores = []
 			for run in benchmarkRuns:
 				lowestScore = min(map(lambda x: x[1], run))
@@ -238,12 +282,24 @@ if makeLowestScore:
 
 	strategies = sorted(dataSets.keys())
 
+	print ",".join([""] +strategies)
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i],",",
+		for j in range(len(allBars)):
+			print allBars[j][i], ",",
+		print
+
 	ax = plt.subplot(111)
 	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', label=strategies[0], ecolor='k')
 	ax.bar(x, allBars[1],width=0.2,color='g',align='center', label=strategies[1], ecolor='k')
 	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', label=strategies[2], ecolor='k')
 
+
+	plt.gca().set_ylim(bottom=0)
+	plt.gca().set_ylim(top=1.4)
+
 	leg = plt.legend()
+
 	plt.setp(labels, rotation=90)
 	plt.gca().set_ylim(bottom=0)
 
@@ -269,6 +325,18 @@ if makeLowestScore:
 
 	ax.legend(loc='upper left')
 
+	plt.draw() # Draw the figure so you can find the positon of the legend. 
+
+	# Get the bounding box of the original legend
+	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
+
+	# Change to location of the legend. 
+	yOffset = 1.5
+	bb.set_points([[bb.x0, bb.y0 + yOffset], [bb.x1, bb.y1 + yOffset]])
+	leg.set_bbox_to_anchor(bb)
+
+	plt.draw()
+
 	# # Change to location of the legend. 
 	# newX0 = 0
 	# newX1 = 10
@@ -284,7 +352,7 @@ if makeLowestScore:
 	plt.close()
 
 
-makeLowestScore2 = False
+makeLowestScore2 = True
 if makeLowestScore2:
 	highestLowesScore = 0
 	allBars = []
