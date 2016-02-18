@@ -128,7 +128,7 @@ class Dataset:
 				columnNumericColumns.append([ls])
 			elif reduce(lambda x, y: x and isInteger(y), currColumnValues, True):
 				columnDistributionInformation.append(IntegerDistribution())
-				self.columns[i] = (map(lambda x: int(x), currColumnValues))
+                                self.columns[i] = (map(lambda x: int(x), self.columns[i]))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
 				columnNumericColumns.append([self.columns[i]])
@@ -136,7 +136,7 @@ class Dataset:
 					row[i] = int(row[i])
 			elif reduce(lambda x, y: x and isFloat(y), currColumnValues, True):
 				columnDistributionInformation.append(RealDistribution())
-				self.columns[i] = (map(lambda x: float(x), currColumnValues))
+				self.columns[i] = (map(lambda x: float(x), self.columns[i]))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
 				columnNumericColumns.append([self.columns[i]])

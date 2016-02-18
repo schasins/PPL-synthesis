@@ -427,7 +427,7 @@ def main():
 
 		AST.fillHolesRandomly()
 		if debug: print prog.programString()
-		if debug: print AST.strings()
+		# if debug: print AST.strings()
 
 		cleanTimingData = []
 
@@ -446,14 +446,18 @@ def main():
 		annealingOutput = []
 		if debug: print "About to anneal."
 		if len(prog.randomizeableNodes) > 0:
-			with Capturing() as annealingOutput:
-				progOutput, distanceFromDataset = saObj.anneal()
+                        if not debug:
+                                with Capturing() as annealingOutput:
+                                        progOutput, distanceFromDataset = saObj.anneal()
+                        else:
+                                progOutput, distanceFromDataset = saObj.anneal()
 		else:
 			progOutput = prog
 
 
 		#print "\n".join(annealingOutput)
 		if debug: print progOutput.programString()
+                if debug: print cleanTimingData[-1]
 
 		#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
