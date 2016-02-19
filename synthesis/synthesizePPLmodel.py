@@ -1,5 +1,5 @@
 import random
-from ast import *
+from astDB import *
 from score import *
 from BLOGScore import *
 from subprocess import call
@@ -312,6 +312,7 @@ def main():
 
 	startTime = time.clock()
 
+	print "about to make dataset"
 	dataset = Dataset(inputFile)
 
 	g = None
@@ -334,6 +335,9 @@ def main():
 	for node in nodesInDependencyOrder:
 
 		parents = node.parents
+                parentNames = map(lambda x: x.name, parents)
+                print parentNames
+                dataset.addIndex(parentNames)
 
 		if isinstance(node.distribInfo, BooleanDistribution):
 			internal = BooleanDistribNode(node.name)
@@ -376,6 +380,7 @@ def main():
 	prog = Program(dataset)
 	prog.setRoot(AST)
 
+        exit()
 	if debug: print "filling holes for concrete path conditions."
 
 	AST.fillHolesForConcretePathConditions(dataset)

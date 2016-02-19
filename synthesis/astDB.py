@@ -3,6 +3,7 @@ import operator
 import random
 import numpy as np
 from copy import deepcopy
+import MySQLdb
 
 debug = False
 mutationDebug = False
@@ -33,54 +34,57 @@ class RealDistribution:
 # **********************************************************************
 
 def isInteger(s):
-    try:
-        int(s)
-        return True
-    except ValueError:
-        return False
+		try:
+				int(s)
+				return True
+		except ValueError:
+				return False
 
 def isFloat(s):
-    try:
-        float(s)
-        return True
-    except ValueError:
-        return False
+		try:
+				float(s)
+				return True
+		except ValueError:
+				return False
 
 
 def removeColumns(dataset, indexes):
-        sortedIndexes = sorted(indexes, reverse=True)
-        for row in dataset:
-                for index in sortedIndexes:
-                        try:
-                                del row[index]
-                        except Exception:
-                                print "row len", len(row)
-                                print "index to remove", index
-                                print "last row len", len(dataset[-1])
-                                raise Exception("gah")
-        return dataset
+				sortedIndexes = sorted(indexes, reverse=True)
+				for row in dataset:
+								for index in sortedIndexes:
+												try:
+																del row[index]
+												except Exception:
+																print "row len", len(row)
+																print "index to remove", index
+																print "last row len", len(dataset[-1])
+																raise Exception("gah")
+				return dataset
 
 class Dataset:
 	def __init__(self, filename):
+
+		print "making dataset"
+
 		f = open(filename, "r")
 		lines = f.readlines()
 
-                # first let's filter out any constant columns.  no need to waste time modeling that
-                dataset = []
-                for line in lines:
-                        dataset.append(line.strip().split(","))
+		# first let's filter out any constant columns.  no need to waste time modeling that
+		dataset = []
+		for line in lines:
+						dataset.append(line.strip().split(","))
 
-                colsToRemove = []
-                for i in range(len(dataset[0])):
-                        firstVal = dataset[1][i]
-                        allSame = True
-                        for row in dataset[1:]: # is there no andmap?
-                                if row[i] != firstVal:
-                                        allSame = False
-                                        break
-                        if allSame:
-                                colsToRemove.append(i)
-                dataset = removeColumns(dataset, colsToRemove)
+		colsToRemove = []
+		for i in range(len(dataset[0])):
+						firstVal = dataset[1][i]
+						allSame = True
+						for row in dataset[1:]: # is there no andmap?
+										if row[i] != firstVal:
+														allSame = False
+														break
+						if allSame:
+										colsToRemove.append(i)
+		dataset = removeColumns(dataset, colsToRemove)
 
 		lineItems = dataset[0]
 		names = {}
@@ -113,10 +117,10 @@ class Dataset:
 				columnValues[i].add(cell)
 
 		self.columns = columns
-		self.rows = rows
 		self.numRows = len(rows)
 
 		columnDistributionInformation = []
+		colTypes = []
 		columnNumericColumns = []
 		columnMaxes = {}
 		columnMins = {}
@@ -124,36 +128,105 @@ class Dataset:
 			currColumnValues = columnValues[i]
 			if currColumnValues == set(["true", "false"]):
 				columnDistributionInformation.append(BooleanDistribution())
-				ls = map(lambda x: 1*(x == "true"), self.columns[i])
+				colTypes.append("BOOL")
+				ls = map(lambda x: 1 if (x == "true") else 0, self.columns[i])
 				columnNumericColumns.append([ls])
+                                self.columns[i] = ls
+                                for row in rows:
+                                        row[i] = 1 if (row[i] == "true") else 0
 			elif reduce(lambda x, y: x and isInteger(y), currColumnValues, True):
 				columnDistributionInformation.append(IntegerDistribution())
-                                self.columns[i] = (map(lambda x: int(x), self.columns[i]))
+				colTypes.append("INT")
+				self.columns[i] = (map(lambda x: int(x), self.columns[i]))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
 				columnNumericColumns.append([self.columns[i]])
-				for row in self.rows:
+				for row in rows:
 					row[i] = int(row[i])
 			elif reduce(lambda x, y: x and isFloat(y), currColumnValues, True):
 				columnDistributionInformation.append(RealDistribution())
+				colTypes.append("FLOAT")
 				self.columns[i] = (map(lambda x: float(x), self.columns[i]))
 				columnMaxes[names[i]] = max(self.columns[i])
 				columnMins[names[i]] = min(self.columns[i])
 				columnNumericColumns.append([self.columns[i]])
-				for row in self.rows:
+				for row in rows:
 					row[i] = float(row[i])
 			else:
 				columnDistributionInformation.append(CategoricalDistribution(list(currColumnValues), names[i]+"Type"))
+				longestStrLength = max(map(lambda x: len(x), self.columns[i]))
+				colTypes.append("CHAR("+str(longestStrLength)+")")
 				lists = []
 				for val in currColumnValues:
 					ls = map(lambda x: 1*(x == val), self.columns[i])
 					lists.append(ls)
 				columnNumericColumns.append(lists)
 
+		self.db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
+		cursor = self.db.cursor()
+		tableName = filename.split("/")[-1].split(".")[0]
+                self.tableName = tableName
+		print "going to make table with name: ", tableName
+		cursor.execute("DROP TABLE IF EXISTS "+tableName)
+
+		# Create table as per requirement
+		# sql = """CREATE TABLE EMPLOYEE (
+		#          FIRST_NAME  CHAR(20) NOT NULL,
+		#          LAST_NAME  CHAR(20),
+		#          AGE INT,  
+		#          SEX CHAR(1),
+		#          INCOME FLOAT )"""
+		sql = "CREATE TABLE "+tableName+" ("
+		for i in range(len(columns)):
+			name = self.indexesToNames[i]
+			colType = colTypes[i]
+			sql += name+" "+colType+","
+		sql = sql[:-1] + ")" # cut off that extra comma, add final paren
+		print sql
+		cursor.execute(sql)
+
+		valuesLists = []
+		cols = []
+		for i in range(len(columns)):
+			cols.append(self.indexesToNames[i])
+
+		for row in rows:
+			vals = []
+			for i in range(len(columns)):
+				val = row[i]
+				if isinstance(val, basestring):
+					val = "'"+val+"'"
+				vals.append(str(val))
+			valuesLists.append("("+",".join(vals)+")")
+
+
+		sql = "INSERT INTO "+tableName+"("+",".join(cols)+") VALUES "+",".join(valuesLists)
+	
+		try:
+			# Execute the SQL command
+			cursor.execute(sql)
+			# Commit your changes in the database
+			self.db.commit()
+		except:
+			# Rollback in case there is any error
+			self.db.rollback()
+
+		sql = "SELECT COUNT(*) FROM "+tableName
+		cursor.execute(sql)
+		results = cursor.fetchall()
+		print results
+
 		self.columnDistributionInformation = columnDistributionInformation
 		self.columnNumericColumns = columnNumericColumns
 		self.columnMaxes = columnMaxes
 		self.columnMins = columnMins
+
+        def addIndex(self, colNames):
+                if len(colNames) < 1:
+                        return
+                sql = "CREATE INDEX "+"".join(colNames)+" ON "+self.tableName+" ("+",".join(colNames)+")"
+                print sql
+                self.db.cursor().execute(sql)
 
 	def makePathConditionFilter(self, pathCondition):
 		return lambda row : reduce(lambda x, condComponent : x and condComponent.func(row), pathCondition, True) # each pathconditioncomponent in the pathcondition has a func associated
@@ -286,7 +359,7 @@ class ASTNode:
 	def reduce(self, dataset, pathCondition =[], currVariable = None):
 		for node in self.children:
 			node.reduce(dataset, pathCondition, currVariable)
-        
+				
 	def accept(self, visitor):
 		visitor.visit(self)
 
@@ -660,7 +733,7 @@ class BetaDistribNode(RealDistribNode):
 			self.alpha = modParams[0]
 			self.beta = modParams[1]
 
-                        
+												
 class GammaDistribNode(RealDistribNode):
 	def __init__(self, varName, k=None, l=None, percentMatchingRows = None):
 		RealDistribNode.__init__(self, varName)
@@ -846,13 +919,13 @@ class IfNode(ASTNode):
 					# the threshold to beat should depend on how much data we used to make each estimate
 					# if the data is evenly divided between the if and the else, we should use the base thresholdToBeat.  else, should use higher
 					minPercentRows = min(param1[2], param2[2])
-                                        minNumRows = minPercentRows * dataset.numRows
+					minNumRows = minPercentRows * dataset.numRows
 					# if small number of rows, can see a big difference and still consider them equiv, so use a higher threshold before we declare them different
 					if minNumRows != 0:
 						thresholdToBeat = (thresholdToBeat / (minNumRows**.7)) + .02
 					else:
 						thresholdToBeat = 1.5 # if you based one of these on 0 rows - just guessing -- then just automatically collapse it
-                                        #print thresholdToBeat
+																				#print thresholdToBeat
 
 					if (abs(param1[1] - param2[1]) > thresholdToBeat):
 						match = False
