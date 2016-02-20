@@ -550,13 +550,11 @@ class CategoricalDistribNode(DistribNode):
 		results = dataset.SQLSelect(pathCondition, currVariable)
 		matchingRowsCounter = 0
 		matchingRowsSums = {}
-		#print ";".join(map(str, pathCondition))
-		for row in dataset.rows:
-			if pathConditionFilter(row):
-				matchingRowsCounter += 1
-				val = currVariableGetter(row)
-				count = matchingRowsSums.get(val, 0)
-				matchingRowsSums[val] = count + 1
+		for row in results:
+			matchingRowsCounter += 1
+			val = row[0] # always only 1 item in output bc only retrieved currVariable with SQLSelect
+			count = matchingRowsSums.get(val, 0)
+			matchingRowsSums[val] = count + 1
 
 		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
 
@@ -1038,19 +1036,17 @@ class IfNode(ASTNode):
 
 		conditionsToNot = pathConditions[0:i]
 
-		if i == len(self.conditionNodes):
+		if i == (len(self.conditionNodes) - 1):
 			# we just need to not all the other conditions, since this is the else case
 			currCondition = conditionsToNot[0]
 			currCondition.notCondition()
-			for j in conditionsToNot[1:]:
-				nextCondition = conditionsToNot[j]
+			for nextCondition in conditionsToNot[1:]:
 				nextCondition.notCondition()
 				currCondition = PathConditionComponent(currCondition.toString(), False, "AND", nextCondition.toString())
 			return currCondition 
 		else:
 			currCondition = pathConditions[i] # this is the only one that we actually want true, since it's the current branch.  all the others we need to have false
-			for j in conditionsToNot:
-				nextCondition = conditionsToNot[j]
+			for nextCondition in conditionsToNot:
 				nextCondition.notCondition()
 				currCondition = PathConditionComponent(currCondition.toString(), False, "AND", nextCondition.toString())
 			return currCondition 

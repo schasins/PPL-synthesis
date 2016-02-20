@@ -364,7 +364,7 @@ def main():
 					# doesn't make sense to depend on this
 					continue
 				for i in range(numValues):
-					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "==", StringValue(parent.distribInfo.values[i])))
+					conditionNodes.append(ComparisonNode(VariableUseNode(parent.name, parent.distribInfo.typeName), "=", StringValue(parent.distribInfo.values[i])))
 				for i in range(numValues):
 					bodyNodes.append(deepcopyNode(internal))
 			elif isinstance(parent.distribInfo, IntegerDistribution) or isinstance(parent.distribInfo, RealDistribution):
