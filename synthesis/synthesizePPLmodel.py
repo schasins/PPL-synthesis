@@ -288,6 +288,7 @@ def generatePotentialStructuresFromDataset(dataset):
 # Consume the structure hints, generate a program
 # **********************************************************************
 
+
 def deepcopyNode(node):
 	newNode = deepcopy(node)
 	return newNode
@@ -295,8 +296,11 @@ def deepcopyNode(node):
 startTime = 0
 cleanTimingData = []
 
+
+dataset = None
+
 def main():
-	global startTime, cleanTimingData
+	global startTime, cleanTimingData, dataset
 
 	debug = False
 

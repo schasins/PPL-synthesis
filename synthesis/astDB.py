@@ -48,45 +48,49 @@ def isFloat(s):
 				return False
 
 
-def removeColumns(dataset, indexes):
+def removeColumns(datasetLs, indexes):
 				sortedIndexes = sorted(indexes, reverse=True)
-				for row in dataset:
+				for row in datasetLs:
 								for index in sortedIndexes:
 												try:
 																del row[index]
 												except Exception:
 																print "row len", len(row)
 																print "index to remove", index
-																print "last row len", len(dataset[-1])
+																print "last row len", len(datasetLs[-1])
 																raise Exception("gah")
-				return dataset
+				return datasetLs
+
+dataset = None # deep evil; todo: fix this
 
 class Dataset:
 	def __init__(self, filename):
+		global dataset 
+		dataset = self # deep evil
 
-		print "making dataset"
+		if debug: print "making dataset"
 
 		f = open(filename, "r")
 		lines = f.readlines()
 
 		# first let's filter out any constant columns.  no need to waste time modeling that
-		dataset = []
+		datasetLs = []
 		for line in lines:
-						dataset.append(line.strip().split(","))
+						datasetLs.append(line.strip().split(","))
 
 		colsToRemove = []
-		for i in range(len(dataset[0])):
-						firstVal = dataset[1][i]
+		for i in range(len(datasetLs[0])):
+						firstVal = datasetLs[1][i]
 						allSame = True
-						for row in dataset[1:]: # is there no andmap?
+						for row in datasetLs[1:]: # is there no andmap?
 										if row[i] != firstVal:
 														allSame = False
 														break
 						if allSame:
 										colsToRemove.append(i)
-		dataset = removeColumns(dataset, colsToRemove)
+		datasetLs = removeColumns(datasetLs, colsToRemove)
 
-		lineItems = dataset[0]
+		lineItems = datasetLs[0]
 		names = {}
 		indexes = {}
 		numItems = 0
@@ -109,7 +113,7 @@ class Dataset:
 		for i in range(numItems):
 			columns.append([])
 			columnValues.append(set())
-		rows = dataset[1:]
+		rows = datasetLs[1:]
 		for cells in rows:
 			for i in range(numItems):
 				cell = cells[i]
@@ -163,10 +167,10 @@ class Dataset:
 				columnNumericColumns.append(lists)
 
 		self.db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
-		cursor = self.db.cursor()
+		cursor = self.newCursor()
 		tableName = filename.split("/")[-1].split(".")[0]
 		self.tableName = tableName
-		print "going to make table with name: ", tableName
+		if debug: print "going to make table with name: ", tableName
 		cursor.execute("DROP TABLE IF EXISTS "+tableName)
 
 		# Create table as per requirement
@@ -182,7 +186,7 @@ class Dataset:
 			colType = colTypes[i]
 			sql += name+" "+colType+","
 		sql = sql[:-1] + ")" # cut off that extra comma, add final paren
-		print sql
+		if debug: print sql
 		cursor.execute(sql)
 
 		valuesLists = []
@@ -214,19 +218,25 @@ class Dataset:
 		sql = "SELECT COUNT(*) FROM "+tableName
 		cursor.execute(sql)
 		results = cursor.fetchall()
-		print results
+		if debug: print results
+		cursor.close()
 
 		self.columnDistributionInformation = columnDistributionInformation
 		self.columnNumericColumns = columnNumericColumns
 		self.columnMaxes = columnMaxes
 		self.columnMins = columnMins
 
+	def newCursor(self):
+		return self.db.cursor()
+
 	def addIndex(self, colNames):
 		if len(colNames) < 1:
 			return
 		sql = "CREATE INDEX "+"".join(colNames)+" ON "+self.tableName+" ("+",".join(colNames)+")"
-		print sql
-		self.db.cursor().execute(sql)
+		if debug: print sql
+		cursor = self.newCursor()
+		cursor.execute(sql)
+		cursor.close()
 
 	def makePathConditionFilter(self, pathCondition):
 		# we have a list of PathConditionComponents in the pathCondition.  AND them all together
@@ -244,10 +254,10 @@ class Dataset:
 		else:
 			whereClause = self.makePathConditionFilter(pathCondition)
 			sql = "SELECT COUNT(*) FROM "+self.tableName+" WHERE "+whereClause
-		print sql
-		cursor = self.db.cursor()
+		cursor = self.newCursor()
 		cursor.execute(sql)
 		results = cursor.fetchall()
+		cursor.close()
 		return results[0][0]
 
 	def SQLSelect(self, pathCondition, currVariable):
@@ -260,10 +270,10 @@ class Dataset:
 		else:
 			whereClause = self.makePathConditionFilter(pathCondition)
 			sql = "SELECT "+colName+" FROM "+self.tableName+" WHERE "+whereClause
-		print sql
-		cursor = self.db.cursor()
+		cursor = self.newCursor()
 		cursor.execute(sql)
 		results = cursor.fetchall()
+		cursor.close()
 		return results
 
 class PathConditionComponent:
@@ -288,10 +298,9 @@ class PathConditionComponent:
 # **********************************************************************
 
 class Program:
-	def __init__(self, dataset, thresholdMaker = 75):
+	def __init__(self, thresholdMaker = 75):
 		self.randomizeableNodes = {}
 		self.variables = []
-		self.dataset = dataset
 		self.root = None
 		self.thresholdMaker = thresholdMaker
 		self.varUseNodes = 0
@@ -303,7 +312,7 @@ class Program:
 		root.setProgram(self)
 
 	def variableRange(self, variableName):
-		return (self.dataset.columnMins[variableName], self.dataset.columnMaxes[variableName])
+		return (dataset.columnMins[variableName], dataset.columnMaxes[variableName])
 
 	def instanceToKey(self, instance):
 		return instance.__class__.__name__
@@ -623,11 +632,10 @@ class RealDistribNode(DistribNode):
 		results = dataset.SQLSelect(pathCondition, currVariable)
 		matchingRowsCounter = 0
 		matchingRowsValues = []
-		for row in dataset.rows:
-			if pathConditionFilter(row):
-				matchingRowsCounter += 1
-				val = currVariableGetter(row)
-				matchingRowsValues.append(val)
+		for row in results:
+			matchingRowsCounter += 1
+			val = row[0] # only one entry bc used currVariable for SQLSelect
+			matchingRowsValues.append(val)
 
 		self.matchingRowsValues = matchingRowsValues
 		self.availableNodes = []
@@ -719,7 +727,7 @@ class GaussianDistribNode(RealDistribNode):
 			self.sig = np.std(matchingRowsValues)
 			if abs(self.sig) < .00001:
 				self.sig = .00001 # shouldn't be using Gaussian to model constants
-			self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
+			self.percentMatchingRows = len(matchingRowsValues)/dataset.numRows
 
 		if debug: print "concrete: gaussian", self.strings()
 
@@ -844,7 +852,7 @@ class UniformRealDistribNode(RealDistribNode):
 		else:
 			self.a = min(matchingRowsValues) - .00001
 			self.b = max(matchingRowsValues) + .00001
-			self.percentMatchingRows = len(matchingRowsValues)/self.program.dataset.numRows
+			self.percentMatchingRows = len(matchingRowsValues)/dataset.numRows
 
 		if debug: print "concrete: uniform", self.strings()
 
@@ -1027,7 +1035,7 @@ class IfNode(ASTNode):
 		# must not all preceding branches
 
 		# if any of the branches have non-concrete conditions, should return None
-		pathConditions = map(lambda x: x.pathCondition(), self.conditionNodes)
+		pathConditions = map(lambda x: x.pathCondition(), self.conditionNodes) # would prefer to not have to collect them all every time, but have to check for None
 		nonConcrete = reduce(lambda x, y: x or y == None, pathConditions, False)
 		if nonConcrete: return None
 
@@ -1036,7 +1044,7 @@ class IfNode(ASTNode):
 
 		conditionsToNot = pathConditions[0:i]
 
-		if i == (len(self.conditionNodes) - 1):
+		if i == (len(self.bodyNodes) - 1):
 			# we just need to not all the other conditions, since this is the else case
 			currCondition = conditionsToNot[0]
 			currCondition.notCondition()
@@ -1066,7 +1074,7 @@ class IfNode(ASTNode):
 
 	def fillHolesForConcretePathConditionsHelper(self):
 		pathCondition, currentVariable = self.pathCondition()
-		self.fillHolesForConcretePathConditions(self.program.dataset, pathCondition, currentVariable)
+		self.fillHolesForConcretePathConditions(dataset, pathCondition, currentVariable)
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
 		if debug: print "concrete: if"
@@ -1170,7 +1178,7 @@ class VariableUseNode(ASTNode):
 		return self.program.variableRange(self.name)
 
 	def lambdaToCalculate(self):
-		index = self.program.dataset.namesToIndexes[self.name]
+		index = dataset.namesToIndexes[self.name]
 		return lambda row: row[index]
 
 	def toSQLString(self):
