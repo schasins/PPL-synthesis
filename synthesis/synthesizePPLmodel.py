@@ -336,7 +336,6 @@ def main():
 
 		parents = node.parents
                 parentNames = map(lambda x: x.name, parents)
-                print parentNames
                 dataset.addIndex(parentNames)
 
 		if isinstance(node.distribInfo, BooleanDistribution):
@@ -380,7 +379,6 @@ def main():
 	prog = Program(dataset)
 	prog.setRoot(AST)
 
-        exit()
 	if debug: print "filling holes for concrete path conditions."
 
 	AST.fillHolesForConcretePathConditions(dataset)

@@ -131,9 +131,9 @@ class Dataset:
 				colTypes.append("BOOL")
 				ls = map(lambda x: 1 if (x == "true") else 0, self.columns[i])
 				columnNumericColumns.append([ls])
-                                self.columns[i] = ls
-                                for row in rows:
-                                        row[i] = 1 if (row[i] == "true") else 0
+				self.columns[i] = ls
+				for row in rows:
+								row[i] = 1 if (row[i] == "true") else 0
 			elif reduce(lambda x, y: x and isInteger(y), currColumnValues, True):
 				columnDistributionInformation.append(IntegerDistribution())
 				colTypes.append("INT")
@@ -165,7 +165,7 @@ class Dataset:
 		self.db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
 		cursor = self.db.cursor()
 		tableName = filename.split("/")[-1].split(".")[0]
-                self.tableName = tableName
+		self.tableName = tableName
 		print "going to make table with name: ", tableName
 		cursor.execute("DROP TABLE IF EXISTS "+tableName)
 
@@ -221,23 +221,67 @@ class Dataset:
 		self.columnMaxes = columnMaxes
 		self.columnMins = columnMins
 
-        def addIndex(self, colNames):
-                if len(colNames) < 1:
-                        return
-                sql = "CREATE INDEX "+"".join(colNames)+" ON "+self.tableName+" ("+",".join(colNames)+")"
-                print sql
-                self.db.cursor().execute(sql)
+	def addIndex(self, colNames):
+		if len(colNames) < 1:
+			return
+		sql = "CREATE INDEX "+"".join(colNames)+" ON "+self.tableName+" ("+",".join(colNames)+")"
+		print sql
+		self.db.cursor().execute(sql)
 
 	def makePathConditionFilter(self, pathCondition):
-		return lambda row : reduce(lambda x, condComponent : x and condComponent.func(row), pathCondition, True) # each pathconditioncomponent in the pathcondition has a func associated
+		# we have a list of PathConditionComponents in the pathCondition.  AND them all together
+		# this produces the WHERE clause for the SQL
+		currPathConditionComponent = pathCondition[0]
+		for pathConditionComponent in pathCondition[1:]:
+			currPathConditionComponent = PathConditionComponent(currPathConditionComponent.toString(), False, "AND", pathConditionComponent.toString())
+		return currPathConditionComponent.toString()
 
-	def makeCurrVariableGetter(self, currVariable):
-		index = self.namesToIndexes[currVariable.name]
-		return lambda row: row[index]
+	def SQLCount(self, pathCondition):
+		sql = ""
+		if len(pathCondition) < 1:
+			# just get everything
+			sql = "SELECT COUNT(*) FROM "+self.tableName
+		else:
+			whereClause = self.makePathConditionFilter(pathCondition)
+			sql = "SELECT COUNT(*) FROM "+self.tableName+" WHERE "+whereClause
+		print sql
+		cursor = self.db.cursor()
+		cursor.execute(sql)
+		results = cursor.fetchall()
+		return results[0][0]
+
+	def SQLSelect(self, pathCondition, currVariable):
+		colName = currVariable.name
+
+		sql = ""
+		if len(pathCondition) < 1:
+			# just get everything
+			sql = "SELECT "+colName+" FROM "+self.tableName
+		else:
+			whereClause = self.makePathConditionFilter(pathCondition)
+			sql = "SELECT "+colName+" FROM "+self.tableName+" WHERE "+whereClause
+		print sql
+		cursor = self.db.cursor()
+		cursor.execute(sql)
+		results = cursor.fetchall()
+		return results
 
 class PathConditionComponent:
-	def __init__(self, func):
-		self.func = func
+	def __init__(self, LHS, isNot, op, RHS):
+		self.LHS = LHS
+		self.isNot = isNot
+		self.op = op
+		self.RHS = RHS
+
+	def toString(self):
+		core = "("+self.LHS+" "+self.op+" "+self.RHS+")"
+		if self.isNot:
+			return "(NOT "+core+")"
+		else:
+			return core
+
+	def notCondition(self):
+		self.isNot = not self.isNot
 
 # **********************************************************************
 # Data structures for representing PPL ASTs
@@ -446,25 +490,20 @@ class BooleanDistribNode(DistribNode):
 		return [components[0]+str(self.percentTrue)+components[1]]
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
-		pathConditionFilter = dataset.makePathConditionFilter(pathCondition)
-		currVariableGetter = dataset.makeCurrVariableGetter(currVariable)
-		matchingRowsCounter = 0
-		matchingRowsSum = 0
-		for row in dataset.rows:
-			if pathConditionFilter(row):
-				matchingRowsCounter += 1
-				val = currVariableGetter(row)
-				if val == "true":
-					matchingRowsSum += 1
+		# count the number that match the path condition
+		matchPathConditionCount = dataset.SQLCount(pathCondition)
+		# then count the number that match the path condition AND have our currVariable being true
+		trueFilter = pathCondition + [PathConditionComponent(self.varName, False, "=", "1")]
+		matchPathConditionAndTrueCount = dataset.SQLCount(trueFilter)
 
 		percentTrue = None
-		if matchingRowsCounter > 0:
-			percentTrue = float(matchingRowsSum)/matchingRowsCounter
+		if matchPathConditionCount > 0:
+			percentTrue = float(matchPathConditionAndTrueCount)/matchPathConditionCount
 		else:
 			# there were no matching rows, doesn't matter what we put here
 			percentTrue = .5
 		self.percentTrue = percentTrue
-		self.percentMatchingRows = float(matchingRowsCounter)/dataset.numRows
+		self.percentMatchingRows = float(matchPathConditionAndTrueCount)/dataset.numRows
 		if debug: print "concrete: bool", self.strings()
 
 	def reduce(self, dataset, pathCondition, currVariable):
@@ -508,8 +547,7 @@ class CategoricalDistribNode(DistribNode):
 			return components
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
-		pathConditionFilter = dataset.makePathConditionFilter(pathCondition)
-		currVariableGetter = dataset.makeCurrVariableGetter(currVariable)
+		results = dataset.SQLSelect(pathCondition, currVariable)
 		matchingRowsCounter = 0
 		matchingRowsSums = {}
 		#print ";".join(map(str, pathCondition))
@@ -584,8 +622,7 @@ class RealDistribNode(DistribNode):
 		return ls
 
 	def fillHolesForConcretePathConditions(self, dataset, pathCondition, currVariable):
-		pathConditionFilter = dataset.makePathConditionFilter(pathCondition)
-		currVariableGetter = dataset.makeCurrVariableGetter(currVariable)
+		results = dataset.SQLSelect(pathCondition, currVariable)
 		matchingRowsCounter = 0
 		matchingRowsValues = []
 		for row in dataset.rows:
@@ -1002,12 +1039,21 @@ class IfNode(ASTNode):
 		conditionsToNot = pathConditions[0:i]
 
 		if i == len(self.conditionNodes):
-			newFunc = lambda row: reduce(lambda a, b: a and not b.func(row), conditionsToNot, True)
+			# we just need to not all the other conditions, since this is the else case
+			currCondition = conditionsToNot[0]
+			currCondition.notCondition()
+			for j in conditionsToNot[1:]:
+				nextCondition = conditionsToNot[j]
+				nextCondition.notCondition()
+				currCondition = PathConditionComponent(currCondition.toString(), False, "AND", nextCondition.toString())
+			return currCondition 
 		else:
-			conditionToAdd = pathConditions[i]
-			newFunc = lambda row: conditionToAdd.func(row) and reduce(lambda a, b: a and not b.func(row), conditionsToNot, True) 
-
-		return PathConditionComponent(newFunc)
+			currCondition = pathConditions[i] # this is the only one that we actually want true, since it's the current branch.  all the others we need to have false
+			for j in conditionsToNot:
+				nextCondition = conditionsToNot[j]
+				nextCondition.notCondition()
+				currCondition = PathConditionComponent(currCondition.toString(), False, "AND", nextCondition.toString())
+			return currCondition 
 
 	def pathCondition(self):
 		conditionSoFar = []
@@ -1119,12 +1165,10 @@ class VariableUseNode(ASTNode):
 		return [self.name]
 
 	def pathCondition(self):
-		index = self.program.dataset.namesToIndexes[self.name]
-		return PathConditionComponent(lambda x: x[index] == "true") # x is a list of args
+		return PathConditionComponent(self.name, False, "=", "1")
 
 	def pathConditionFalse(self):
-		index = self.program.dataset.namesToIndexes[self.name]
-		return PathConditionComponent(lambda x: x[index] == "false") # x is a list of args
+		return PathConditionComponent(self.name, False, "=", "0")
 
 	def range(self):
 		return self.program.variableRange(self.name)
@@ -1133,12 +1177,15 @@ class VariableUseNode(ASTNode):
 		index = self.program.dataset.namesToIndexes[self.name]
 		return lambda row: row[index]
 
+	def toSQLString(self):
+		return self.name
+
 	def getRandomizeableNodes(self):
 		return []
 
 class ComparisonNode(ASTNode):
 
-	ops = {	"==": operator.eq,
+	ops = {	"=": operator.eq,
 			">": operator.gt,
 			"<": operator.lt}
 
@@ -1175,16 +1222,12 @@ class ComparisonNode(ASTNode):
 	def pathCondition(self):
 		if self.relationship == None or self.value == None:
 			return None
-		index = self.program.dataset.namesToIndexes[self.node.name]
-		valFunc = self.value.lambdaToCalculate()
-		return PathConditionComponent(lambda x: self.ops[self.relationship](x[index], valFunc(x))) # x is a list of args
+		return PathConditionComponent(self.node.name, False, self.relationship, self.value.toSQLString())
 
 	def pathConditionFalse(self):
 		if self.relationship == None or self.value == None:
 			return None
-		index = self.program.dataset.namesToIndexes[self.node.name]
-		valFunc = self.value.lambdaToCalculate()
-		return PathConditionComponent(lambda x: not self.ops[self.relationship](x[index], valFunc(x))) # x is a list of args
+		return PathConditionComponent(self.node.name, True, self.relationship, self.value.toSQLString())
 
 	def fillHolesRandomly(self):
 		if debug: print "randomly: comparison before", self.strings()
@@ -1322,6 +1365,9 @@ class NumberWrapper(ASTNode):
 	def lambdaToCalculate(self):
 		return self.val.lambdaToCalculate()
 
+	def toSQLString(self):
+		return self.val.toSQLString()
+
 	def numericSlots(self):
 		return [self]
 
@@ -1346,6 +1392,9 @@ class NumericValue(ASTNode):
 	def lambdaToCalculate(self):
 		return lambda row: self.val
 
+	def toSQLString(self):
+		return str(self.val)
+
 	def getRandomizeableNodes(self):
 		return []
 
@@ -1360,6 +1409,9 @@ class StringValue(ASTNode):
 
 	def lambdaToCalculate(self):
 		return lambda row: self.val
+
+	def toSQLString(self):
+		return "'"+self.val+"'"
 
 	def getRandomizeableNodes(self):
 		return []
@@ -1391,6 +1443,9 @@ class BinExpNode(ASTNode):
 		l1 = self.e1.lambdaToCalculate()
 		l2 = self.e2.lambdaToCalculate()
 		return lambda row: self.ops[self.op](l1(row), l2(row))
+
+	def toSQLString(self):
+		return "("+self.e1.toSQLString()+" "+self.op+" "+self.e2.toSQLString()+")" # todo: is this ok?
 
 	def numericSlots(self):
 		ls = []
@@ -1492,8 +1547,8 @@ class BinExpNode(ASTNode):
 
 class BoolBinExpNode(ASTNode):
 
-	ops = {	"&": operator.__and__,
-				"|": operator.__or__}
+	ops = {	"AND": operator.__and__,
+				"OR": operator.__or__}
 
 	def __init__(self, op, e1, e2):
 		ASTNode.__init__(self)
@@ -1510,7 +1565,7 @@ class BoolBinExpNode(ASTNode):
 	def pathCondition(self):
 		p1 = self.e1.pathCondition()
 		p2 = self.e2.pathCondition()
-		return PathConditionComponent(lambda x: self.ops[self.op](p1.func(x),p2.func(x)))
+		return PathConditionComponent(p1.toString(), False, self.op, p2.toString())
 
 class UnaryExpNode(ASTNode):
 	def __init__(self, op, e):
