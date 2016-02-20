@@ -5,7 +5,7 @@ import numpy as np
 from copy import deepcopy
 import MySQLdb
 
-debug = False
+debug = True
 mutationDebug = False
 
 # **********************************************************************
@@ -67,6 +67,8 @@ class Dataset:
 	def __init__(self, filename):
 		global dataset 
 		dataset = self # deep evil
+
+		self.indexCount = 0
 
 		if debug: print "making dataset"
 
@@ -203,17 +205,18 @@ class Dataset:
 				vals.append(str(val))
 			valuesLists.append("("+",".join(vals)+")")
 
-
-		sql = "INSERT INTO "+tableName+"("+",".join(cols)+") VALUES "+",".join(valuesLists)
-	
-		try:
-			# Execute the SQL command
-			cursor.execute(sql)
-			# Commit your changes in the database
-			self.db.commit()
-		except:
-			# Rollback in case there is any error
-			self.db.rollback()
+		chunkSize = 10000
+		chunks = [valuesLists[x:x+chunkSize] for x in range(0, len(valuesLists), chunkSize)]
+		for chunk in chunks:
+			sql = "INSERT INTO "+tableName+"("+",".join(cols)+") VALUES "+",".join(chunk)
+			try:
+				# Execute the SQL command
+				cursor.execute(sql)
+				# Commit your changes in the database
+				self.db.commit()
+			except:
+				# Rollback in case there is any error
+				self.db.rollback()
 
 		sql = "SELECT COUNT(*) FROM "+tableName
 		cursor.execute(sql)
@@ -232,7 +235,8 @@ class Dataset:
 	def addIndex(self, colNames):
 		if len(colNames) < 1:
 			return
-		sql = "CREATE INDEX "+"".join(colNames)+" ON "+self.tableName+" ("+",".join(colNames)+")"
+		sql = "CREATE INDEX index"+str(self.indexCount)+" ON "+self.tableName+" ("+",".join(colNames)+")"
+		self.indexCount += 1
 		if debug: print sql
 		cursor = self.newCursor()
 		cursor.execute(sql)
@@ -597,6 +601,8 @@ class CategoricalDistribNode(DistribNode):
 			value = random.choice(self.values)
 			self.valuesToPercentages[value] = self.valuesToPercentages[value] + random.uniform(-.1,.1)
 
+	def getRandomizeableNodes(self):
+		return []
 
 class RealDistribNode(DistribNode):
 

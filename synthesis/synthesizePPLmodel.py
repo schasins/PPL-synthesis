@@ -468,11 +468,11 @@ def main():
 
 		#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
-		outputString = progOutput.programString()+"\n\n//"+str(distanceFromDataset)
+		outputString = progOutput.programString()+"\n\n//" #+str(distanceFromDataset)
 		output = open(outputDirectory+"/synthesizedBLOGPrograms/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.blog", "w")
 		output.write(outputString)
-		output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.pickle", "w")
-		pickle.dump(prog, output2)
+		#output2 = open(outputDirectory+"/pickles/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.pickle", "w")
+		#pickle.dump(prog, output2)
 		output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
 		output3.write("\n".join(annealingOutput))
 		output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
