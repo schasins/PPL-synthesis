@@ -264,6 +264,22 @@ class Dataset:
 		cursor.close()
 		return results[0][0]
 
+	def SQLCountCond(self, s):
+		sql = "SELECT COUNT(*) FROM "+self.tableName+" WHERE "+s
+		cursor = self.newCursor()
+		cursor.execute(sql)
+		results = cursor.fetchall()
+		cursor.close()
+		return results[0][0]
+
+	def SQLFind(self, minmax, c):
+		sql = "SELECT " + minmax + "(" + c + ") FROM "+self.tableName
+		cursor = self.newCursor()
+		cursor.execute(sql)
+		results = cursor.fetchall()
+		cursor.close()
+		return results[0][0]
+
 	def SQLSelect(self, pathCondition, currVariable):
 		colName = currVariable.name
 

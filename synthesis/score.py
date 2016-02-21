@@ -179,6 +179,22 @@ class VarCollector():
 # Likelihood estimator
 # **********************************************************************
 
+def checkPDF(pdf):
+    if pdf < 0:
+        print "name", name
+        print "dist", dist
+        print "val", val
+        print "pdf = ", pdf
+        raise "Negative PDF"
+    
+def checkProb(p):
+    if p < 0 or p > 1:
+        print "name", name
+        print "dist", dist
+        print "val", val
+        print "p = ", p
+        raise "p < 0 or p > 1"
+
 class ScoreEstimator(visitor):
     def __init__(self, dataset=None):
         self.dataset = dataset
@@ -200,21 +216,76 @@ class ScoreEstimator(visitor):
         # print "-------- ENV --------"
         # print self.env
         loglik = 0
+        n = self.dataset.numRows
+        th = 20000 # most benchmarks = 10000
         for col in self.dataset.indexesToNames:
             name = self.dataset.indexesToNames[col]
             dist = self.env[name]
-            for val in self.dataset.columns[col]:
-                pdf = dist.at(val)
-                if pdf < 0:
-                    print "name", name
-                    print "dist", dist
-                    print "val", val
-                    print "pdf = ", pdf
+            if isinstance(dist,Bernoulli):
+                t = self.dataset.SQLCountCond(name + "=true")
+                f = n - t
+                pt = dist.at(1)
+                pf = 1 - pt
+                checkProb(pt)
+                
+                if t > 0:
+                    if pt == 0:
+                        return -maxint
+                    loglik = loglik + log(pt)*t
 
-                if pdf == 0:
-                    return -maxint
-                log_pdf = log(pdf)
-                loglik = loglik + log_pdf
+                if f > 0:
+                    if pf == 0:
+                        return -maxint
+                    loglik = loglik + log(pf)*f
+                
+            elif isinstance(dist,Categorical):
+                for val in dist.values:
+                    count = self.dataset.SQLCountCond(name + "='" + val + "'")
+                    pdf = dist.at(val)
+                    checkProb(pdf)
+                    if count > 0:
+                        if pdf == 0:
+                            return -maxint
+                        loglik = loglik + log(pdf)*count
+            elif n < th:
+                for val in self.dataset.columns[col]:
+                    pdf = dist.at(val)
+                    checkPDF(pdf)
+                    if pdf == 0:
+                        return -maxint
+                    log_pdf = log(pdf)
+                    loglik = loglik + log_pdf
+            else:
+                vmin = self.dataset.SQLFind("MIN",name)
+                vmax = self.dataset.SQLFind("MAX",name)
+                size = 1.0*(vmax - vmin)/th
+                #print "min-max", vmin, vmax, size
+                prev = 0
+                
+                # Exclude the last interval because upper might not cover everything because of precision issue.
+                for i in xrange(th-1):
+                    mid = vmin + (i + 0.5)*size
+                    upper = vmin + (i + 1)*size
+                    count = self.dataset.SQLCountCond(name + "<=" + str(upper))
+                    pdf = dist.at(mid)
+                    checkPDF(pdf)
+                    if count - prev > 0:
+                        if pdf == 0:
+                            return -maxint
+                        loglik = loglik + log(pdf)*(count - prev)
+                    #print i, count, mid, pdf
+                    prev = count
+
+                # Last interval is handled here.
+                mid = vmax - 0.5*size
+                pdf = dist.at(mid)
+                checkPDF(pdf)
+                if n - prev > 0:
+                    if pdf == 0:
+                        return -maxint
+                    loglik = loglik + log(pdf)*(n - prev)
+                #print "last", n, mid, pdf
+                    
         return loglik
 
     def visit_ASTNode(self, ast):
@@ -473,10 +544,11 @@ class ScoreEstimator(visitor):
     def visit_ComparisonNode(self, ast):
         e1 = self.visit(ast.node)
         e2 = self.visit(ast.value)
+        # print "rel = ", ast.relationship
         # print "e1 = ", e1
         # print "e2 = ", e2
         # == for boolean, categorical, real
-        if ast.relationship == "==":
+        if ast.relationship == "==" or ast.relationship == "=":
             if isinstance(e1,Bernoulli) and isinstance(e2,Bernoulli):
                 return Bernoulli((e1.p*e2.p) + (1-e1.p)*(1-e2.p))
             elif isinstance(e1,MoG) and isinstance(e2,MoG):
