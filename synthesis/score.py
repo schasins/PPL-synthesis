@@ -195,11 +195,58 @@ def checkProb(p):
         print "p = ", p
         raise "p < 0 or p > 1"
 
+# Threshold to use DB for real distribution. Most benchmarks = 10000
+th = 20000
+
+def build_freq_table(dataset):
+    names = dataset.indexesToNames
+    dists = dataset.columnDistributionInformation
+    table = []
+    n = dataset.numRows
+    for i in xrange(len(names)):
+        d = {}
+        dist = dists[i]
+        name = names[i]
+        if isinstance(dist,BooleanDistribution):
+            t = dataset.SQLCountCond(name + "=true")
+            d[True] = t
+            d[False] = n - t
+        elif isinstance(dist,CategoricalDistribution):
+            for val in dist.values:
+                count = dataset.SQLCountCond(name + "='" + val + "'")
+                d[val] = count
+        elif isinstance(dist, RealDistribution) and n >= th:
+            vmin = dataset.SQLFind("MIN",name)
+            vmax = dataset.SQLFind("MAX",name)
+            size = 1.0*(vmax - vmin)/th
+            prev = 0
+                
+            # Exclude the last interval because upper might not cover everything because of precision issue.
+            for i in xrange(th-1):
+                mid = vmin + (i + 0.5)*size
+                upper = vmin + (i + 1)*size
+                count = dataset.SQLCountCond(name + "<=" + str(upper))
+                d[mid] = count - prev
+                prev = count
+
+            # Last interval is handled here.
+            mid = vmax - 0.5*size
+            d[mid] = n - prev
+        elif isinstance(dist, RealDistribution):
+            pass
+        else:
+            print dist
+            raise ScoreError("build_freq_table: unknown distribution")
+
+        table.append(d)
+    return table
+
 class ScoreEstimator(visitor):
     def __init__(self, dataset=None):
         self.dataset = dataset
         self.env = {}
         self.varcollector = VarCollector()
+        self.lookup_freq = build_freq_table(dataset)
 
     def reset(self):
         self.env = {}
@@ -217,12 +264,11 @@ class ScoreEstimator(visitor):
         # print self.env
         loglik = 0
         n = self.dataset.numRows
-        th = 20000 # most benchmarks = 10000
         for col in self.dataset.indexesToNames:
             name = self.dataset.indexesToNames[col]
             dist = self.env[name]
             if isinstance(dist,Bernoulli):
-                t = self.dataset.SQLCountCond(name + "=true")
+                t = self.lookup_freq[col][True]
                 f = n - t
                 pt = dist.at(1)
                 pf = 1 - pt
@@ -240,7 +286,7 @@ class ScoreEstimator(visitor):
                 
             elif isinstance(dist,Categorical):
                 for val in dist.values:
-                    count = self.dataset.SQLCountCond(name + "='" + val + "'")
+                    count = self.lookup_freq[col][val]
                     pdf = dist.at(val)
                     checkProb(pdf)
                     if count > 0:
@@ -256,36 +302,16 @@ class ScoreEstimator(visitor):
                     log_pdf = log(pdf)
                     loglik = loglik + log_pdf
             else:
-                vmin = self.dataset.SQLFind("MIN",name)
-                vmax = self.dataset.SQLFind("MAX",name)
-                size = 1.0*(vmax - vmin)/th
-                #print "min-max", vmin, vmax, size
-                prev = 0
-                
-                # Exclude the last interval because upper might not cover everything because of precision issue.
-                for i in xrange(th-1):
-                    mid = vmin + (i + 0.5)*size
-                    upper = vmin + (i + 1)*size
-                    count = self.dataset.SQLCountCond(name + "<=" + str(upper))
+                lookup = self.lookup_freq[col]
+                for mid in lookup:
+                    count = lookup[mid]
                     pdf = dist.at(mid)
                     checkPDF(pdf)
-                    if count - prev > 0:
+                    if count  > 0:
                         if pdf == 0:
                             return -maxint
-                        loglik = loglik + log(pdf)*(count - prev)
-                    #print i, count, mid, pdf
-                    prev = count
-
-                # Last interval is handled here.
-                mid = vmax - 0.5*size
-                pdf = dist.at(mid)
-                checkPDF(pdf)
-                if n - prev > 0:
-                    if pdf == 0:
-                        return -maxint
-                    loglik = loglik + log(pdf)*(n - prev)
-                #print "last", n, mid, pdf
-                    
+                        loglik = loglik + log(pdf)*count
+        
         return loglik
 
     def visit_ASTNode(self, ast):
