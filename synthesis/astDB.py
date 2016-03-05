@@ -5,7 +5,7 @@ import numpy as np
 from copy import deepcopy
 import MySQLdb
 
-debug = True
+debug = False
 mutationDebug = False
 
 # **********************************************************************
@@ -259,18 +259,29 @@ class Dataset:
 			whereClause = self.makePathConditionFilter(pathCondition)
 			sql = "SELECT COUNT(*) FROM "+self.tableName+" WHERE "+whereClause
 		cursor = self.newCursor()
-		cursor.execute(sql)
+		print sql
+                cursor.execute(sql)
 		results = cursor.fetchall()
 		cursor.close()
 		return results[0][0]
 
 	def SQLCountCond(self, s):
 		sql = "SELECT COUNT(*) FROM "+self.tableName+" WHERE "+s
+                print sql
 		cursor = self.newCursor()
 		cursor.execute(sql)
 		results = cursor.fetchall()
 		cursor.close()
 		return results[0][0]
+
+        def SQLSelectColOrdered(self, colName):
+                sql = "SELECT " + colName + " FROM " + self.tableName + " ORDER BY " + colName
+                print sql
+		cursor = self.newCursor()
+		cursor.execute(sql)
+		results = cursor.fetchall()
+		cursor.close()
+                return map(lambda x: x[0], results)
 
 	def SQLFind(self, minmax, c):
 		sql = "SELECT " + minmax + "(" + c + ") FROM "+self.tableName

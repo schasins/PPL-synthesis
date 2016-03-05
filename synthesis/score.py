@@ -215,24 +215,33 @@ def build_freq_table(dataset):
             for val in dist.values:
                 count = dataset.SQLCountCond(name + "='" + val + "'")
                 d[val] = count
-        elif isinstance(dist, RealDistribution) and n >= th:
-            vmin = dataset.SQLFind("MIN",name)
-            vmax = dataset.SQLFind("MAX",name)
-            size = 1.0*(vmax - vmin)/th
-            prev = 0
+        elif (isinstance(dist, RealDistribution) or isinstance(dist, IntegerDistribution)) and n >= th:
+            values = dataset.SQLSelectColOrdered(name)
+            uniqueValues = list(set(values))
+            if len(uniqueValues) < th:
+                # few enough values that we might as well just make it precise
+                for value in uniqueValues:
+                    d[value] = values.count(value) #TODO: make this more efficient by just going down the sorted list
+            else:
+                vmin = values[0]
+                vmax = values[-1]
+                size = 1.0*(vmax - vmin)/th
                 
-            # Exclude the last interval because upper might not cover everything because of precision issue.
-            for i in xrange(th-1):
-                mid = vmin + (i + 0.5)*size
-                upper = vmin + (i + 1)*size
-                count = dataset.SQLCountCond(name + "<=" + str(upper))
-                d[mid] = count - prev
-                prev = count
+                currIndex = 0
+                # Exclude the last interval because upper might not cover everything because of precision issue.
+                for i in xrange(th-1):
+                    mid = vmin + (i + 0.5)*size
+                    upper = vmin + (i + 1)*size
+                    startIndex = currIndex
+                    while values[currIndex] <= upper:
+                        currIndex += 1
+                    count =  currIndex - startIndex
+                    d[mid] = count
 
-            # Last interval is handled here.
-            mid = vmax - 0.5*size
-            d[mid] = n - prev
-        elif isinstance(dist, RealDistribution):
+                # Last interval is handled here.
+                mid = vmax - 0.5*size
+                d[mid] = len(values) - currIndex
+        elif isinstance(dist, RealDistribution) or isinstance(dist, IntegerDistribution):
             pass
         else:
             print dist

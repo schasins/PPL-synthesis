@@ -335,12 +335,18 @@ def main():
 
 	nodesInDependencyOrder = g.getNodesInDependencyOrder()
 
+        # for the score stuff, it's helpful if we have an index on each node
+        for node in nodesInDependencyOrder:
+                dataset.addIndex([node.name])
+
 	AST = ASTNode()
 	for node in nodesInDependencyOrder:
 
 		parents = node.parents
-                parentNames = map(lambda x: x.name, parents)
-                dataset.addIndex(parentNames)
+                if len(parents) > 1:
+                        # if length of parents is 1, we'll already have added the index above
+                        parentNames = map(lambda x: x.name, parents)
+                        dataset.addIndex(parentNames)
 
 		if isinstance(node.distribInfo, BooleanDistribution):
 			internal = BooleanDistribNode(node.name)
