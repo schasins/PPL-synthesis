@@ -217,11 +217,26 @@ def build_freq_table(dataset):
                 d[val] = count
         elif (isinstance(dist, RealDistribution) or isinstance(dist, IntegerDistribution)) and n >= th:
             values = dataset.SQLSelectColOrdered(name)
-            uniqueValues = list(set(values))
-            if len(uniqueValues) < th:
+            
+            # below is a nice fast way to check whether we have fewer than th unique values, taking advantage of values being sorted
+            currVal = values[0]
+            currIndex = 0
+            tempD = {}
+            newValsCount = 0
+            while currIndex < len(values):
+                startIndex = currIndex
+                while currIndex < len(values) and values[currIndex] == currVal:
+                    currIndex += 1
+                newValsCount += 1
+                if newValsCount > th:
+                    break
+                tempD[currVal] = currIndex - startIndex
+                if currIndex < len(values):
+                    currVal = values[currIndex]
+                
+            if newValsCount <= th:
                 # few enough values that we might as well just make it precise
-                for value in uniqueValues:
-                    d[value] = values.count(value) #TODO: make this more efficient by just going down the sorted list
+                d = tempD
             else:
                 vmin = values[0]
                 vmax = values[-1]
