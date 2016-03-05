@@ -730,8 +730,7 @@ class Mutator(visitor):
     def visit_UnaryExpNode(self, ast):
         return UnaryExpNode(ast.op, self.visit(ast.e))
 
-def estimateScore(ast, dataset):
-    estimator = ScoreEstimator(dataset)
+def estimateScore(ast, estimator):
     return estimator.evaluate(ast)
 
 def getMoG(ast):

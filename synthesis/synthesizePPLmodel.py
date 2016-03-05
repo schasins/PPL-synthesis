@@ -154,7 +154,7 @@ class PPLSynthesisProblem(Annealer):
 	def energy(self):
 		global startTime, cleanTimingData
 		currTime = time.clock()
-		score = -1*estimateScore(self.state.root, self.dataset)
+		score = -1*estimateScore(self.state.root, self.estimator)
 		cleanTimingData.append([currTime, score])
 		return score
 
@@ -164,6 +164,7 @@ class PPLSynthesisProblem(Annealer):
 
 	def setNeeded(self, dataset):
 		self.dataset = dataset
+                self.estimator = ScoreEstimator(dataset) # helpful to keep one estimator around the whole time, so we can just summarize the dataset once
 
 # **********************************************************************
 # Generate structures based on input dataset correlation
