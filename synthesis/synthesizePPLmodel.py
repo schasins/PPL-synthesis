@@ -315,6 +315,8 @@ def main():
 		debug = True if sys.argv[7] == "t" else False
                 if debug:
                         print "Debugging messages on."
+                blogScore = True if sys.argv[8] == "t" else False
+                #print blogScore
 
 	startTime = time.clock()
 
@@ -473,9 +475,6 @@ def main():
 		if debug: print progOutput.programString()
                 if debug: print cleanTimingData[-1]
 
-                score = blogLikelihoodScore(progOutput, dataset)
-                if debug: print score
-
 		#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
 		outputString = progOutput.programString()+"\n\n//" #+str(distanceFromDataset)
@@ -487,8 +486,12 @@ def main():
 		output3.write("\n".join(annealingOutput))
 		output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
 		output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
-                output5 = open(outputDirectory+"/scoreData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
-		output4.write(str(score))
+                
+                if blogScore:
+                        score = blogLikelihoodScore(progOutput, dataset)
+                        if debug: print score
+                        output5 = open(outputDirectory+"/scoreData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+                        output5.write(str(score))
 
 	else:
 		raise Exception("Don't recognize the requested mode: "+mode)
