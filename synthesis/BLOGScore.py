@@ -4,7 +4,7 @@ import math
 
 def generateQueryString(dataset):
     varNames = dataset.indexesToNames
-    rows = dataset.rows
+    rows = dataset.literalRows
 
     # want to make query items like this:
     # query Burglary == false & Earthquake == false & Alarm == true & JohnCalls == false & MaryCalls == true;
@@ -49,13 +49,11 @@ def blogLikelihoodScore(ast, dataset):
 
     # run the new BLOG program from the file
 
-    try:
-        strOutput = subprocess.check_output("blog -n 100000 tmp.blog".split(" "))
-    except:
-        raise Exception("Couldn't get output from running BLOG to calculate score.")
+    strOutput = subprocess.check_output("blog -n 20000 tmp.blog".split(" "))
+    #strOutput = subprocess.check_output("blog -n 10000 tmp.blog -s blog.sample.MHSampler".split(" "))
 
     # parse the BLOG program's output
-    logLikelihood = parseBLOGOutputForSumLikelihood(strOutput, len(dataset.rows))
+    logLikelihood = parseBLOGOutputForSumLikelihood(strOutput, dataset.numRows)
     return logLikelihood
 
 

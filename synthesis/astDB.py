@@ -130,6 +130,7 @@ class Dataset:
 		columnNumericColumns = []
 		columnMaxes = {}
 		columnMins = {}
+                self.literalRows = deepcopy(rows)
 		for i in range(len(columnValues)):
 			currColumnValues = columnValues[i]
 			if currColumnValues == set(["true", "false"]):
@@ -137,7 +138,7 @@ class Dataset:
 				colTypes.append("BOOL")
 				ls = map(lambda x: 1 if (x == "true") else 0, self.columns[i])
 				columnNumericColumns.append([ls])
-				self.columns[i] = ls
+				#self.columns[i] = ls
 				for row in rows:
 								row[i] = 1 if (row[i] == "true") else 0
 			elif reduce(lambda x, y: x and isInteger(y), currColumnValues, True):
@@ -167,6 +168,8 @@ class Dataset:
 					ls = map(lambda x: 1*(x == val), self.columns[i])
 					lists.append(ls)
 				columnNumericColumns.append(lists)
+
+                self.rows = rows
 
 		self.db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
 		cursor = self.newCursor()
@@ -250,6 +253,15 @@ class Dataset:
 			currPathConditionComponent = PathConditionComponent(currPathConditionComponent.toString(), False, "AND", pathConditionComponent.toString())
 		return currPathConditionComponent.toString()
 
+        def SQLAllRows(self):
+                sql = "SELECT * FROM "+self.tableName
+                cursor = self.newCursor()
+		if debug: print sql
+                cursor.execute(sql)
+		results = cursor.fetchall()
+		cursor.close()
+		return results
+
 	def SQLCount(self, pathCondition):
 		sql = ""
 		if len(pathCondition) < 1:
@@ -259,7 +271,7 @@ class Dataset:
 			whereClause = self.makePathConditionFilter(pathCondition)
 			sql = "SELECT COUNT(*) FROM "+self.tableName+" WHERE "+whereClause
 		cursor = self.newCursor()
-		print sql
+		if debug: print sql
                 cursor.execute(sql)
 		results = cursor.fetchall()
 		cursor.close()
@@ -267,7 +279,7 @@ class Dataset:
 
 	def SQLCountCond(self, s):
 		sql = "SELECT COUNT(*) FROM "+self.tableName+" WHERE "+s
-                print sql
+                if debug: print sql
 		cursor = self.newCursor()
 		cursor.execute(sql)
 		results = cursor.fetchall()
@@ -276,7 +288,7 @@ class Dataset:
 
         def SQLSelectColOrdered(self, colName):
                 sql = "SELECT " + colName + " FROM " + self.tableName + " ORDER BY " + colName
-                print sql
+                if debug: print sql
 		cursor = self.newCursor()
 		cursor.execute(sql)
 		results = cursor.fetchall()

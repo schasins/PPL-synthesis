@@ -205,7 +205,7 @@ def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshol
 			correlationsMatrix[j][i] = correlation
 
 			for i in range(len(correlationsMatrix)):
-				print correlationsMatrix[i]
+				if debug: print correlationsMatrix[i]
 
 	a = np.array(correlationsMatrix)
 	x = ND(a)
@@ -313,11 +313,11 @@ def main():
 	mode = sys.argv[6]
 	if len(sys.argv) > 7:
 		debug = True if sys.argv[7] == "t" else False
-		print "Debugging messages on."
+                if debug:
+                        print "Debugging messages on."
 
 	startTime = time.clock()
 
-	print "about to make dataset"
 	dataset = Dataset(inputFile)
 
 	g = None
@@ -473,6 +473,9 @@ def main():
 		if debug: print progOutput.programString()
                 if debug: print cleanTimingData[-1]
 
+                score = blogLikelihoodScore(progOutput, dataset)
+                if debug: print score
+
 		#AST.reduce(dataset) # todo: control how much we reduce, make sure this checks path conditions before reducing
 
 		outputString = progOutput.programString()+"\n\n//" #+str(distanceFromDataset)
@@ -484,6 +487,8 @@ def main():
 		output3.write("\n".join(annealingOutput))
 		output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
 		output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
+                output5 = open(outputDirectory+"/scoreData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+		output4.write(str(score))
 
 	else:
 		raise Exception("Don't recognize the requested mode: "+mode)
