@@ -455,8 +455,8 @@ def main():
 		saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
 		endTime = time.clock()
-		# distanceFromDataset = blogLikelihoodScore(prog, dataset)
-		cleanTimingData.append([endTime]) #, distanceFromDataset])
+		distanceFromDataset = -1 * estimateScore(prog.root, saObj.estimator)
+		cleanTimingData.append([endTime, distanceFromDataset])
 		annealingOutput = []
 		if debug: print "About to anneal."
 		if len(prog.randomizeableNodes) > 0:

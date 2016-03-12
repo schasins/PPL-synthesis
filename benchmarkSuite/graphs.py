@@ -32,7 +32,7 @@ for f in os.listdir(os.getcwd()):
 #print dataSets
 
 def timeToReachScore(timeScoreData, score):
-	for line in timeScoreData[1:]:
+	for line in timeScoreData:
 		if line[1] <= score:
 			return line[0]
 	return None
