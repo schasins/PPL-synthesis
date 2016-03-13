@@ -411,7 +411,7 @@ def main():
 			if numDistribNodes != lastNumDistribNodes: # let's avoid extra score calculations for equivalent programs, since they're expensive
 				score = blogLikelihoodScore(prog, dataset)
 			print  label,",", score,",",numDistribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
-			return numDistribNodes, lastScore
+			return numDistribNodes, score
 
 		lastScore = None
 		lastNumDistribNodes = -1
