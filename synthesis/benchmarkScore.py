@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 from parser import parse_from_file
-from ast import Dataset
+from astDB import Dataset
 from score import estimateScore, getMoG
 import sys
 
