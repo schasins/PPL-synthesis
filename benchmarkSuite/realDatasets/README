@@ -1,7 +1,12 @@
 To remove rows that are missing cells:
 python processData.py
 
+To divide a data set into a training set and a testing set, if desired:
+python splitIntoTrainingAndTest.py <inputDatasetCSV> <number of rows to include in test set>
+Example:
+python splitIntoTrainingAndTest.py airlineDelayDataFiltered.csv 1000
+
 To run our synthesis tool on the processed data:
-python ../../synthesis/synthesizePPLmodel.py airlineDelayDataFiltered.csv 50 . synthesizedAirlineDelay d annealing t f
+python ../../synthesis/synthesizePPLmodel.py trainingData.csv 50 . synthesizedAirlineDelay d annealing t f
 
 Synthesized program will be synthesizedBLOGPrograms directory
