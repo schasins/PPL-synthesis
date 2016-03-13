@@ -10,3 +10,6 @@ To run our synthesis tool on the processed data:
 python ../../synthesis/synthesizePPLmodel.py trainingData.csv 50 . synthesizedAirlineDelay d annealing t f
 
 Synthesized program will be synthesizedBLOGPrograms directory
+
+If we want to then test the program on the testing set:
+python evaluateSynthesizedUsingTestSet.py synthesizedBLOGPrograms/<filename>.blog testingData.csv 
