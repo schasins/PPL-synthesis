@@ -1238,9 +1238,9 @@ class VariableUseNode(ASTNode):
 
 class ComparisonNode(ASTNode):
 
-	ops = {	"=": operator.eq,
-			">": operator.gt,
-			"<": operator.lt}
+	ops = {	"=": "==",
+			">": ">",
+			"<": "<"}
 
 	def __init__(self, variableNode, relationship = None, value = None):
 		ASTNode.__init__(self)
@@ -1261,7 +1261,7 @@ class ComparisonNode(ASTNode):
 
 	def strings(self, tabs=0):
 		if self.relationship:
-			strs = [["(" + self.node.name + " " + self.relationship + " "], self.value.strings(),[")"]]
+			strs = [["(" + self.node.name + " " + self.ops[self.relationship] + " "], self.value.strings(),[")"]]
 			return combineStrings(strs)
 		else:
 			return [self.node.name, ""]
