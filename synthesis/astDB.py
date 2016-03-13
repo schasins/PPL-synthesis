@@ -489,7 +489,11 @@ class VariableDeclNode(ASTNode):
 		return nodeToAdd
 
 	def strings(self, tabs=0):
-		s = ["\nrandom "+self.varType+" "+self.name+" ~ "]
+                varType = self.varType
+                # for now, unfortunately ints still not supported
+                if varType == "Integer":
+                        varType = "Real"
+		s = ["\nrandom "+varType+" "+self.name+" ~ "]
 		RHSStrings = self.RHS.strings()
 		return combineStrings([s, RHSStrings, [";\n"]])
 

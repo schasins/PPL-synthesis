@@ -2,6 +2,6 @@ To remove rows that are missing cells:
 python processData.py
 
 To run our synthesis tool on the processed data:
-python ../../synthesis/synthesizePPLmodel.py airlineDelayDataProcessed.csv 350 . synthesizedAirlineDelayModel n annealing t
+python ../../synthesis/synthesizePPLmodel.py airlineDelayDataFiltered.csv 50 . synthesizedAirlineDelay d annealing t f
 
-Synthesized program will be synthesizedBLOGPrograms/synthesizedAirlineDelayModel.blog
+Synthesized program will be synthesizedBLOGPrograms directory
