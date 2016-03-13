@@ -1293,7 +1293,7 @@ class ComparisonNode(ASTNode):
 		return False
 
 	def randomizeOperator(self):
-		if self.node.typeName == "Real":
+		if self.node.typeName == "Real" or self.node.typeName == "Integer": # todo: fix this once we support ints
 			self.relationship = random.choice([">", "<"]) # using eq for reals is just silly
 		else:
 			self.relationship = random.choice(self.ops.keys())
