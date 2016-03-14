@@ -45,7 +45,7 @@ if makeMaxTimeToReachGroundtruth:
 	maxTimeToReachScore = 0
 	allBars = []
 	allBarErros = []
-	for strategy in sorted(dataSets.keys()):
+	for strategy in orderedStrategyNames:
 		print "********************************"
 		print "Strategy: "+ strategy
 		print "********************************"
@@ -89,7 +89,7 @@ if makeMaxTimeToReachGroundtruth:
 	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
 	locs, labels = plt.xticks(x, my_xticks)
 
-	strategies = sorted(dataSets.keys())
+	strategies = orderedStrategyNames
 	print ",".join([""] +strategies)
 	for i in range(len(allBars[0])):
 		print sorted(groundTruthScores.keys())[i],",",
@@ -145,7 +145,7 @@ if makeMaxTimeToReachGroundtruth:
 	fig.savefig('timeToReachScore.pdf', edgecolor='none', format='pdf')
 	plt.close()
 
-makeMaxTimeToReachGroundtruth2 = True
+makeMaxTimeToReachGroundtruth2 = False
 if makeMaxTimeToReachGroundtruth2:
 	maxTimeToReachScore = 0
 	allBars = []
@@ -166,7 +166,7 @@ if makeMaxTimeToReachGroundtruth2:
 				continue
 			timeLs = []
 			for run in benchmarkRuns:
-				newTime = timeToReachScore(run, groundTruthScores[benchmarkname]*1.01) # for this one, we just want something close
+				newTime = timeToReachScore(run, groundTruthScores[benchmarkname]*1.02) # for this one, we just want something close
 				if (newTime == None):
 					timeLs = [-1] * len(benchmarkRuns)
 					break
@@ -256,12 +256,12 @@ if makeMaxTimeToReachGroundtruth2:
 	fig.savefig('timeToReachScore2.pdf', edgecolor='none', format='pdf')
 	plt.close()
 
-makeLowestScore = True
+makeLowestScore = False
 if makeLowestScore:
 	highestLowesScore = 0
 	allBars = []
 	allBarErros = []
-	for strategy in sorted(dataSets.keys()):
+	for strategy in orderedStrategyNames:
 		print "********************************"
 		print "Strategy: "+ strategy
 		print "********************************"
@@ -272,8 +272,6 @@ if makeLowestScore:
 			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
 			if benchmarkRuns == None:
 				print "freak out freak out"
-				bars.append(16968.4986115/groundTruthScores[benchmarkname]) #hurricane best score from the 300 run for deconvolution
-				continue
 			lowestScores = []
 			for run in benchmarkRuns:
 				lowestScore = min(map(lambda x: x[1], run))
@@ -287,11 +285,8 @@ if makeLowestScore:
 		allBars.append(bars)
 		#allBarErros.append(barErrors)
 
-	x = np.array(range(len(strategyBenchmarks)))
-	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
-	locs, labels = plt.xticks(x, my_xticks)
+	strategies = orderedStrategyNames
 
-	strategies = sorted(dataSets.keys())
 
 	print ",".join([""] +strategies)
 	for i in range(len(allBars[0])):
@@ -299,6 +294,12 @@ if makeLowestScore:
 		for j in range(len(allBars)):
 			print allBars[j][i], ",",
 		print
+
+
+	x = np.array(range(len(strategyBenchmarks)))
+	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+	locs, labels = plt.xticks(x, my_xticks)
+
 
 	ax = plt.subplot(111)
 	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', label=strategies[0], ecolor='k')
@@ -368,14 +369,14 @@ if makeLowestScore2:
 	highestLowesScore = 0
 	allBars = []
 	allBarErros = []
-	for strategy in sorted(dataSets.keys()):
+	for strategy in orderedStrategyNames:
 		print "********************************"
 		print "Strategy: "+ strategy
 		print "********************************"
 		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
-		for benchmarkname in sorted(strategyBenchmarks.keys()):
+		for benchmarkname in sorted(groundTruthScores.keys()):
 			benchmarkRuns = strategyBenchmarks[benchmarkname]
 			lowestScores = []
 			for run in benchmarkRuns:
@@ -391,11 +392,27 @@ if makeLowestScore2:
 		allBars.append(bars)
 		allBarErros.append(barErrors)
 
+
+	strategies = orderedStrategyNames
+	print ",".join([""] +strategies)
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i],",",
+		for j in range(len(allBars)):
+			print allBars[j][i], ",",
+		print
+
+	print ",".join([""] +strategies)
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i],",",
+		for j in range(len(allBars)):
+			print allBarErros[j][i], ",",
+		print
+
 	x = np.array(range(len(strategyBenchmarks)))
 	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
 	locs, labels = plt.xticks(x, my_xticks)
 
-	strategies = sorted(dataSets.keys())
+	strategies = orderedStrategyNames
 
 	ax = plt.subplot(111)
 	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', label=strategies[0], ecolor='k', yerr=allBarErros[0])
