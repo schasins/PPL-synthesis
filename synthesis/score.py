@@ -33,7 +33,7 @@ class Bernoulli:
 
     def at(self, data):
         # print "p = ", self.p
-        if data == 1:
+        if data == 1 or data == "true" or data == True:
             return self.p
         else:
             return 1 - self.p
@@ -307,7 +307,6 @@ class ScoreEstimator(visitor):
                     if pf == 0:
                         return -maxint
                     loglik = loglik + log(pf)*f
-                
             elif isinstance(dist,Categorical):
                 for val in dist.values:
                     count = self.lookup_freq[col][val]
@@ -745,7 +744,8 @@ class Mutator(visitor):
     def visit_UnaryExpNode(self, ast):
         return UnaryExpNode(ast.op, self.visit(ast.e))
 
-def estimateScore(ast, estimator):
+def estimateScore(ast, dataset):
+    estimator = ScoreEstimator(dataset)
     return estimator.evaluate(ast)
 
 def getMoG(ast):

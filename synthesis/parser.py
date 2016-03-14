@@ -89,7 +89,7 @@ def t_error(t):
 # Build the lexer
 import ply.lex as lex
 lexer = lex.lex()
-from ast import *
+from astDB import *
 
 # Parsing rules
 precedence = (
