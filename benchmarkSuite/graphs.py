@@ -5,8 +5,11 @@ import math
 
 stringToSeek = "_300_"
 structureGenerationStrategyNames = {"n": "Naive", "c": "Simple Correlation", "d": "Network Deconvolution"}
+orderedStrategyNames = ["Naive", "Simple Correlation", "Network Deconvolution"]
 
-groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 16969.33744363283, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48520.30263912328, 'uniform': 53189.889449844784, 'eyecolor': 24531.8331725655, 'icecream': 77940.73111092609, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
+groundTruthScores = {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
+# the scores below were calculated with another old score approach, before we fixed handling boolean distribs, and started using more estimation
+# groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 16969.33744363283, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48520.30263912328, 'uniform': 53189.889449844784, 'eyecolor': 24531.8331725655, 'icecream': 77940.73111092609, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 # the scores below were calculated with the old score approach, before we fixed it to handle ifs with more than 2 branches better
 #groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 17043.29694642003, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48001.39437425706, 'uniform': 53189.889449844784, 'eyecolor': 24542.81097722689, 'icecream': 79082.25931616548, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 
@@ -147,7 +150,7 @@ if makeMaxTimeToReachGroundtruth2:
 	maxTimeToReachScore = 0
 	allBars = []
 	allBarErros = []
-	for strategy in sorted(dataSets.keys()):
+	for strategy in orderedStrategyNames:
 		print "********************************"
 		print "Strategy: "+ strategy
 		print "********************************"
@@ -163,7 +166,7 @@ if makeMaxTimeToReachGroundtruth2:
 				continue
 			timeLs = []
 			for run in benchmarkRuns:
-				newTime = timeToReachScore(run, groundTruthScores[benchmarkname]*1.05) # for this one, we just want something close
+				newTime = timeToReachScore(run, groundTruthScores[benchmarkname]*1.01) # for this one, we just want something close
 				if (newTime == None):
 					timeLs = [-1] * len(benchmarkRuns)
 					break
@@ -187,7 +190,7 @@ if makeMaxTimeToReachGroundtruth2:
 	for i in range(len(allBars)):
 			allBars[i] = [yAxisMax if x == -1 else x for x in allBars[i]] # thse were the timeouts
 
-	strategies = sorted(dataSets.keys())
+	strategies = orderedStrategyNames
 	print ",".join([""] +strategies)
 	for i in range(len(allBars[0])):
 		print sorted(groundTruthScores.keys())[i],",",
