@@ -37,20 +37,21 @@ def parseBLOGOutputForSumLikelihood(blogOutputStr, numRows):
             logLikelihood += math.log(.0000000000000000000000000000000000001)
     return logLikelihood
 
-def blogLikelihoodScore(ast, dataset):
+def blogLikelihoodScore(ast, dataset, filename):
     # generate the query items we need to add to the program to get BLOG to calculate likelihood for us
     queryStr = generateQueryString(dataset)
 
     # make a file that has the program text and the queries
     programStr = ast.programString()
-    tmpProgFile = open("tmp.blog", "w")
+    tmpProgFile = open(filename, "w")
     tmpProgFile.write(programStr + "\n" + queryStr)
     tmpProgFile.close()
 
     # run the new BLOG program from the file
 
-    strOutput = subprocess.check_output("blog -n 20000 tmp.blog".split(" "))
-    #strOutput = subprocess.check_output("blog -n 10000 tmp.blog -s blog.sample.MHSampler".split(" "))
+    
+    #strOutput = subprocess.check_output(("blog -n 20000 "+filename).split(" "))
+    strOutput = subprocess.check_output("blog -n 10000 tmp.blog -s blog.sample.MHSampler".split(" "))
 
     # parse the BLOG program's output
     logLikelihood = parseBLOGOutputForSumLikelihood(strOutput, dataset.numRows)

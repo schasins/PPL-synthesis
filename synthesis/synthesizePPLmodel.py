@@ -409,7 +409,7 @@ def main():
 			numDistribNodes = prog.distribNodes
 			score = lastScore
 			if numDistribNodes != lastNumDistribNodes: # let's avoid extra score calculations for equivalent programs, since they're expensive
-				score = blogLikelihoodScore(prog, dataset)
+				score = blogLikelihoodScore(prog, dataset, "tmp.blog")
 			print  label,",", score,",",numDistribNodes,",",prog.varUseNodes,",",prog.comparisonNodes
 			return numDistribNodes, score
 
@@ -488,9 +488,9 @@ def main():
 		output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
                 
                 if blogScore:
-                        score = blogLikelihoodScore(progOutput, dataset)
+                        score = blogLikelihoodScore(progOutput, dataset, outputDirectory+"/scoreData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.blog")
                         if debug: print score
-                        output5 = open(outputDirectory+"/scoreData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+                        output5 = open(outputDirectory+"/scoreData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.score", "w")
                         output5.write(str(score))
 
 	else:
