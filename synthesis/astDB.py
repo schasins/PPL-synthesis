@@ -754,7 +754,7 @@ class GaussianDistribNode(RealDistribNode):
 
 	def strings(self, tabs=0):
 		if self.mu != None:
-			return ["Gaussian(%f,%f)" % (self.mu, self.sig**2)]
+			return ["Gaussian(%.9f,%.9f)" % (self.mu, self.sig**2)]
 		else:
 			return ["Gaussian(",",", ")"]
 
@@ -774,8 +774,8 @@ class GaussianDistribNode(RealDistribNode):
 		else:
 			self.mu = np.mean(matchingRowsValues)
 			self.sig = np.std(matchingRowsValues)
-			if abs(self.sig) < .00001:
-				self.sig = .00001 # shouldn't be using Gaussian to model constants
+			if abs(self.sig) < .0001:
+				self.sig = .0001 # shouldn't be using Gaussian to model constants
 			self.percentMatchingRows = len(matchingRowsValues)/dataset.numRows
 
 		if debug: print "concrete: gaussian", self.strings()
@@ -790,7 +790,7 @@ class BetaDistribNode(RealDistribNode):
 
 	def strings(self, tabs=0):
 		if self.alpha:
-			return ["Beta(%f,%f)" % (self.alpha, self.beta)]
+			return ["Beta(%.9f,%.9f)" % (self.alpha, self.beta)]
 		else:
 			return ["Beta(",",", ")"]
 
@@ -836,7 +836,7 @@ class GammaDistribNode(RealDistribNode):
 
 	def strings(self, tabs=0):
 		if self.k:
-			return ["Gamma(%f,%f)" % (self.k, self.l)]
+			return ["Gamma(%.9f,%.9f)" % (self.k, self.l)]
 		else:
 			return ["Gamma(",",", ")"]
 
@@ -881,7 +881,7 @@ class UniformRealDistribNode(RealDistribNode):
 
 	def strings(self, tabs=0):
 		if self.a != None:
-			return ["UniformReal(%f,%f)" % (self.a, self.b)]
+			return ["UniformReal(%.9f,%.9f)" % (self.a, self.b)]
 		else:
 			return ["UniformReal(",",", ")"]
 

@@ -1,10 +1,11 @@
-from ast import *
+from astDB import *
 import subprocess
 import math
 
 def generateQueryString(dataset):
     varNames = dataset.indexesToNames
     rows = dataset.literalRows
+    varTypes = dataset.columnDistributionInformation
 
     # want to make query items like this:
     # query Burglary == false & Earthquake == false & Alarm == true & JohnCalls == false & MaryCalls == true;
@@ -12,7 +13,10 @@ def generateQueryString(dataset):
     for row in rows:
         equalities = []
         for i in range(len(varNames)):
-            equalities.append(varNames[i]+" == "+str(row[i]))
+            if isinstance(varTypes[i], RealDistribution):
+                equalities.append(varNames[i]+" > "+str(float(row[i])-1)+" & "+varNames[i]+" < "+str(float(row[i])+1))
+            else:
+                equalities.append(varNames[i]+" == "+str(row[i]))
         queryStr += "query " + (" & ".join(equalities)) + ";\n"
     return queryStr
 
