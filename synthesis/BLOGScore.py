@@ -1,6 +1,7 @@
 from astDB import *
 import subprocess
 import math
+import sys
 
 def generateQueryString(dataset):
     varNames = dataset.indexesToNames
@@ -55,10 +56,24 @@ def blogLikelihoodScore(ast, dataset, filename):
 
     
     #strOutput = subprocess.check_output(("blog -n 20000 "+filename).split(" "))
-    strOutput = subprocess.check_output("blog -n 10000 tmp.blog -s blog.sample.MHSampler".split(" "))
+    strOutput = subprocess.check_output("blog -n 10000 "+filename+" -s blog.sample.MHSampler".split(" "))
 
     # parse the BLOG program's output
     logLikelihood = parseBLOGOutputForSumLikelihood(strOutput, dataset.numRows)
     return logLikelihood
+
+def blogLikelihoodScoreForExistingProg(blogWithQueriesFileName, numRows):
+    strOutput = subprocess.check_output("blog -n 10000 "+blogWithQueriesFileName+" -s blog.sample.MHSampler".split(" "))
+
+    # parse the BLOG program's output
+    logLikelihood = parseBLOGOutputForSumLikelihood(strOutput, numRows)
+    print blogWithQueriesFileName.split(".")[0], ",", logLikelihood
+
+if __name__ == "__main__":
+    filename = sys.argv[1]
+    numRows = int(sys.argv[2])
+    blogLikelihoodScoreForExistingProg(filename, numRows)
+
+
 
 
