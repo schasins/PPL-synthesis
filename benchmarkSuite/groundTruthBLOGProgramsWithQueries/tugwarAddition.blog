@@ -1,0 +1,14 @@
+random Real Skill1 ~
+  Gaussian(38, 6);
+
+random Real Skill2 ~
+  Gaussian(20, 4);
+
+random Real Skill3 ~
+  Gaussian(20, 4);
+
+random Boolean T1Wins ~
+	if Skill1 > Skill2 + Skill3 then
+		true
+	else
+		false;
