@@ -171,6 +171,14 @@ class Dataset:
 
                 self.rows = rows
 
+		self.columnDistributionInformation = columnDistributionInformation
+		self.columnNumericColumns = columnNumericColumns
+		
+		if dataGuided:
+			self.columnMaxes = columnMaxes
+			self.columnMins = columnMins
+
+		# going to use the table for score even if not for data guidance
 		self.db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
 		cursor = self.newCursor()
 		tableName = filename.split("/")[-1].split(".")[0]
@@ -179,12 +187,12 @@ class Dataset:
 		cursor.execute("DROP TABLE IF EXISTS "+tableName)
 
 		# Create table as per requirement
-		# sql = """CREATE TABLE EMPLOYEE (
+		# sql = CREATE TABLE EMPLOYEE (
 		#          FIRST_NAME  CHAR(20) NOT NULL,
 		#          LAST_NAME  CHAR(20),
 		#          AGE INT,  
 		#          SEX CHAR(1),
-		#          INCOME FLOAT )"""
+		#          INCOME FLOAT )
 		sql = "CREATE TABLE "+tableName+" ("
 		for i in range(len(columns)):
 			name = self.indexesToNames[i]
@@ -226,11 +234,6 @@ class Dataset:
 		results = cursor.fetchall()
 		if debug: print results
 		cursor.close()
-
-		self.columnDistributionInformation = columnDistributionInformation
-		self.columnNumericColumns = columnNumericColumns
-		self.columnMaxes = columnMaxes
-		self.columnMins = columnMins
 
 	def newCursor(self):
 		return self.db.cursor()
@@ -341,7 +344,7 @@ class PathConditionComponent:
 # **********************************************************************
 
 class Program:
-	def __init__(self, thresholdMaker = 75):
+	def __init__(self, dataGuided = True, thresholdMaker = 75):
 		self.randomizeableNodes = {}
 		self.variables = []
 		self.root = None
@@ -349,6 +352,7 @@ class Program:
 		self.varUseNodes = 0
 		self.comparisonNodes = 0
 		self.distribNodes = 0
+		self.dataGuided = dataGuided
 
 	def setRoot(self, root):
 		self.root = root
@@ -358,6 +362,8 @@ class Program:
 		return (dataset.columnMins[variableName], dataset.columnMaxes[variableName])
 
 	def instanceToKey(self, instance):
+		if isinstance(instance, CategoricalDistribNode) or isinstance(instance, BooleanDistribNode) or isinstance(instance, UniformRealDistribNode) or isinstance(instance, GaussianDistribNode) or isinstance(instance, BetaDistribNode):
+			return "DistribParams"
 		return instance.__class__.__name__
 
 	def addRandomizeableNode(self, node):
@@ -386,6 +392,8 @@ class Program:
 				weight = .7*len(nodes)
 			elif key == "RealDistribNode":
 				weight = .25*len(nodes)
+			elif not self.dataGuided and key == "DistribParams":
+				weight = 1.5*len(nodes)
 			else:
 				raise Exception("hey we haven't handled this key yet: "+key)
 			totalWeight += weight
@@ -393,14 +401,20 @@ class Program:
 			associatedKeys.append(key)
 		
 		decision = random.uniform(0, totalWeight)
+		if mutationDebug: 
+			print thresholds
+			print associatedKeys
+			print decision
 		for i in range(len(thresholds)):
 			if decision < thresholds[i]:
+				if mutationDebug: print "winner: ", associatedKeys[i]
 				node = random.choice(list(self.randomizeableNodes[associatedKeys[i]]))
 				# print "********"
 				# print node
 				# print node.strings()
 				# print "********"
 				node.mutate()
+				break
 
 	def programString(self):
 		return self.root.strings()[0]
@@ -562,6 +576,13 @@ class BooleanDistribNode(DistribNode):
 		self.percentMatchingRows = float(matchPathConditionAndTrueCount)/dataset.numRows
 		if debug: print "concrete: bool", self.strings()
 
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.addRandomizeableNode(self)
+		self.randomizeable = True
+		if debug: print "random: boolean", self.strings()
+		return True
+
 	def reduce(self, dataset, pathCondition, currVariable):
 		# no reduction to do here
 		return
@@ -575,7 +596,10 @@ class BooleanDistribNode(DistribNode):
 			self.percentTrue = self.percentTrue + random.uniform(-.1,.1)
 
 	def getRandomizeableNodes(self):
-		return []
+		if self.program.dataGuided:
+			return []
+		else:
+			return [self]
 
 class CategoricalDistribNode(DistribNode):
 	def __init__(self, varName, values, valuesToPercentages = None, percentMatchingRows = None):
@@ -625,6 +649,13 @@ class CategoricalDistribNode(DistribNode):
 			self.valuesToPercentages[value] = percentMatching
 		if debug: print "concrete: categorical", self.strings()
 
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.addRandomizeableNode(self)
+		self.randomizeable = True
+		if debug: print "random: categorical", self.strings()
+		return True
+
 	def reduce(self, dataset, pathCondition, currVariable):
 		# no reduction to do here
 		return
@@ -645,7 +676,10 @@ class CategoricalDistribNode(DistribNode):
 			self.valuesToPercentages[value] = self.valuesToPercentages[value] + random.uniform(-.1,.1)
 
 	def getRandomizeableNodes(self):
-		return []
+		if self.program.dataGuided:
+			return []
+		else:
+			return [self]
 
 class RealDistribNode(DistribNode):
 
@@ -723,6 +757,27 @@ class RealDistribNode(DistribNode):
 		if len(self.availableNodes) > 0:
 			# nothing to fill randomly here, already filled it based on a concrete path condition
 			return True
+
+		self.availableNodes = []
+		for distribType in self.availableNodeTypes:
+			if distribType == BetaDistribNode:
+					newNode = BetaDistribNode(self.varName)
+					newNode.setProgram(self.program)
+					newNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
+					self.availableNodes.append(newNode)
+			elif distribType == GaussianDistribNode:
+					newNode = GaussianDistribNode(self.varName)
+					newNode.setProgram(self.program)
+					newNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
+					self.availableNodes.append(newNode)
+			elif distribType == UniformRealDistribNode:
+					newNode = UniformRealDistribNode(self.varName)
+					newNode.setProgram(self.program)
+					newNode.fillHolesRandomly() # fill in params, add the node to the randomizeable nodes
+					self.availableNodes.append(newNode)
+			else:
+				raise Exception("Tried to make a type of real distribution we don't know about.")
+
 		self.mutate()
 		# add this to the set of randomizeable nodes since we can replace the actualDistribNode
 		self.program.addRandomizeableNode(self)
@@ -779,6 +834,30 @@ class GaussianDistribNode(RealDistribNode):
 			self.percentMatchingRows = len(matchingRowsValues)/dataset.numRows
 
 		if debug: print "concrete: gaussian", self.strings()
+
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.addRandomizeableNode(self)
+		self.randomizeable = True
+		if debug: print "random: gaussian", self.strings()
+		return True
+
+	def getRandomizeableNodes(self):
+		ls = []
+		if self.randomizeable:
+			ls.append(self)
+		return ls
+
+	def mutate(self):
+		lowerBound = .000000000000001
+		upperBound = 40
+		if self.mu == None:
+			self.mu = random.uniform(lowerBound, upperBound) 
+			self.sig = random.uniform(lowerBound, upperBound)
+		else:
+			modParams = overwriteOrModifyOneParam(.3, [self.mu, self.sig], lowerBound, upperBound, -3, 3)
+			self.mu = modParams[0]
+			self.sig = modParams[1]
 
 class BetaDistribNode(RealDistribNode):
 	def __init__(self, varName, alpha=None, beta=None, percentMatchingRows = None):
@@ -863,7 +942,7 @@ class GammaDistribNode(RealDistribNode):
 	def mutate(self):
 		lowerBound = .000000000000001
 		upperBound = 40
-		if self.alpha == None:
+		if self.k == None:
 			self.k = random.uniform(lowerBound, upperBound) 
 			self.l = random.uniform(lowerBound, upperBound)
 		else:
@@ -904,6 +983,30 @@ class UniformRealDistribNode(RealDistribNode):
 			self.percentMatchingRows = len(matchingRowsValues)/dataset.numRows
 
 		if debug: print "concrete: uniform", self.strings()
+
+	def fillHolesRandomly(self):
+		self.mutate()
+		self.program.addRandomizeableNode(self)
+		self.randomizeable = True
+		if debug: print "random: uniform", self.strings()
+		return True
+
+	def getRandomizeableNodes(self):
+		ls = []
+		if self.randomizeable:
+			ls.append(self)
+		return ls
+
+	def mutate(self):
+		lowerBound = .000000000000001
+		upperBound = 40
+		if self.a == None:
+			self.a = random.uniform(lowerBound, upperBound) 
+			self.b = random.uniform(lowerBound, upperBound)
+		else:
+			modParams = overwriteOrModifyOneParam(.3, [self.a, self.b], lowerBound, upperBound, -3, 3)
+			self.a = modParams[0]
+			self.b = modParams[1]
 
 
 class IfNode(ASTNode):
@@ -1193,8 +1296,9 @@ class IfNode(ASTNode):
 			del self.bodyNodes[indexToRemove]
 			del self.conditionNodes[indexToRemove]
 
-		# we just changed the conditions, better recalculate
-		self.fillHolesForConcretePathConditionsHelper()
+		if self.program.dataGuided:
+			# we just changed the conditions, better recalculate
+			self.fillHolesForConcretePathConditionsHelper()
 
 def copyNode(node):
 	newNode = deepcopy(node)
@@ -1298,16 +1402,25 @@ class ComparisonNode(ASTNode):
 		else:
 			self.relationship = random.choice(self.ops.keys())
 
+	def lowerUpperBounds(self):
+		if self.program.dataGuided:
+			(lowerBound, upperBound) = self.node.range()
+			if lowerBound > -1:
+				lowerBound = -1 # you never know when you might need some low numbers for multiplying and such...
+		else:
+			lowerBound = -1
+			upperBound = 50
+		return lowerBound, upperBound
+
 	def firstMutate(self):
-		(lowerBound, upperBound) = self.node.range()
-		if lowerBound > -1:
-			lowerBound = -1 # you never know when you might need some low numbers for multiplying and such...
+		lowerBound, upperBound = self.lowerUpperBounds()
 		newNumber = NumberWrapper(self, lowerBound, upperBound)
 		self.value = newNumber
 		self.randomizeOperator()
 
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
-		self.parent.fillHolesForConcretePathConditionsHelper()
+		if self.program.dataGuided:
+			self.parent.fillHolesForConcretePathConditionsHelper()
 
 	def mutate(self):
 
@@ -1350,9 +1463,7 @@ class ComparisonNode(ASTNode):
 		elif decision < .6:
 			# Add an operator
 			if mutationDebug: print "Add an operator"
-			(lowerBound, upperBound) = self.node.range()
-			if lowerBound > -1:
-				lowerBound = -1 # you never know when you might need some low numbers for multiplying and such...
+			lowerBound, upperBound = self.lowerUpperBounds()
 			subExps = [self.value, NumberWrapper(self, lowerBound, upperBound)]
 			random.shuffle(subExps)
 			newExpression = BinExpNode("+", subExps[0], subExps[1])
@@ -1385,9 +1496,10 @@ class ComparisonNode(ASTNode):
 			# it's the same.  try again
 			return self.mutate()
 
-		# ok we've made a mutation that works
-		# we've changed the conditions.  better recalculate the things that depend on path conditions
-		self.parent.fillHolesForConcretePathConditionsHelper()
+		if self.program.dataGuided:
+			# ok we've made a mutation that works
+			# we've changed the conditions.  better recalculate the things that depend on path conditions
+			self.parent.fillHolesForConcretePathConditionsHelper()
 
 		if mutationDebug: print "after"
 		if mutationDebug: print self.strings()

@@ -162,9 +162,10 @@ class PPLSynthesisProblem(Annealer):
 	def makeInitialState(prog):
 		return prog
 
-	def setNeeded(self, dataset):
+	def setNeeded(self, dataset, dataGuided):
 		self.dataset = dataset
                 self.estimator = ScoreEstimator(dataset) # helpful to keep one estimator around the whole time, so we can just summarize the dataset once
+                self.dataGuided = dataGuided
 
 # **********************************************************************
 # Generate structures based on input dataset correlation
@@ -317,6 +318,9 @@ def main():
                         print "Debugging messages on."
                 blogScore = True if sys.argv[8] == "t" else False
                 #print blogScore
+                dataGuided = True if sys.argv[9] == "t" else False
+
+	print dataGuided
 
 	startTime = time.clock()
 
@@ -340,7 +344,7 @@ def main():
 
         # for the score stuff, it's helpful if we have an index on each node
         for node in nodesInDependencyOrder:
-                dataset.addIndex([node.name])
+                dataset.addIndex([node.name]) # this is for score, so we want this w or wo data-guided setting
 
 	AST = ASTNode()
 	for node in nodesInDependencyOrder:
@@ -349,7 +353,7 @@ def main():
                 if len(parents) > 1:
                         # if length of parents is 1, we'll already have added the index above
                         parentNames = map(lambda x: x.name, parents)
-                        dataset.addIndex(parentNames)
+                        if dataGuided: dataset.addIndex(parentNames)
 
 		if isinstance(node.distribInfo, BooleanDistribution):
 			internal = BooleanDistribNode(node.name)
@@ -389,12 +393,16 @@ def main():
 		variableNode = VariableDeclNode(node.name, node.distribInfo.typeName, internal)
 		AST.addChild(variableNode)
 
-	prog = Program(dataset)
+	prog = Program(False)
 	prog.setRoot(AST)
 
-	if debug: print "filling holes for concrete path conditions."
+	
 
-	AST.fillHolesForConcretePathConditions(dataset)
+	if dataGuided:
+		if debug: print "filling holes for concrete path conditions."
+		AST.fillHolesForConcretePathConditions(dataset)
+	else:
+		AST.fillHolesRandomly()
 
 	if mode == "reduction" or mode == "reductionProg":
 
@@ -449,7 +457,7 @@ def main():
 
 		initState = PPLSynthesisProblem.makeInitialState(prog)
 		saObj = PPLSynthesisProblem(initState)
-		saObj.setNeeded(dataset)
+		saObj.setNeeded(dataset, dataGuided)
 		saObj.steps = SAiterations # 100000 #how many iterations will we do?
 		saObj.updates = SAiterations # 100000 # how many times will we print current status
 		saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
