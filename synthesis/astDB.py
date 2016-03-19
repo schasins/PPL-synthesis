@@ -383,6 +383,7 @@ class Program:
 		totalWeight = 0
 		thresholds = []
 		associatedKeys = []
+
 		for key in self.randomizeableNodes:
 			nodes = self.randomizeableNodes[key]
 			if key == "IfNode":
@@ -593,6 +594,10 @@ class BooleanDistribNode(DistribNode):
 		else:
 			# make a small adjustment
 			self.percentTrue = self.percentTrue + random.uniform(-.1,.1)
+                        if self.percentTrue <= 0:
+                                self.percentTrue = 0.0000001
+                        if self.percentTrue > 1:
+                                self.percentTrue = 1
 
 	def getRandomizeableNodes(self):
 		if self.program.dataGuided:
@@ -664,7 +669,7 @@ class CategoricalDistribNode(DistribNode):
 		if self.valuesToPercentages == None:
 			self.valuesToPercentages = {}
 			for value in self.values:
-				self.valuesToPercentages[value] = random.uniform(0, 1) # note that BLOG automatically normalizes so they sum to 1
+				self.valuesToPercentages[value] = random.uniform(0, 1) # note that BLOG automatically normalizes so they sum to 1 -- but our score func doesn't!
 		elif random.uniform(0, 1) < .3:
 			# completely overwrite
 			value = random.choice(self.values)
@@ -673,6 +678,15 @@ class CategoricalDistribNode(DistribNode):
 			# make a small adjustment
 			value = random.choice(self.values)
 			self.valuesToPercentages[value] = self.valuesToPercentages[value] + random.uniform(-.1,.1)
+                # let's normalize
+                for x in self.valuesToPercentages.keys():
+                        if self.valuesToPercentages[x] < 0:
+                                self.valuesToPercentages[x] = 0.0000001
+                        elif self.valuesToPercentages[x] > 1:
+                                self.valuesToPercentages[x] = 1
+                total = reduce(lambda acc, x: self.valuesToPercentages[x] + acc, self.valuesToPercentages.keys(), 0)
+                for x in self.valuesToPercentages.keys():
+                        self.valuesToPercentages[x] = self.valuesToPercentages[x]/total
 
 	def getRandomizeableNodes(self):
 		if self.program.dataGuided:
@@ -848,7 +862,7 @@ class GaussianDistribNode(RealDistribNode):
 		return ls
 
 	def mutate(self):
-		lowerBound = .000000000000001
+		lowerBound = .0000000000001
 		upperBound = 40
 		if self.mu == None:
 			self.mu = random.uniform(lowerBound, upperBound) 
@@ -857,6 +871,8 @@ class GaussianDistribNode(RealDistribNode):
 			modParams = overwriteOrModifyOneParam(.3, [self.mu, self.sig], lowerBound, upperBound, -3, 3)
 			self.mu = modParams[0]
 			self.sig = modParams[1]
+                        if self.sig < .00001:
+                                self.sig = .00001
 
 class BetaDistribNode(RealDistribNode):
 	def __init__(self, varName, alpha=None, beta=None, percentMatchingRows = None):
@@ -902,6 +918,10 @@ class BetaDistribNode(RealDistribNode):
 			modParams = overwriteOrModifyOneParam(.3, [self.alpha, self.beta], lowerBound, upperBound, -3, 3)
 			self.alpha = modParams[0]
 			self.beta = modParams[1]
+                        if self.alpha < .0000001:
+                                self.alpha = .0000001
+                        if self.beta < .0000001:
+                                self.bet = .0000001
 
 												
 class GammaDistribNode(RealDistribNode):
@@ -948,6 +968,10 @@ class GammaDistribNode(RealDistribNode):
 			modParams = overwriteOrModifyOneParam(.3, [self.k, self.l], lowerBound, upperBound, -3, 3)
 			self.k = modParams[0]
 			self.l = modParams[1]
+                        if self.k < .0000001:
+                                self.k = .0000001
+                        if self.l < .0000001:
+                                self.l = .0000001
 
 
 class UniformRealDistribNode(RealDistribNode):
@@ -1006,6 +1030,10 @@ class UniformRealDistribNode(RealDistribNode):
 			modParams = overwriteOrModifyOneParam(.3, [self.a, self.b], lowerBound, upperBound, -3, 3)
 			self.a = modParams[0]
 			self.b = modParams[1]
+                if self.b < self.a:
+                        tmp = self.a
+                        self.a = self.b
+                        self.b = tmp
 
 
 class IfNode(ASTNode):

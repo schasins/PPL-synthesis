@@ -320,8 +320,6 @@ def main():
                 #print blogScore
                 dataGuided = True if sys.argv[9] == "t" else False
 
-	print dataGuided
-
 	startTime = time.clock()
 
 	dataset = Dataset(inputFile)
@@ -402,9 +400,8 @@ def main():
 		if debug: print "filling holes for concrete path conditions."
 		AST.fillHolesForConcretePathConditions(dataset)
 	else:
+                if debug: print "filling holes randomly."
 		AST.fillHolesRandomly()
-        print AST.strings()
-        print len(AST.strings())
 
 	if mode == "reduction" or mode == "reductionProg":
 
@@ -451,7 +448,6 @@ def main():
 	elif mode == "annealing":
 		# below is simulated annealing
 
-		AST.fillHolesRandomly()
 		if debug: print prog.programString()
 		# if debug: print AST.strings()
 

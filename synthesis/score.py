@@ -19,12 +19,10 @@ class Bernoulli:
             p = 0
         if p > 1 and p < 1.000001:
             p = 1
-            
+
         if p < 0:
-            print "Bernoulli", p
             raise ScoreError("Bernoulli: p < 0")
         if p > 1:
-            print "Bernoulli", p
             raise ScoreError("Bernoulli: p > 1")
         self.p = 1.0 * p
 
@@ -179,22 +177,17 @@ class VarCollector():
 # Likelihood estimator
 # **********************************************************************
 
-def checkPDF(pdf):
+def checkPDF(pdf, dist, ast):
     if pdf < 0:
-        print "name", name
-        print "dist", dist
-        print "val", val
         print "pdf = ", pdf
-        raise "Negative PDF"
+        print dist
+        print ast.strings()[0]
+        raise ScoreError("Negative PDF")
     
 def checkProb(p):
     if p < 0 or p > 1:
-        print p
-        print "name", name
-        print "dist", dist
-        print "val", val
         print "p = ", p
-        raise "p < 0 or p > 1"
+        raise ScoreError("p < 0 or p > 1")
 
 # Threshold to use DB for real distribution. Most benchmarks = 10000
 th = 20000
@@ -320,7 +313,7 @@ class ScoreEstimator(visitor):
             elif n < th:
                 for val in self.dataset.columns[col]:
                     pdf = dist.at(val)
-                    checkPDF(pdf)
+                    checkPDF(pdf, dist, ast)
                     if pdf == 0:
                         return -maxint
                     log_pdf = log(pdf)
@@ -330,7 +323,7 @@ class ScoreEstimator(visitor):
                 for mid in lookup:
                     count = lookup[mid]
                     pdf = dist.at(mid)
-                    checkPDF(pdf)
+                    checkPDF(pdf, dist, ast)
                     if count  > 0:
                         if pdf == 0:
                             return -maxint

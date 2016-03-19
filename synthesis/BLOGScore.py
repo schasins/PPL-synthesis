@@ -54,9 +54,11 @@ def blogLikelihoodScore(ast, dataset, filename):
 
     # run the new BLOG program from the file
 
+    command = "blog -n 10000 "+filename+" -s blog.sample.MHSampler"
+    print command
     
     #strOutput = subprocess.check_output(("blog -n 20000 "+filename).split(" "))
-    strOutput = subprocess.check_output(("blog -n 10000 "+filename+" -s blog.sample.MHSampler").split(" "))
+    strOutput = subprocess.check_output(command.split(" "))
 
     # parse the BLOG program's output
     logLikelihood = parseBLOGOutputForSumLikelihood(strOutput, dataset.numRows)
