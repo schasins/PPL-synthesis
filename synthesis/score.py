@@ -189,6 +189,7 @@ def checkPDF(pdf):
     
 def checkProb(p):
     if p < 0 or p > 1:
+        print p
         print "name", name
         print "dist", dist
         print "val", val

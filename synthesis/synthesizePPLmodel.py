@@ -403,6 +403,8 @@ def main():
 		AST.fillHolesForConcretePathConditions(dataset)
 	else:
 		AST.fillHolesRandomly()
+        print AST.strings()
+        print len(AST.strings())
 
 	if mode == "reduction" or mode == "reductionProg":
 

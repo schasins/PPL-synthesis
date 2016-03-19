@@ -174,9 +174,8 @@ class Dataset:
 		self.columnDistributionInformation = columnDistributionInformation
 		self.columnNumericColumns = columnNumericColumns
 		
-		if dataGuided:
-			self.columnMaxes = columnMaxes
-			self.columnMins = columnMins
+                self.columnMaxes = columnMaxes
+                self.columnMins = columnMins
 
 		# going to use the table for score even if not for data guidance
 		self.db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
