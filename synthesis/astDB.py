@@ -553,6 +553,7 @@ class BooleanDistribNode(DistribNode):
 		self.percentTrue = percentTrue
 		self.varName = varName
 		self.percentMatchingRows = percentMatchingRows
+                self.randomizeable = False
 
 	def params(self):
 		return [("Boolean", self.percentTrue, self.percentMatchingRows)]
@@ -579,6 +580,7 @@ class BooleanDistribNode(DistribNode):
 		if debug: print "concrete: bool", self.strings()
 
 	def fillHolesRandomly(self):
+                print "fillholesrandomly on boolean"
 		self.mutate()
 		self.program.addRandomizeableNode(self)
 		self.randomizeable = True
@@ -602,9 +604,12 @@ class BooleanDistribNode(DistribNode):
                                 self.percentTrue = 1
 
 	def getRandomizeableNodes(self):
+                print "boolean dataguided?", self.program.dataGuided
 		if self.program.dataGuided:
+                        print "not adding boolean"
 			return []
 		else:
+                        print "adding boolean"
 			return [self]
 
 class CategoricalDistribNode(DistribNode):
