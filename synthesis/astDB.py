@@ -1327,6 +1327,9 @@ class IfNode(ASTNode):
 			randomizeableNodesToRemove = self.bodyNodes[indexToRemove].getRandomizeableNodes()
 			randomizeableNodesToRemove += self.conditionNodes[indexToRemove].getRandomizeableNodes()
 			for node in randomizeableNodesToRemove:
+                                print self.strings()
+                                print node.strings()
+                                print "***********"
 				self.program.removeRandomizeableNode(node)
 
 			del self.bodyNodes[indexToRemove]
