@@ -7,7 +7,11 @@ stringToSeek = "_300_"
 structureGenerationStrategyNames = {"n": "Naive", "c": "Simple Correlation", "d": "Network Deconvolution"}
 orderedStrategyNames = ["Naive", "Simple Correlation", "Network Deconvolution"]
 
-groundTruthScores = {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
+# the scores below were calculated with the BLOG score
+groundTruthScores = {"biasedtugwar ": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricaneVariation" , -15238.8490086, "icecream": -452748.864924, "mixedCondition" : -139665.179804, "multipleBranches" : -127227.39559, "students": -582585.4996, "tugwarAddition" : -775090.947583, "uniform": -465729.222681}
+
+# the scores below were calculated with the current score estimator
+# groundTruthScores = {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
 # the scores below were calculated with another old score approach, before we fixed handling boolean distribs, and started using more estimation
 # groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 16969.33744363283, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48520.30263912328, 'uniform': 53189.889449844784, 'eyecolor': 24531.8331725655, 'icecream': 77940.73111092609, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 # the scores below were calculated with the old score approach, before we fixed it to handle ifs with more than 2 branches better
