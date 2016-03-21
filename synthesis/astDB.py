@@ -558,6 +558,10 @@ class BooleanDistribNode(DistribNode):
 	def params(self):
 		return [("Boolean", self.percentTrue, self.percentMatchingRows)]
 
+	def setProgram(self, program):
+		self.program = program
+		self.program.distribNodes = self.program.distribNodes + 1
+
 	def strings(self, tabs=0):
 		components = ["BooleanDistrib(", ") /*"+str(self.percentMatchingRows)+"*/"]
 		return [components[0]+str(self.percentTrue)+components[1]]
@@ -580,7 +584,7 @@ class BooleanDistribNode(DistribNode):
 		if debug: print "concrete: bool", self.strings()
 
 	def fillHolesRandomly(self):
-                print "fillholesrandomly on boolean"
+                # print "fillholesrandomly on boolean"
 		self.mutate()
 		self.program.addRandomizeableNode(self)
 		self.randomizeable = True
@@ -604,12 +608,13 @@ class BooleanDistribNode(DistribNode):
                                 self.percentTrue = 1
 
 	def getRandomizeableNodes(self):
-                print "boolean dataguided?", self.program.dataGuided
+                # print "boolean dataguided?", self.program.dataGuided
+                # print self.program
 		if self.program.dataGuided:
-                        print "not adding boolean"
+                        # print "not adding boolean"
 			return []
 		else:
-                        print "adding boolean"
+                        # print "adding boolean"
 			return [self]
 
 class CategoricalDistribNode(DistribNode):
@@ -1332,9 +1337,9 @@ class IfNode(ASTNode):
 			randomizeableNodesToRemove = self.bodyNodes[indexToRemove].getRandomizeableNodes()
 			randomizeableNodesToRemove += self.conditionNodes[indexToRemove].getRandomizeableNodes()
 			for node in randomizeableNodesToRemove:
-                                print self.strings()
-                                print node.strings()
-                                print "***********"
+                                # print self.strings()
+                                # print node.strings()
+                                # print "***********"
 				self.program.removeRandomizeableNode(node)
 
 			del self.bodyNodes[indexToRemove]
