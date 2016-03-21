@@ -384,6 +384,8 @@ class Program:
 		thresholds = []
 		associatedKeys = []
 
+                if mutationDebug: print self.randomizeableNodes
+
 		for key in self.randomizeableNodes:
 			nodes = self.randomizeableNodes[key]
 			if key == "IfNode":
@@ -1260,10 +1262,17 @@ class IfNode(ASTNode):
 		for i in range(len(self.bodyNodes)):
 			pathConditionAdditional = self.pathConditionForConditionNode(i)
 			if pathConditionAdditional == None:
-				# the path condition is no longer concrete, stop descending
-				continue
+				# the path condition is no longer concrete, we'd better make it concrete
+				self.conditionNodes[i].fillHolesRandomly()
+                                pathConditionAdditional = self.pathConditionForConditionNode(i)
 			newPathCondition = pathCondition + [pathConditionAdditional]
 			self.bodyNodes[i].fillHolesForConcretePathConditions(dataset, newPathCondition, currVariable)
+                
+		if self.conditionNodes[0].randomizeable:
+			# can randomize if this if conditions on a real or int
+			# doesn't make sense to add or remove branches for conditioning on bools, categoricals
+			self.program.addRandomizeableNode(self)
+			self.randomizeable = True
 
 	def getRandomizeableNodes(self):
 		ls = []

@@ -152,10 +152,11 @@ class PPLSynthesisProblem(Annealer):
 		self.state.mutate()
 
 	def energy(self):
-		global startTime, cleanTimingData
+		global startTime, cleanTimingData, cleanTimingOutput
 		currTime = time.clock()
 		score = -1*estimateScore(self.state.root, self.estimator)
 		cleanTimingData.append([currTime, score])
+                cleanTimingOutput.write(",".join(map(str, [currTime, score]))+"\n")
 		return score
 
 	@staticmethod
@@ -297,12 +298,13 @@ def deepcopyNode(node):
 
 startTime = 0
 cleanTimingData = []
+cleanTimingOutput = None
 
 
 dataset = None
 
 def main():
-	global startTime, cleanTimingData, dataset
+	global startTime, cleanTimingData, dataset, cleanTimingOutput
 
 	debug = False
 
@@ -399,10 +401,9 @@ def main():
 	if dataGuided:
 		if debug: print "filling holes for concrete path conditions."
 		AST.fillHolesForConcretePathConditions(dataset)
-	else:
-                if debug: print "filling holes randomly."
-		AST.fillHolesRandomly()
-
+        else:
+                AST.fillHolesRandomly()
+                
 	if mode == "reduction" or mode == "reductionProg":
 
 		def writeFile(prog, label):
@@ -464,7 +465,12 @@ def main():
 
 		endTime = time.clock()
 		distanceFromDataset = -1 * estimateScore(prog.root, saObj.estimator)
-		cleanTimingData.append([endTime, distanceFromDataset])
+		
+                
+		cleanTimingOutput = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+                cleanTimingData.append([endTime, distanceFromDataset])
+                cleanTimingOutput.write(",".join(map(str, [endTime, distanceFromDataset]))+"\n")
+
 		annealingOutput = []
 		if debug: print "About to anneal."
 		if len(prog.randomizeableNodes) > 0:
@@ -490,8 +496,6 @@ def main():
 		#pickle.dump(prog, output2)
 		output3 = open(outputDirectory+"/timingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
 		output3.write("\n".join(annealingOutput))
-		output4 = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
-		output4.write("\n".join(map(lambda row: ",".join(map(str, row)), cleanTimingData)))
                 
                 if blogScore:
                         score = blogLikelihoodScore(progOutput, dataset, outputDirectory+"/scoreData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.blog")
