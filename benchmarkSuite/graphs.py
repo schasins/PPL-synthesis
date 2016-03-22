@@ -490,3 +490,96 @@ if makeDataGuided:
 
 	fig.savefig('dataGuidedVsDataBlind.pdf', edgecolor='none', format='pdf')
 	plt.close()
+
+
+makeDataGuidedNormalized = True
+if makeDataGuidedNormalized:
+	strategy = "Network Deconvolution" # only going to do deconv for this one, since the data-blind verison was done with deconv
+	strategyBenchmarks = dataSets[strategy]
+	strategyBenchmarksDataBlind = dataSetsDatablind[strategy]
+
+
+	numBenchmarks = len(groundTruthScores.keys())
+	height = 5
+	width = numBenchmarks/height
+	if numBenchmarks % height > 0:
+		width += 1
+	# row and column sharing
+	f, axarr = plt.subplots(height, width, sharey='row')
+
+	benchmarkNamesSorted = sorted(groundTruthScores.keys())
+	redData = []
+	blueData = []
+	for i in range(len(benchmarkNamesSorted)):
+		benchmarkname = benchmarkNamesSorted[i]
+		y = i/width
+		x = i%width
+		ax = axarr[y, x] # is this the element we want?
+
+		dataGuidedTimeLists = []
+		dataGuidedScoreLists = []
+
+		# data guided
+		benchmarkRuns = strategyBenchmarks[benchmarkname]
+		for run in benchmarkRuns:
+			dataGuidedTimeLists.append(map(lambda x: x[0], run))
+			dataGuidedScoreLists.append(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run))
+
+		dataBlindTimeLists = []
+		dataBlindScoreLists = []
+
+		# data blind		
+		benchmarkRuns = strategyBenchmarksDataBlind[benchmarkname]
+		for run in benchmarkRuns:
+			dataBlindTimeLists.append(map(lambda x: x[0], run))
+			dataBlindScoreLists.append(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run))
+
+		maxTime = 0
+		for run in dataBlindTimeLists:
+			maxTimeForRun = run[-1]
+			if maxTimeForRun > maxTime:
+				maxTime = maxTimeForRun
+
+		for i in range(len(dataGuidedTimeLists)):
+			dataGuidedTimeLists[i].append(maxTime)
+			dataGuidedScoreLists[i].append(dataGuidedScoreLists[i][-1]) # just continue the last reached score till the end since search stopped before maxtime
+		for i in range(len(dataBlindTimeLists)):
+			dataBlindTimeLists[i].append(maxTime)
+			dataBlindScoreLists[i].append(dataBlindScoreLists[i][-1]) # just continue the last reached score till the end since search stopped before maxtime
+
+		for i in range(len(dataBlindTimeLists)):
+			ax.plot(dataBlindTimeLists[i], dataBlindScoreLists[i], "red")
+			redData.append(dataBlindScoreLists[i])
+		for i in range(len(dataGuidedTimeLists)):
+			ax.plot(dataGuidedTimeLists[i], dataGuidedScoreLists[i], "blue")
+			blueData.append(dataGuidedScoreLists[i])
+
+		ax.set_title(benchmarkname)
+
+		ax.set_ylim(bottom=0)
+		#ax.set_ylim(top=200000)
+		ax.set_ylim(top=6)
+		ax.set_xlim(right=maxTime)
+		if x == 0: ax.set_ylabel('Normalized Score', size=10)
+		ax.set_xlabel('Time (in Seconds)', size=10)
+
+	plt.subplots_adjust(hspace=.5, wspace=0.1)
+	plt.draw()
+	fig = plt.gcf()
+	fig.set_size_inches(13, 19)
+	#fig.subplots_adjust(bottom=0.2)
+
+	# we want to put the legend in the position of the last axarr item
+	pos1 = axarr[-1][-1].get_position()
+
+	for i in range(len(benchmarkNamesSorted), width * height):
+		y = i/width
+		x = i%width
+		fig.delaxes(axarr[y, x])
+
+	red_patch = mpatches.Patch(color='red', label='Data-blind')
+	blue_patch = mpatches.Patch(color='blue', label='Data-guided')
+	fig.legend((red_patch,blue_patch), ('Data-blind', 'Data-guided'), bbox_to_anchor = pos1, fontsize = 20, loc='center')
+
+	fig.savefig('dataGuidedVsDataBlindNormalized.pdf', edgecolor='none', format='pdf')
+	plt.close()
