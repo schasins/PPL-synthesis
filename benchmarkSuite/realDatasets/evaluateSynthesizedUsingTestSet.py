@@ -51,4 +51,5 @@ for dataRow in testData:
     if debug: print dif
     difs.append(dif)
 
+print difs
 print "Average difference from actual value, across test data:", np.mean(difs)

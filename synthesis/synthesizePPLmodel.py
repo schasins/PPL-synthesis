@@ -149,6 +149,8 @@ def distance(summary1, summary2):
 class PPLSynthesisProblem(Annealer):
 
 	def move(self):
+                print self.counter,
+                self.counter += 1
 		self.state.mutate()
 
 	def energy(self):
@@ -164,6 +166,7 @@ class PPLSynthesisProblem(Annealer):
 		return prog
 
 	def setNeeded(self, dataset, dataGuided):
+                self.counter = 0
 		self.dataset = dataset
                 self.estimator = ScoreEstimator(dataset) # helpful to keep one estimator around the whole time, so we can just summarize the dataset once
                 self.dataGuided = dataGuided
@@ -211,6 +214,9 @@ def generateStructureFromDatasetNetworkDeconvolution(dataset, connectionThreshol
 
 	a = np.array(correlationsMatrix)
 	x = ND(a)
+
+        for i in range(len(x)):
+                print x[i]
 
 	g = Graph()
 	for i in range(dataset.numColumns):

@@ -27,9 +27,9 @@ def writeSetToFile(filename, headers, data):
     for line in data:
         fileO.write(line)
 
-writeSetToFile("trainingData.csv", headers, data)
+writeSetToFile("trainingData2.csv", headers, data)
 print len(data)
-writeSetToFile("testingData.csv", headers, testingData)
+writeSetToFile("testingData2.csv", headers, testingData)
 print len(testingData)
 
 print numDataPoints
