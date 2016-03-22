@@ -1,28 +1,34 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
 import os
 import math
+
+debug = False
 
 stringToSeek = "_300_"
 structureGenerationStrategyNames = {"n": "Naive", "c": "Simple Correlation", "d": "Network Deconvolution"}
 orderedStrategyNames = ["Naive", "Simple Correlation", "Network Deconvolution"]
 
-# the scores below were calculated with the BLOG score
-groundTruthScores = {"biasedtugwar ": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricaneVariation" , -15238.8490086, "icecream": -452748.864924, "mixedCondition" : -139665.179804, "multipleBranches" : -127227.39559, "students": -582585.4996, "tugwarAddition" : -775090.947583, "uniform": -465729.222681}
+# the scores below were calculated with the BLOG score (2)
+groundTruthScores = {"mixedcondition" : -28459.8881144, "easytugwar": -432735.271522, "uniform": -433991.016223, "hurricanevariation": -15238.8490086, "eyecolor": -24451.4123102, "students": -494511.705397, "icecream": -243033.13365, "csi": -17600.7572927, "healthiness": -43402.871318, "grass": -107379.623116, "biasedtugwar": -57695.5202573, "multiplebranches": -38727.3369882, "tugwaraddition": -286552.895459, "burglary": -4769.55908746}
+# the scores below were calculated with the BLOG score (.2)
+# groundTruthScores2 = {"biasedtugwar": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricanevariation" : -15238.8490086, "icecream": -452748.864924, "mixedcondition" : -139665.179804, "multiplebranches" : -127227.39559, "students": -582585.4996, "tugwaraddition" : -775090.947583, "uniform": -465729.222681}
+
 
 # the scores below were calculated with the current score estimator
-# groundTruthScores = {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
+groundTruthScoreEstimates = {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
 # the scores below were calculated with another old score approach, before we fixed handling boolean distribs, and started using more estimation
 # groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 16969.33744363283, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48520.30263912328, 'uniform': 53189.889449844784, 'eyecolor': 24531.8331725655, 'icecream': 77940.73111092609, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 # the scores below were calculated with the old score approach, before we fixed it to handle ifs with more than 2 branches better
 #groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 17043.29694642003, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48001.39437425706, 'uniform': 53189.889449844784, 'eyecolor': 24542.81097722689, 'icecream': 79082.25931616548, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 
 dataSets = {}
-
+timingDataDir = "outputs/cleanTimingData"
 maxTime = 0
-for f in os.listdir(os.getcwd()):
+for f in os.listdir(os.getcwd()+"/"+timingDataDir):
     if stringToSeek in f:
-        fl = open(f, "r")
+        fl = open(timingDataDir+"/"+f, "r")
         benchmarkname = (f.split("-")[0]).lower()
         structureGenerationStrategy = structureGenerationStrategyNames[f.split("_")[-2]]
         lines = fl.readlines()
@@ -36,7 +42,34 @@ for f in os.listdir(os.getcwd()):
         sData[benchmarkname] = sBData
         dataSets[structureGenerationStrategy] = sData
 
-#print dataSets
+scoreData = {}
+scoreDataDir = "outputs/scoreData"
+for f in os.listdir(os.getcwd()+"/"+scoreDataDir):
+    if stringToSeek in f and ".score" in f:
+        fl = open(scoreDataDir+"/"+f, "r")
+        benchmarkname = (f.split("-")[0]).lower()
+        structureGenerationStrategy = structureGenerationStrategyNames[f.split("_")[-2]]
+        lines = fl.readlines()
+        sData = scoreData.get(structureGenerationStrategy, {})
+        sBData = sData.get(benchmarkname, [])
+        sBData.append(float(lines[0].strip()))
+        sData[benchmarkname] = sBData
+        scoreData[structureGenerationStrategy] = sData
+
+dataSetsDatablind = {}
+timingDataDir = "outputs/cleanTimingData"
+for f in os.listdir(os.getcwd()+"/"+timingDataDir):
+    if "_1000_" in f:
+        fl = open(timingDataDir+"/"+f, "r")
+        benchmarkname = (f.split("-")[0]).lower()
+        structureGenerationStrategy = structureGenerationStrategyNames[f.split("_")[-2]]
+        lines = fl.readlines()
+        data = map(lambda line: map(float, line.strip().split(",")), lines[:-1]) # -1 bc the last line doesn't include score
+        sData = dataSetsDatablind.get(structureGenerationStrategy, {})
+        sBData = sData.get(benchmarkname, [])
+        sBData.append(data)
+        sData[benchmarkname] = sBData
+        dataSetsDatablind[structureGenerationStrategy] = sData
 
 def timeToReachScore(timeScoreData, score):
 	for line in timeScoreData:
@@ -44,133 +77,34 @@ def timeToReachScore(timeScoreData, score):
 			return line[0]
 	return None
 
-makeMaxTimeToReachGroundtruth = False
-if makeMaxTimeToReachGroundtruth:
-	maxTimeToReachScore = 0
-	allBars = []
-	allBarErros = []
-	for strategy in orderedStrategyNames:
-		print "********************************"
-		print "Strategy: "+ strategy
-		print "********************************"
-		strategyBenchmarks = dataSets[strategy]
-		bars = []
-		barErrors = []
-		for benchmarkname in sorted(groundTruthScores.keys()):
-                        #print benchmarkname
-			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
-			if benchmarkRuns == None:
-				print "freak out freak out"
-				bars.append(-1)
-				barErrors.append(0)
-				continue
-			timeLs = []
-			for run in benchmarkRuns:
-				newTime = timeToReachScore(run, groundTruthScores[benchmarkname])
-				if (newTime == None):
-					timeLs = [-1] * len(benchmarkRuns)
-					break
-				timeLs.append(newTime)
-			avg = np.mean(timeLs)
-			stderr = np.std(timeLs)
-			if avg + stderr > maxTimeToReachScore:
-				maxTimeToReachScore = avg + stderr
-			bars.append(avg)
-			barErrors.append(stderr)
-			print benchmarkname, ":", timeLs
-		allBars.append(bars)
-		allBarErros.append(barErrors)
-	print allBars
-
-
-
-	timeoutTime = maxTimeToReachScore + 20
-	yAxisMax = int(20 * math.floor(float(timeoutTime)/20)) # round to lower multiple of 20
-	for i in range(len(allBars)):
-			allBars[i] = [yAxisMax if x == -1 else x for x in allBars[i]] # thse were the timeouts
-
-	x = np.array(range(len(strategyBenchmarks)))
-	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
-	locs, labels = plt.xticks(x, my_xticks)
-
-	strategies = orderedStrategyNames
-	print ",".join([""] +strategies)
-	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i],",",
-		for j in range(len(allBars)):
-			print allBars[j][i], ",",
-		print
-
-	print ",".join([""] +strategies)
-	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i],",",
-		for j in range(len(allBars)):
-			print allBarErros[j][i], ",",
-		print
-
-	ax = plt.subplot(111)
-	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
-	ax.bar(x, allBars[1],width=0.2,color='g',align='center', yerr=allBarErros[1], label=strategies[1], ecolor='k')
-	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', yerr=allBarErros[2], label=strategies[2], ecolor='k')
-
-	leg = plt.legend()
-	plt.setp(labels, rotation=90)
-	plt.gca().set_ylim(bottom=0)
-	plt.gca().set_ylim(top=yAxisMax)
-
-	plt.tick_params(
-	    axis='x',          # changes apply to the x-axis
-	    which='both',      # both major and minor ticks are affected
-	    bottom='off',      # ticks along the bottom edge are off
-	    top='off', labelsize=14) # labels along the bottom edge are off
-
-	plt.tick_params(
-	    axis='y',          # changes apply to the x-axis
-	    top='off', labelsize=16) # labels along the bottom edge are off
-
-	plt.draw()
-
-	# Get the bounding box of the original legend
-	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
-
-	plt.ylabel('Time in Seconds', size=18)
-
-	ax.legend(loc='upper left')
-
-	# # Change to location of the legend. 
-	# newX0 = 0
-	# newX1 = 10
-	# bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
-	# leg.set_bbox_to_anchor(bb)
-
-	fig = plt.gcf()
-	fig.set_size_inches(13, 8)
-	fig.subplots_adjust(bottom=0.2)
-	fig.savefig('timeToReachScore.pdf', edgecolor='none', format='pdf')
-	plt.close()
 
 makeMaxTimeToReachGroundtruth2 = False
 if makeMaxTimeToReachGroundtruth2:
+	threshold = 1.03
+
+	print "\n********************************"
+	print "Timing to reach as low as "+str(threshold)+" times ground truth score: means, errors across all runs"
+	print "********************************"
+
 	maxTimeToReachScore = 0
 	allBars = []
 	allBarErros = []
 	for strategy in orderedStrategyNames:
-		print "********************************"
-		print "Strategy: "+ strategy
-		print "********************************"
+		if debug: print "********************************"
+		if debug: print "Strategy: "+ strategy
+		if debug: print "********************************"
 		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
-		for benchmarkname in sorted(groundTruthScores.keys()):
+		for benchmarkname in sorted(groundTruthScoreEstimates.keys()):
 			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
 			if benchmarkRuns == None:
-				print "freak out freak out"
-				bars.append(-1)
-				barErrors.append(0)
-				continue
+				print "freak out freak out, no benchmark runs for", benchmarkname, strategy
+				print strategyBenchmarks.keys()
+				exit()
 			timeLs = []
 			for run in benchmarkRuns:
-				newTime = timeToReachScore(run, groundTruthScores[benchmarkname]*1.02) # for this one, we just want something close
+				newTime = timeToReachScore(run, groundTruthScoreEstimates[benchmarkname]*threshold) # for this one, we just want something close
 				if (newTime == None):
 					timeLs = [-1] * len(benchmarkRuns)
 					break
@@ -182,11 +116,11 @@ if makeMaxTimeToReachGroundtruth2:
 				maxTimeToReachScore = avg + stderr
 			bars.append(avg)
 			barErrors.append(stderr)
-			print benchmarkname, ":", timeLs
+			if debug: print benchmarkname, ":", timeLs
 		allBars.append(bars)
 		allBarErros.append(barErrors)
-		print "mean: ", np.mean(bars)
-	print allBars
+		if debug: print "mean: ", np.mean(bars)
+	if debug: print allBars
 
 
 	timeoutTime = maxTimeToReachScore + 20
@@ -202,6 +136,8 @@ if makeMaxTimeToReachGroundtruth2:
 			print allBars[j][i], ",",
 		print
 
+	print 
+
 	print ",".join([""] +strategies)
 	for i in range(len(allBars[0])):
 		print sorted(groundTruthScores.keys())[i],",",
@@ -216,10 +152,8 @@ if makeMaxTimeToReachGroundtruth2:
 	locs, labels = plt.xticks(x, my_xticks)
 
 
-        print "888888888888888"
-
-
 	ax = plt.subplot(111)
+
 	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
 	ax.bar(x, allBars[1],width=0.2,color='g',align='center', yerr=allBarErros[1], label=strategies[1], ecolor='k')
 	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', yerr=allBarErros[2], label=strategies[2], ecolor='k')
@@ -257,35 +191,36 @@ if makeMaxTimeToReachGroundtruth2:
 	fig = plt.gcf()
 	fig.set_size_inches(13, 8)
 	fig.subplots_adjust(bottom=0.2)
-	fig.savefig('timeToReachScore2.pdf', edgecolor='none', format='pdf')
+	fig.savefig('timeToReachScore2_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
 	plt.close()
 
 makeLowestScore = False
 if makeLowestScore:
+	print "\n********************************"
+	print "BLOG-estimated likelihood score: lowest across all runs"
+	print "********************************"
 	highestLowesScore = 0
 	allBars = []
 	allBarErros = []
 	for strategy in orderedStrategyNames:
-		print "********************************"
-		print "Strategy: "+ strategy
-		print "********************************"
-		strategyBenchmarks = dataSets[strategy]
+		if debug: print "********************************"
+		if debug: print "Strategy: "+ strategy
+		if debug: print "********************************"
+		strategyBenchmarks = scoreData[strategy]
 		bars = []
 		barErrors = []
 		for benchmarkname in sorted(groundTruthScores.keys()):
 			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
 			if benchmarkRuns == None:
 				print "freak out freak out"
+				exit()
 			lowestScores = []
-			for run in benchmarkRuns:
-				lowestScore = min(map(lambda x: x[1], run))
-				lowestScores.append(lowestScore)
-			lowest = min(lowestScores)
+			lowest = min(map(abs, benchmarkRuns)) # they're negative, so we want the smallest abs value
                         #print lowest
                         #print groundTruthScores[benchmarkname]
-			bars.append(lowest/groundTruthScores[benchmarkname]) # normalize
+			bars.append(lowest/abs(groundTruthScores[benchmarkname])) # normalize
 			#barErrors.append(stderr)
-			print benchmarkname, ":", lowest
+			if debug: print benchmarkname, ":", lowest
 		allBars.append(bars)
 		#allBarErros.append(barErrors)
 
@@ -337,7 +272,7 @@ if makeLowestScore:
 	# Get the bounding box of the original legend
 	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	plt.ylabel('Lowest Achieved Score (Normalized to Ground Truth Score)', size=18)
+	plt.ylabel('Final Score (Normalized to Ground Truth Score)', size=18)
 
 	ax.legend(loc='upper left')
 
@@ -368,31 +303,31 @@ if makeLowestScore:
 	plt.close()
 
 
-makeLowestScore2 = True
+makeLowestScore2 = False
 if makeLowestScore2:
+	print "\n********************************"
+	print "BLOG-estimated likelihood score: means and errors across all runs"
+	print "********************************"
 	highestLowesScore = 0
 	allBars = []
 	allBarErros = []
 	for strategy in orderedStrategyNames:
-		print "********************************"
-		print "Strategy: "+ strategy
-		print "********************************"
-		strategyBenchmarks = dataSets[strategy]
+		if debug: print "********************************"
+		if debug: print "Strategy: "+ strategy
+		if debug: print "********************************"
+		strategyBenchmarks = scoreData[strategy]
 		bars = []
 		barErrors = []
 		for benchmarkname in sorted(groundTruthScores.keys()):
 			benchmarkRuns = strategyBenchmarks[benchmarkname]
 			lowestScores = []
 			for run in benchmarkRuns:
-				lowestScore = min(map(lambda x: x[1], run))
+				if debug: print run
+				lowestScore = run / groundTruthScores[benchmarkname] # normalize
 				lowestScores.append(lowestScore)
-                        lowestLs = map(lambda x: x/groundTruthScores[benchmarkname], lowestScores)
-			#lowest = min(lowestScores)
-                        #print lowest
-                        #print groundTruthScores[benchmarkname]
-			bars.append(np.mean(lowestLs)) # normalize
-			barErrors.append(np.std(lowestLs))
-			print benchmarkname, ":", lowestLs
+			bars.append(np.mean(lowestScores))
+			barErrors.append(np.std(lowestScores))
+			if debug: print benchmarkname, ":", lowestScores
 		allBars.append(bars)
 		allBarErros.append(barErrors)
 
@@ -404,6 +339,8 @@ if makeLowestScore2:
 		for j in range(len(allBars)):
 			print allBars[j][i], ",",
 		print
+
+	print
 
 	print ",".join([""] +strategies)
 	for i in range(len(allBars[0])):
@@ -445,7 +382,7 @@ if makeLowestScore2:
 	# Get the bounding box of the original legend
 	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	plt.ylabel('Lowest Achieved Score (Normalized to Ground Truth Score)', size=18)
+	plt.ylabel('Final Score (Normalized to Ground Truth Score)', size=18)
 
 	ax.legend(loc='upper left')
 
@@ -461,4 +398,95 @@ if makeLowestScore2:
 	fig.set_size_inches(13, 8)
 	fig.subplots_adjust(bottom=0.2)
 	fig.savefig('lowestScore2.pdf', edgecolor='none', format='pdf')
+	plt.close()
+
+makeDataGuided = True
+if makeDataGuided:
+	strategy = "Network Deconvolution" # only going to do deconv for this one, since the data-blind verison was done with deconv
+	strategyBenchmarks = dataSets[strategy]
+	strategyBenchmarksDataBlind = dataSetsDatablind[strategy]
+
+
+	numBenchmarks = len(groundTruthScores.keys())
+	height = 5
+	width = numBenchmarks/height
+	if numBenchmarks % height > 0:
+		width += 1
+	# row and column sharing
+	f, axarr = plt.subplots(height, width, sharey='row')
+
+	benchmarkNamesSorted = sorted(groundTruthScores.keys())
+	redData = []
+	blueData = []
+	for i in range(len(benchmarkNamesSorted)):
+		benchmarkname = benchmarkNamesSorted[i]
+		y = i/width
+		x = i%width
+		ax = axarr[y, x] # is this the element we want?
+
+		dataGuidedTimeLists = []
+		dataGuidedScoreLists = []
+
+		# data guided
+		benchmarkRuns = strategyBenchmarks[benchmarkname]
+		for run in benchmarkRuns:
+			dataGuidedTimeLists.append(map(lambda x: x[0], run))
+			dataGuidedScoreLists.append(map(lambda x: x[1], run))
+
+		dataBlindTimeLists = []
+		dataBlindScoreLists = []
+
+		# data blind		
+		benchmarkRuns = strategyBenchmarksDataBlind[benchmarkname]
+		for run in benchmarkRuns:
+			dataBlindTimeLists.append(map(lambda x: x[0], run))
+			dataBlindScoreLists.append(map(lambda x: x[1], run))
+
+		maxTime = 0
+		for run in dataBlindTimeLists:
+			maxTimeForRun = run[-1]
+			if maxTimeForRun > maxTime:
+				maxTime = maxTimeForRun
+
+		for i in range(len(dataGuidedTimeLists)):
+			dataGuidedTimeLists[i].append(maxTime)
+			dataGuidedScoreLists[i].append(dataGuidedScoreLists[i][-1]) # just continue the last reached score till the end since search stopped before maxtime
+		for i in range(len(dataBlindTimeLists)):
+			dataBlindTimeLists[i].append(maxTime)
+			dataBlindScoreLists[i].append(dataBlindScoreLists[i][-1]) # just continue the last reached score till the end since search stopped before maxtime
+
+		for i in range(len(dataBlindTimeLists)):
+			ax.plot(dataBlindTimeLists[i], dataBlindScoreLists[i], "red")
+			redData.append(dataBlindScoreLists[i])
+		for i in range(len(dataGuidedTimeLists)):
+			ax.plot(dataGuidedTimeLists[i], dataGuidedScoreLists[i], "blue")
+			blueData.append(dataGuidedScoreLists[i])
+
+		ax.set_title(benchmarkname)
+
+		ax.set_ylim(bottom=0)
+		ax.set_ylim(top=200000)
+		ax.set_xlim(right=maxTime)
+		if x == 0: ax.set_ylabel('Score', size=10)
+		ax.set_xlabel('Time (in Seconds)', size=10)
+
+	plt.subplots_adjust(hspace=.5, wspace=0.1)
+	plt.draw()
+	fig = plt.gcf()
+	fig.set_size_inches(13, 19)
+	#fig.subplots_adjust(bottom=0.2)
+
+	# we want to put the legend in the position of the last axarr item
+	pos1 = axarr[-1][-1].get_position()
+
+	for i in range(len(benchmarkNamesSorted), width * height):
+		y = i/width
+		x = i%width
+		fig.delaxes(axarr[y, x])
+
+	red_patch = mpatches.Patch(color='red', label='Data-blind')
+	blue_patch = mpatches.Patch(color='blue', label='Data-guided')
+	fig.legend((red_patch,blue_patch), ('Data-blind', 'Data-guided'), bbox_to_anchor = pos1, fontsize = 20, loc='center')
+
+	fig.savefig('dataGuidedVsDataBlind.pdf', edgecolor='none', format='pdf')
 	plt.close()

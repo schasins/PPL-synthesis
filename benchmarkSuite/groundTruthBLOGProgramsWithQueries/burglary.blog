@@ -39,7 +39,6 @@ obs MaryCalls = true;
 //query Burglary;
 
 
-
 query Burglary == false & Earthquake == false & Alarm == false & JohnCalls == false & MaryCalls == false;
 query Burglary == false & Earthquake == false & Alarm == false & JohnCalls == false & MaryCalls == false;
 query Burglary == false & Earthquake == false & Alarm == false & JohnCalls == false & MaryCalls == false;

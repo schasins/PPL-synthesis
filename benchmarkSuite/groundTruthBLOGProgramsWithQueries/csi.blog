@@ -20,7 +20,6 @@ random Boolean X ~
 //query X;
 
 
-
 query U == true & V == true & W == false & X == false;
 query U == false & V == true & W == false & X == true;
 query U == false & V == true & W == false & X == true;
