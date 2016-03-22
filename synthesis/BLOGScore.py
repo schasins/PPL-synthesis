@@ -15,7 +15,7 @@ def generateQueryString(dataset):
         equalities = []
         for i in range(len(varNames)):
             if isinstance(varTypes[i], RealDistribution):
-                equalities.append(varNames[i]+" > "+str(float(row[i])-1)+" & "+varNames[i]+" < "+str(float(row[i])+1))
+                equalities.append(varNames[i]+" > "+str(float(row[i])-.1)+" & "+varNames[i]+" < "+str(float(row[i])+.1))
             else:
                 equalities.append(varNames[i]+" == "+str(row[i]))
         queryStr += "query " + (" & ".join(equalities)) + ";\n"
