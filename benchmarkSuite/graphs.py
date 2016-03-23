@@ -129,23 +129,14 @@ if makeMaxTimeToReachGroundtruth2:
 			allBars[i] = [yAxisMax if x == -1 else x for x in allBars[i]] # thse were the timeouts
 
 	strategies = orderedStrategyNames
-	print ",".join([""] +strategies)
+	print ' "-" '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
 	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i],",",
+		print sorted(groundTruthScores.keys())[i]," ",
 		for j in range(len(allBars)):
-			print allBars[j][i], ",",
+			print allBars[j][i], " ", allBarErros[j][i], " ",
 		print
 
 	print 
-
-	print ",".join([""] +strategies)
-	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i],",",
-		for j in range(len(allBars)):
-			print allBarErros[j][i], ",",
-		print
-        
-        print
 
         print ",".join([""] + strategies)
         avgs = map(lambda ls: np.mean(ls), allBars)
@@ -230,16 +221,15 @@ if makeLowestScore:
 		#allBarErros.append(barErrors)
 
 	strategies = orderedStrategyNames
-
-
-	print ",".join([""] +strategies)
+	print ' '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
 	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i],",",
+		print sorted(groundTruthScores.keys())[i]," ",
 		for j in range(len(allBars)):
-			print allBars[j][i], ",",
+			print allBars[j][i], " ", 
 		print
 
-        print
+	print 
+
 
         print ",".join([""] + strategies)
         avgs = map(lambda ls: np.mean(ls), allBars)
@@ -342,23 +332,14 @@ if makeLowestScore2:
 		allBarErros.append(barErrors)
 
 
+
 	strategies = orderedStrategyNames
-	print ",".join([""] +strategies)
+	print ' "-" '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
 	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i],",",
+		print sorted(groundTruthScores.keys())[i]," ",
 		for j in range(len(allBars)):
-			print allBars[j][i], ",",
+			print allBars[j][i], " ", allBarErros[j][i], " ",
 		print
-
-	print
-
-	print ",".join([""] +strategies)
-	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i],",",
-		for j in range(len(allBars)):
-			print allBarErros[j][i], ",",
-		print
-
 
         print
 
