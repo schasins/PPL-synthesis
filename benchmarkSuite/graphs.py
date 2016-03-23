@@ -9,6 +9,7 @@ debug = False
 
 threshold = float(sys.argv[1])
 interval = sys.argv[2]
+BLOGScores = sys.argv[3]== "t" or sys.argv[3]=="true" or sys.argv[3]=="True"
 
 if interval != "2" and interval != ".2":
     print "sorry, we can only handle intervals 2 and .2.  try again."
@@ -116,7 +117,8 @@ if makeMaxTimeToReachGroundtruth2:
 				exit()
 			timeLs = []
 			for run in benchmarkRuns:
-				newTime = timeToReachScore(run, groundTruthScoreEstimates[benchmarkname]*threshold) # for this one, we just want something close
+                                limitScore = groundTruthScoreEstimates[benchmarkname]*threshold
+				newTime = timeToReachScore(run, limitScore) # for this one, we just want something close
 				if (newTime == None):
 					timeLs = [-1] * len(benchmarkRuns)
 					break
@@ -202,10 +204,15 @@ if makeMaxTimeToReachGroundtruth2:
 	fig.savefig('timeToReachScore2_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
 	plt.close()
 
+
 makeLowestScore = True
 if makeLowestScore:
 	print "\n********************************"
-	print "BLOG-estimated likelihood score: lowest across all runs"
+	print "Estimated likelihood score: lowest across all runs"
+        if BLOGScores:
+            print "Estimated with BLOG, reflects final score after run"
+        else:
+            print "Estimated with our likelihood estimation, reflects lowest score at any point during annealing"
 	print "********************************"
 	highestLowesScore = 0
 	allBars = []
@@ -214,19 +221,36 @@ if makeLowestScore:
 		if debug: print "********************************"
 		if debug: print "Strategy: "+ strategy
 		if debug: print "********************************"
-		strategyBenchmarks = scoreData[strategy]
+                if BLOGScores:
+                    strategyBenchmarks = scoreData[strategy]
+                else:
+                    strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
 		for benchmarkname in sorted(groundTruthScores.keys()):
-			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
-			if benchmarkRuns == None:
+                        if not BLOGScores:
+                            groundTruthScore = groundTruthScoreEstimates[benchmarkname]
+                            
+                            benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+                            if benchmarkRuns == None:
+                                print "freak out freak out"
+                                exit()
+                            lowestScores = []
+                            for run in benchmarkRuns:
+                                lowestScore = min(map(lambda x: x[1], run))
+                                lowestScores.append(lowestScore)
+                            lowest = min(lowestScores)
+                            bars.append(lowest/groundTruthScore) # normalize
+                        else:
+                            benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+                            if benchmarkRuns == None:
 				print "freak out freak out"
 				exit()
-			lowestScores = []
-			lowest = min(map(abs, benchmarkRuns)) # they're negative, so we want the smallest abs value
-                        #print lowest
-                        #print groundTruthScores[benchmarkname]
-			bars.append(lowest/abs(groundTruthScores[benchmarkname])) # normalize
+                            lowestScores = []
+                            lowest = min(map(abs, benchmarkRuns)) # they're negative, so we want the smallest abs value
+                            #print lowest
+                            groundTruthScore = groundTruthScores[benchmarkname]
+                            bars.append(lowest/abs(groundTruthScore)) # normalize
 			#barErrors.append(stderr)
 			if debug: print benchmarkname, ":", lowest
 		allBars.append(bars)
@@ -315,10 +339,14 @@ if makeLowestScore:
 	plt.close()
 
 
-makeLowestScore2 = True
+makeLowestScore2 = False
 if makeLowestScore2:
 	print "\n********************************"
-	print "BLOG-estimated likelihood score: means and errors across all runs"
+	print "Estimated likelihood score: means and errors across all runs"
+        if BLOGScores:
+            print "Estimated with BLOG"
+        else:
+            print "Estimated with our likelihood estimation"
 	print "********************************"
 	highestLowesScore = 0
 	allBars = []
@@ -335,7 +363,10 @@ if makeLowestScore2:
 			lowestScores = []
 			for run in benchmarkRuns:
 				if debug: print run
-				lowestScore = run / groundTruthScores[benchmarkname] # normalize
+                                groundTruthScore = groundTruthScoreEstimates[benchmarkname]
+                                if BLOGScores:
+                                    groundTruthScore = groundTruthScores[benchmarkname]
+				lowestScore = run / groundTruthScore # normalize
 				lowestScores.append(lowestScore)
 			bars.append(np.mean(lowestScores))
 			barErrors.append(np.std(lowestScores))
