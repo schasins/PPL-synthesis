@@ -7,13 +7,13 @@ import math
 debug = False
 
 stringToSeek = "_300_"
-structureGenerationStrategyNames = {"n": "Naive", "c": "Simple Correlation", "d": "Network Deconvolution"}
-orderedStrategyNames = ["Naive", "Simple Correlation", "Network Deconvolution"]
+structureGenerationStrategyNames = {"n": "Complete", "c": "Simple Correlation", "d": "Network Deconvolution"}
+orderedStrategyNames = ["Complete", "Simple Correlation", "Network Deconvolution"]
 
 # the scores below were calculated with the BLOG score (2)
 groundTruthScores = {"mixedcondition" : -28459.8881144, "easytugwar": -432735.271522, "uniform": -433991.016223, "hurricanevariation": -15238.8490086, "eyecolor": -24451.4123102, "students": -494511.705397, "icecream": -243033.13365, "csi": -17600.7572927, "healthiness": -43402.871318, "grass": -107379.623116, "biasedtugwar": -57695.5202573, "multiplebranches": -38727.3369882, "tugwaraddition": -286552.895459, "burglary": -4769.55908746}
 # the scores below were calculated with the BLOG score (.2)
-# groundTruthScores2 = {"biasedtugwar": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricanevariation" : -15238.8490086, "icecream": -452748.864924, "mixedcondition" : -139665.179804, "multiplebranches" : -127227.39559, "students": -582585.4996, "tugwaraddition" : -775090.947583, "uniform": -465729.222681}
+# groundTruthScores = {"biasedtugwar": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricanevariation" : -15238.8490086, "icecream": -452748.864924, "mixedcondition" : -139665.179804, "multiplebranches" : -127227.39559, "students": -582585.4996, "tugwaraddition" : -775090.947583, "uniform": -465729.222681}
 
 
 # the scores below were calculated with the current score estimator
@@ -78,7 +78,7 @@ def timeToReachScore(timeScoreData, score):
 	return None
 
 
-makeMaxTimeToReachGroundtruth2 = False
+makeMaxTimeToReachGroundtruth2 = True
 if makeMaxTimeToReachGroundtruth2:
 	threshold = 1.03
 
@@ -144,8 +144,13 @@ if makeMaxTimeToReachGroundtruth2:
 		for j in range(len(allBars)):
 			print allBarErros[j][i], ",",
 		print
+        
+        print
 
-
+        print ",".join([""] + strategies)
+        avgs = map(lambda ls: np.mean(ls), allBars)
+        print ",".join(map(lambda x: str(x), avgs))
+        
 
 	x = np.array(range(len(strategyBenchmarks)))
 	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
@@ -194,7 +199,7 @@ if makeMaxTimeToReachGroundtruth2:
 	fig.savefig('timeToReachScore2_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
 	plt.close()
 
-makeLowestScore = False
+makeLowestScore = True
 if makeLowestScore:
 	print "\n********************************"
 	print "BLOG-estimated likelihood score: lowest across all runs"
@@ -234,6 +239,11 @@ if makeLowestScore:
 			print allBars[j][i], ",",
 		print
 
+        print
+
+        print ",".join([""] + strategies)
+        avgs = map(lambda ls: np.mean(ls), allBars)
+        print ",".join(map(lambda x: str(x), avgs))
 
 	x = np.array(range(len(strategyBenchmarks)))
 	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
@@ -303,7 +313,7 @@ if makeLowestScore:
 	plt.close()
 
 
-makeLowestScore2 = False
+makeLowestScore2 = True
 if makeLowestScore2:
 	print "\n********************************"
 	print "BLOG-estimated likelihood score: means and errors across all runs"
@@ -348,6 +358,13 @@ if makeLowestScore2:
 		for j in range(len(allBars)):
 			print allBarErros[j][i], ",",
 		print
+
+
+        print
+
+        print ",".join([""] + strategies)
+        avgs = map(lambda ls: np.mean(ls), allBars)
+        print ",".join(map(lambda x: str(x), avgs))
 
 	x = np.array(range(len(strategyBenchmarks)))
 	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
@@ -418,6 +435,10 @@ if makeDataGuided:
 	benchmarkNamesSorted = sorted(groundTruthScores.keys())
 	redData = []
 	blueData = []
+        dataGuidedTimesToGetClose = []
+        dataBlindTimesToGetClose = []
+        dataGuidedLowestScores = []
+        dataBlindLowestScores = []
 	for i in range(len(benchmarkNamesSorted)):
 		benchmarkname = benchmarkNamesSorted[i]
 		y = i/width
@@ -432,6 +453,9 @@ if makeDataGuided:
 		for run in benchmarkRuns:
 			dataGuidedTimeLists.append(map(lambda x: x[0], run))
 			dataGuidedScoreLists.append(map(lambda x: x[1], run))
+                        timeToGetClose = timeToReachScore(run, groundTruthScoreEstimates[benchmarkname]*threshold)
+                        dataGuidedTimesToGetClose.append(timeToGetClose)
+                        dataGuidedLowestScores.append(min(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run)))
 
 		dataBlindTimeLists = []
 		dataBlindScoreLists = []
@@ -441,6 +465,9 @@ if makeDataGuided:
 		for run in benchmarkRuns:
 			dataBlindTimeLists.append(map(lambda x: x[0], run))
 			dataBlindScoreLists.append(map(lambda x: x[1], run))
+                        timeToGetClose = timeToReachScore(run, groundTruthScoreEstimates[benchmarkname]*threshold)
+                        dataBlindTimesToGetClose.append(timeToGetClose)
+                        dataBlindLowestScores.append(min(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run)))
 
 		maxTime = 0
 		for run in dataBlindTimeLists:
@@ -491,6 +518,31 @@ if makeDataGuided:
 	fig.savefig('dataGuidedVsDataBlind.pdf', edgecolor='none', format='pdf')
 	plt.close()
 
+        # print "time for data-guided to get close to ground truth: \t", dataGuidedTimesToGetClose
+        dgLen = len(dataGuidedTimesToGetClose) 
+        print dgLen
+        neverReached = len(filter(lambda x: x == None, dataGuidedTimesToGetClose))
+        print "percent reached: ", float(dgLen - neverReached)/dgLen
+        print "among those that reach, average time to reach: ", 
+        dgAvg = np.mean(filter(lambda x: x != None, dataGuidedTimesToGetClose))
+        print dgAvg
+
+        # print "time for data-blind to get close to ground truth: \t", dataBlindTimesToGetClose
+        dbLen = len(dataBlindTimesToGetClose)
+        print dbLen
+        neverReached = len(filter(lambda x: x == None, dataBlindTimesToGetClose))
+        print "percent reached: ", float(dbLen - neverReached)/dbLen
+        print "among those that reach, average time to reach: ", 
+        dbAvg = np.mean(filter(lambda x: x != None, dataBlindTimesToGetClose))
+        print dbAvg
+
+        ratio = dbAvg/dgAvg
+        print "data-blind average over data-guided average", ratio
+
+        dgLowestScoreAvg = np.mean(dataGuidedLowestScores)
+        dbLowestScoreAvg = np.mean(dataBlindLowestScores)
+        print "Average Normalized Best Score Per Run (data-guided):", dgLowestScoreAvg
+        print "Average Normalized Best Score Per Run (data-blind):", dbLowestScoreAvg
 
 makeDataGuidedNormalized = True
 if makeDataGuidedNormalized:
