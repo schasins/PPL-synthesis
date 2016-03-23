@@ -3,17 +3,30 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import os
 import math
+import sys
 
 debug = False
 
-stringToSeek = "_300_"
+threshold = float(sys.argv[1])
+interval = sys.argv[2]
+
+if interval != "2" and interval != ".2":
+    print "sorry, we can only handle intervals 2 and .2.  try again."
+    exit()
+
+
 structureGenerationStrategyNames = {"n": "Complete", "c": "Simple Correlation", "d": "Network Deconvolution"}
 orderedStrategyNames = ["Complete", "Simple Correlation", "Network Deconvolution"]
 
 # the scores below were calculated with the BLOG score (2)
 groundTruthScores = {"mixedcondition" : -28459.8881144, "easytugwar": -432735.271522, "uniform": -433991.016223, "hurricanevariation": -15238.8490086, "eyecolor": -24451.4123102, "students": -494511.705397, "icecream": -243033.13365, "csi": -17600.7572927, "healthiness": -43402.871318, "grass": -107379.623116, "biasedtugwar": -57695.5202573, "multiplebranches": -38727.3369882, "tugwaraddition": -286552.895459, "burglary": -4769.55908746}
 # the scores below were calculated with the BLOG score (.2)
-# groundTruthScores = {"biasedtugwar": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricanevariation" : -15238.8490086, "icecream": -452748.864924, "mixedcondition" : -139665.179804, "multiplebranches" : -127227.39559, "students": -582585.4996, "tugwaraddition" : -775090.947583, "uniform": -465729.222681}
+groundTruthScores2 = {"biasedtugwar": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricanevariation" : -15238.8490086, "icecream": -452748.864924, "mixedcondition" : -139665.179804, "multiplebranches" : -127227.39559, "students": -582585.4996, "tugwaraddition" : -775090.947583, "uniform": -465729.222681}
+
+stringToSeek = "_300_"
+if interval == ".2":
+    stringToSeek = "_250_"
+    groundTruthScores = groundTruthScores2
 
 
 # the scores below were calculated with the current score estimator
@@ -80,7 +93,6 @@ def timeToReachScore(timeScoreData, score):
 
 makeMaxTimeToReachGroundtruth2 = True
 if makeMaxTimeToReachGroundtruth2:
-	threshold = 1.03
 
 	print "\n********************************"
 	print "Timing to reach as low as "+str(threshold)+" times ground truth score: means, errors across all runs"
