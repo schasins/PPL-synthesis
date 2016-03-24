@@ -17,10 +17,9 @@ testData = testData[1:]
 
 guessesFileName = "guesses/"+synthesizedProgramFilename.split("/")[-1]+"_"+testDataFilename.split("/")[-1]+".guesses"
 
-print os.path.isfile(guessesFileName)
+if not os.path.isfile(guessesFileName) or len(open(guessesFileName,"r").readlines()) < len(testData):
+    print "must collect new data for ", synthesizedProgramFilename
 
-if not os.path.isfile(guessesFileName):
-    
     savedGuesses = open(guessesFileName, "w")
 
     for dataRow in testData:
@@ -57,8 +56,8 @@ if not os.path.isfile(guessesFileName):
     savedGuesses.close()
 
 f = open(guessesFileName, "r")
-guesses = map(lambda x: float(x.strip()), f.readlines())
-
+guesses = map(lambda x: x.strip(), f.readlines())
+#guesses = map(lambda x: float(x), filter(lambda x: x!="nan", guesses))
 
 difs = []
 for i in range(len(testData)):
@@ -66,11 +65,13 @@ for i in range(len(testData)):
     values = dataRow.split(",")
     guess = guesses[i]
     if debug: print guess
+    if guess == "nan":
+        continue
 
     actualOutput = float(values[-1].strip())
     if debug: print actualOutput
 
-    dif = abs(actualOutput - guess)
+    dif = abs(actualOutput - float(guess))
     if debug: print dif
     difs.append(dif)
 
@@ -79,6 +80,7 @@ strs = ["******************", synthesizedProgramFilename]
 
 strs.append("min error: "+str(min(difs)))
 strs.append("max error: "+str(max(difs)))
+strs.append("sum: "+str(sum(difs)))
 avg = float(sum(difs))/len(difs)
 strs.append("mean error: "+str(avg))
 squaredErrors = map(lambda x: x**2, difs)

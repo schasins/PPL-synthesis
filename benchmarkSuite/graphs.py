@@ -339,6 +339,116 @@ if makeLowestScore:
 	plt.close()
 
 
+
+
+makeTimeToReachLowestScore = True
+if makeTimeToReachLowestScore:
+	print "\n********************************"
+	print "Estimated likelihood score: time to reach lowest"
+        print "Estimated with our likelihood estimation, reflects lowest score at any point during annealing"
+	print "********************************"
+	highestLowesScore = 0
+	allBars = []
+	allBarErros = []
+	for strategy in orderedStrategyNames:
+		if debug: print "********************************"
+		if debug: print "Strategy: "+ strategy
+		if debug: print "********************************"
+                if BLOGScores:
+                    strategyBenchmarks = scoreData[strategy]
+                else:
+                    strategyBenchmarks = dataSets[strategy]
+		bars = []
+		barErrors = []
+		for benchmarkname in sorted(groundTruthScores.keys()):
+                            benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+                            if benchmarkRuns == None:
+                                print "freak out freak out"
+                                exit()
+                            lowestScoreTimes = []
+                            for run in benchmarkRuns:
+                                lowestScore = run[0][1]
+                                lowestScoreTime = run[0][0]
+                                for i in range(len(run)):
+                                    if run[i][1] < lowestScore:
+                                        lowestScore = run[i][1]
+                                        lowestScoreTime = run[i][0]
+                                lowestScoreTimes.append(lowestScore)
+                            bars.append(np.mean(lowestScoreTimes))
+                            barErrors.append(np.std(lowestScoreTimes))
+		allBars.append(bars)
+		allBarErros.append(barErrors)
+
+
+
+	timeoutTime = maxTimeToReachScore + 20
+	yAxisMax = int(20 * math.floor(float(timeoutTime)/20)) # round to lower multiple of 20
+	for i in range(len(allBars)):
+			allBars[i] = [yAxisMax if x == -1 else x for x in allBars[i]] # thse were the timeouts
+
+	strategies = orderedStrategyNames
+	print ' "-" '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i]," ",
+		for j in range(len(allBars)):
+			print allBars[j][i], " ", allBarErros[j][i], " ",
+		print
+
+	print 
+
+        print ",".join([""] + strategies)
+        avgs = map(lambda ls: np.mean(ls), allBars)
+        print ",".join(map(lambda x: str(x), avgs))
+        
+
+	x = np.array(range(len(strategyBenchmarks)))
+	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+	locs, labels = plt.xticks(x, my_xticks)
+
+
+	ax = plt.subplot(111)
+
+	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
+	ax.bar(x, allBars[1],width=0.2,color='g',align='center', yerr=allBarErros[1], label=strategies[1], ecolor='k')
+	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', yerr=allBarErros[2], label=strategies[2], ecolor='k')
+
+	leg = plt.legend()
+	plt.setp(labels, rotation=90)
+	plt.gca().set_ylim(bottom=0)
+	plt.gca().set_ylim(top=yAxisMax)
+
+	plt.tick_params(
+	    axis='x',          # changes apply to the x-axis
+	    which='both',      # both major and minor ticks are affected
+	    bottom='off',      # ticks along the bottom edge are off
+	    top='off', labelsize=14) # labels along the bottom edge are off
+
+	plt.tick_params(
+	    axis='y',          # changes apply to the x-axis
+	    top='off', labelsize=16) # labels along the bottom edge are off
+
+	plt.draw()
+
+	# Get the bounding box of the original legend
+	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
+
+	plt.ylabel('Time in Seconds', size=18)
+
+	ax.legend(loc='upper left')
+
+	# # Change to location of the legend. 
+	# newX0 = 0
+	# newX1 = 10
+	# bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
+	# leg.set_bbox_to_anchor(bb)
+
+	fig = plt.gcf()
+	fig.set_size_inches(13, 8)
+	fig.subplots_adjust(bottom=0.2)
+	fig.savefig('timeToReachLowestScore_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
+	plt.close()
+
+
 makeLowestScore2 = False
 if makeLowestScore2:
 	print "\n********************************"
