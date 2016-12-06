@@ -2,7 +2,7 @@
 
 from parser import parse_from_file
 from astDB import Dataset
-from score import estimateScore, getMoG
+from score import estimateScore, getMoG, ScoreEstimator
 import sys
 
 scores = {}
@@ -10,7 +10,8 @@ scores = {}
 def test(ast_file,dataset_file):
     ast = parse_from_file(ast_file)
     dataset = Dataset(dataset_file)
-    scores[(ast_file[ast_file.rfind('/')+1:]).lower().split(".")[0]] = -1.0*estimateScore(ast, dataset)
+    scoreEstimator = ScoreEstimator(dataset)
+    scores[(ast_file[ast_file.rfind('/')+1:]).lower().split(".")[0]] = -1.0*estimateScore(ast, scoreEstimator)
     #print ast_file[ast_file.rfind('/')+1:], "\t", estimateScore(ast, dataset)
 
 def run():
@@ -22,13 +23,15 @@ def run():
             return
         elif flag == "-A" or flag == "--all":
             test_file = sys.argv[2]
+            dataset_dir_name = sys.argv[3]
             dir = test_file[:test_file.rfind('/')]
             test_list = open(test_file,'r')
             for name in test_list:
                 name = name.rstrip()
                 nameSuffix = name.split("/")[-1]
+                nameSuffix = nameSuffix.split("-")[0] # let's get rid of whatever extra stuff we've added on to the end (to distinguish btwn diff synthesized progs)
                 test(dir + "/" + name + '.blog', \
-                     dir + '/datasets/' + nameSuffix + '.csv')
+                     dir + '/'+dataset_dir_name+'/' + nameSuffix + '.csv')
             test_list.close()
             return
         elif flag == "--mog":
@@ -37,7 +40,7 @@ def run():
             return
         
     print "Usage: ./benchmarkScore.py -I/--input [PROGRAM] [DATASET]"
-    print "Usage: ./benchmarkScore.py -A/--all ../benchmarkSuite/tests.list"
+    print "Usage: ./benchmarkScore.py -A/--all ../benchmarkSuite/tests.list datasets"
     print "Usage: ./benchmarkScore.py --mog [PROGRAM]"
 
 run()
