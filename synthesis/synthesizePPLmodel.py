@@ -167,7 +167,7 @@ class PPLSynthesisProblem(Annealer):
 
 	def setNeeded(self, dataset, dataGuided):
                 self.counter = 0
-		self.dataset = dataset
+                self.dataset = dataset
                 self.estimator = ScoreEstimator(dataset) # helpful to keep one estimator around the whole time, so we can just summarize the dataset once
                 self.dataGuided = dataGuided
 
@@ -328,6 +328,12 @@ def main():
                 #print blogScore
                 dataGuided = True if sys.argv[9] == "t" else False
 
+                #are we using a holdout set?  if yes, what is the file for that
+                useHoldoutSet = True if sys.argv[10] == "t" else False
+                if useHoldoutSet:
+                	holdoutSetFile = sys.argv[11]
+                	holdoutSetDataset = Dataset(holdoutSetFile)
+
 	startTime = time.clock()
 
 	dataset = Dataset(inputFile)
@@ -462,7 +468,10 @@ def main():
 
 		initState = PPLSynthesisProblem.makeInitialState(prog)
 		saObj = PPLSynthesisProblem(initState)
-		saObj.setNeeded(dataset, dataGuided)
+		if (useHoldoutSet):
+			saObj.setNeeded(holdoutSetDataset, dataGuided)
+		else:
+			saObj.setNeeded(dataset, dataGuided)
 		saObj.steps = SAiterations # 100000 #how many iterations will we do?
 		saObj.updates = SAiterations # 100000 # how many times will we print current status
 		saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
