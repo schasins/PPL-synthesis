@@ -1,0 +1,1 @@
+./benchmarkScore.py -A ../benchmarkSuite/tests.list holdoutsets
