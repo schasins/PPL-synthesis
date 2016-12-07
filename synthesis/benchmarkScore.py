@@ -9,7 +9,10 @@ scores = {}
 
 def test(ast_file,dataset_file):
     ast = parse_from_file(ast_file)
+    #print "made ast"
     dataset = Dataset(dataset_file)
+    #print "made datset"
+    print dataset.numRows
     scoreEstimator = ScoreEstimator(dataset)
     scores[(ast_file[ast_file.rfind('/')+1:]).lower().split(".")[0]] = -1.0*estimateScore(ast, scoreEstimator)
     #print ast_file[ast_file.rfind('/')+1:], "\t", estimateScore(ast, dataset)
@@ -27,9 +30,11 @@ def run():
             dir = test_file[:test_file.rfind('/')]
             test_list = open(test_file,'r')
             for name in test_list:
+                print name
                 name = name.rstrip()
                 nameSuffix = name.split("/")[-1]
                 nameSuffix = nameSuffix.split("-")[0] # let's get rid of whatever extra stuff we've added on to the end (to distinguish btwn diff synthesized progs)
+                print dir + '/'+dataset_dir_name+'/' + nameSuffix + '.csv'
                 test(dir + "/" + name + '.blog', \
                      dir + '/'+dataset_dir_name+'/' + nameSuffix + '.csv')
             test_list.close()

@@ -4,7 +4,7 @@ for strategy in "n" "d" "c"; do
 		echo $entry
 		SUBSTRING=$(echo $entry| cut -d '.' -f 1)
 		echo $SUBSTRING
-       		python ../synthesis/synthesizePPLmodel.py datasets/$entry 250 outputs $SUBSTRING-$i $strategy annealing f t t t holdoutsets/$entry &
+       		python ../synthesis/synthesizePPLmodel.py datasets/$entry 250 outputs $SUBSTRING-$i $strategy annealing f f t t holdoutsets/"$SUBSTRING"_holdout.csv &
 	done
 	wait
     done
