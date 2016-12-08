@@ -7,13 +7,12 @@ import sys
 
 debug = False
 
-threshold = float(sys.argv[1])
-interval = sys.argv[2]
-BLOGScores = sys.argv[3]== "t" or sys.argv[3]=="true" or sys.argv[3]=="True"
+#Example usage: python graphs.py 1.01 _250_ f f
 
-if interval != "2" and interval != ".2":
-    print "sorry, we can only handle intervals 2 and .2.  try again."
-    exit()
+threshold = float(sys.argv[1])
+stringToSeek = sys.argv[2]
+BLOGScores = sys.argv[3]== "t" or sys.argv[3]=="true" or sys.argv[3]=="True"
+makeGraphs = sys.argv[4]== "t" or sys.argv[4]=="true" or sys.argv[4]=="True"
 
 
 structureGenerationStrategyNames = {"n": "Complete", "c": "Simple Correlation", "d": "Network Deconvolution"}
@@ -23,12 +22,6 @@ orderedStrategyNames = ["Complete", "Simple Correlation", "Network Deconvolution
 groundTruthScores = {"mixedcondition" : -28459.8881144, "easytugwar": -432735.271522, "uniform": -433991.016223, "hurricanevariation": -15238.8490086, "eyecolor": -24451.4123102, "students": -494511.705397, "icecream": -243033.13365, "csi": -17600.7572927, "healthiness": -43402.871318, "grass": -107379.623116, "biasedtugwar": -57695.5202573, "multiplebranches": -38727.3369882, "tugwaraddition": -286552.895459, "burglary": -4769.55908746}
 # the scores below were calculated with the BLOG score (.2)
 groundTruthScores2 = {"biasedtugwar": -166329.566764, "burglary" : -4769.55908746, "csi" : -17600.7572927, "easytugwar" : -484656.308471, "eyecolor" : -24451.4123102, "grass" : -159582.717229, "healthiness" : -43402.871318, "hurricanevariation" : -15238.8490086, "icecream": -452748.864924, "mixedcondition" : -139665.179804, "multiplebranches" : -127227.39559, "students": -582585.4996, "tugwaraddition" : -775090.947583, "uniform": -465729.222681}
-
-stringToSeek = "_300_"
-if interval == ".2":
-    stringToSeek = "_250_"
-    groundTruthScores = groundTruthScores2
-
 
 # the scores below were calculated with the current score estimator
 groundTruthScoreEstimates = {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
@@ -119,6 +112,7 @@ if makeMaxTimeToReachGroundtruth2:
 			for run in benchmarkRuns:
                                 limitScore = groundTruthScoreEstimates[benchmarkname]*threshold
 				newTime = timeToReachScore(run, limitScore) # for this one, we just want something close
+                                #print "newTime", newTime
 				if (newTime == None):
 					timeLs = [-1] * len(benchmarkRuns)
 					break
@@ -156,53 +150,55 @@ if makeMaxTimeToReachGroundtruth2:
         avgs = map(lambda ls: np.mean(ls), allBars)
         print ",".join(map(lambda x: str(x), avgs))
         
+        if makeGraphs:
 
-	x = np.array(range(len(strategyBenchmarks)))
-	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
-	locs, labels = plt.xticks(x, my_xticks)
+         x = np.array(range(len(strategyBenchmarks)))
+         my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+         locs, labels = plt.xticks(x, my_xticks)
 
 
-	ax = plt.subplot(111)
 
-	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
-	ax.bar(x, allBars[1],width=0.2,color='g',align='center', yerr=allBarErros[1], label=strategies[1], ecolor='k')
-	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', yerr=allBarErros[2], label=strategies[2], ecolor='k')
+         ax = plt.subplot(111)
 
-	leg = plt.legend()
-	plt.setp(labels, rotation=90)
-	plt.gca().set_ylim(bottom=0)
-	plt.gca().set_ylim(top=yAxisMax)
+         ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
+         ax.bar(x, allBars[1],width=0.2,color='g',align='center', yerr=allBarErros[1], label=strategies[1], ecolor='k')
+         ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', yerr=allBarErros[2], label=strategies[2], ecolor='k')
 
-	plt.tick_params(
-	    axis='x',          # changes apply to the x-axis
-	    which='both',      # both major and minor ticks are affected
-	    bottom='off',      # ticks along the bottom edge are off
-	    top='off', labelsize=14) # labels along the bottom edge are off
+         leg = plt.legend()
+         plt.setp(labels, rotation=90)
+         plt.gca().set_ylim(bottom=0)
+         plt.gca().set_ylim(top=yAxisMax)
 
-	plt.tick_params(
-	    axis='y',          # changes apply to the x-axis
-	    top='off', labelsize=16) # labels along the bottom edge are off
+         plt.tick_params(
+             axis='x',          # changes apply to the x-axis
+             which='both',      # both major and minor ticks are affected
+             bottom='off',      # ticks along the bottom edge are off
+             top='off', labelsize=14) # labels along the bottom edge are off
 
-	plt.draw()
+         plt.tick_params(
+             axis='y',          # changes apply to the x-axis
+             top='off', labelsize=16) # labels along the bottom edge are off
 
-	# Get the bounding box of the original legend
-	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
+         plt.draw()
 
-	plt.ylabel('Time in Seconds', size=18)
+         # Get the bounding box of the original legend
+         bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	ax.legend(loc='upper left')
+         plt.ylabel('Time in Seconds', size=18)
 
-	# # Change to location of the legend. 
-	# newX0 = 0
-	# newX1 = 10
-	# bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
-	# leg.set_bbox_to_anchor(bb)
+         ax.legend(loc='upper left')
 
-	fig = plt.gcf()
-	fig.set_size_inches(13, 8)
-	fig.subplots_adjust(bottom=0.2)
-	fig.savefig('timeToReachScore2_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
-	plt.close()
+         # # Change to location of the legend. 
+         # newX0 = 0
+         # newX1 = 10
+         # bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
+         # leg.set_bbox_to_anchor(bb)
+
+         fig = plt.gcf()
+         fig.set_size_inches(13, 8)
+         fig.subplots_adjust(bottom=0.2)
+         fig.savefig('timeToReachScore2_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
+         plt.close()
 
 
 makeLowestScore = True
@@ -271,74 +267,76 @@ if makeLowestScore:
         avgs = map(lambda ls: np.mean(ls), allBars)
         print ",".join(map(lambda x: str(x), avgs))
 
-	x = np.array(range(len(strategyBenchmarks)))
-	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
-	locs, labels = plt.xticks(x, my_xticks)
+        if makeGraphs:
+
+         x = np.array(range(len(strategyBenchmarks)))
+         my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+         locs, labels = plt.xticks(x, my_xticks)
 
 
-	ax = plt.subplot(111)
-	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', label=strategies[0], ecolor='k')
-	ax.bar(x, allBars[1],width=0.2,color='g',align='center', label=strategies[1], ecolor='k')
-	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', label=strategies[2], ecolor='k')
+         ax = plt.subplot(111)
+         ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', label=strategies[0], ecolor='k')
+         ax.bar(x, allBars[1],width=0.2,color='g',align='center', label=strategies[1], ecolor='k')
+         ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', label=strategies[2], ecolor='k')
 
 
-	plt.gca().set_ylim(bottom=0)
-	plt.gca().set_ylim(top=1.4)
+         plt.gca().set_ylim(bottom=0)
+         plt.gca().set_ylim(top=1.4)
 
-	leg = plt.legend()
+         leg = plt.legend()
 
-	plt.setp(labels, rotation=90)
-	plt.gca().set_ylim(bottom=0)
+         plt.setp(labels, rotation=90)
+         plt.gca().set_ylim(bottom=0)
 
-        plt.plot([-.5, len(allBars[0])], [1, 1], color='k', linestyle='-', linewidth=1)
-        #hlines(1, 0, len(strategies))
+         plt.plot([-.5, len(allBars[0])], [1, 1], color='k', linestyle='-', linewidth=1)
+         #hlines(1, 0, len(strategies))
 
-	plt.tick_params(
-	    axis='x',          # changes apply to the x-axis
-	    which='both',      # both major and minor ticks are affected
-	    bottom='off',      # ticks along the bottom edge are off
-	    top='off', labelsize=14) # labels along the bottom edge are off
+         plt.tick_params(
+             axis='x',          # changes apply to the x-axis
+             which='both',      # both major and minor ticks are affected
+             bottom='off',      # ticks along the bottom edge are off
+             top='off', labelsize=14) # labels along the bottom edge are off
 
-	plt.tick_params(
-	    axis='y',          # changes apply to the x-axis
-	    top='off', labelsize=16) # labels along the bottom edge are off
+         plt.tick_params(
+             axis='y',          # changes apply to the x-axis
+             top='off', labelsize=16) # labels along the bottom edge are off
 
-	plt.draw()
+         plt.draw()
 
-	# Get the bounding box of the original legend
-	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
+         # Get the bounding box of the original legend
+         bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	plt.ylabel('Final Score (Normalized to Ground Truth Score)', size=18)
+         plt.ylabel('Final Score (Normalized to Ground Truth Score)', size=18)
 
-	ax.legend(loc='upper left')
+         ax.legend(loc='upper left')
 
-	plt.draw() # Draw the figure so you can find the positon of the legend. 
+         plt.draw() # Draw the figure so you can find the positon of the legend. 
 
-	# Get the bounding box of the original legend
-	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
+         # Get the bounding box of the original legend
+         bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	# Change to location of the legend. 
-	yOffset = 1.5
-	bb.set_points([[bb.x0, bb.y0 + yOffset], [bb.x1, bb.y1 + yOffset]])
-	leg.set_bbox_to_anchor(bb)
+         # Change to location of the legend. 
+         yOffset = 1.5
+         bb.set_points([[bb.x0, bb.y0 + yOffset], [bb.x1, bb.y1 + yOffset]])
+         leg.set_bbox_to_anchor(bb)
 
-	plt.draw()
+         plt.draw()
 
-	# # Change to location of the legend. 
-	# newX0 = 0
-	# newX1 = 10
-	# bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
-	# leg.set_bbox_to_anchor(bb)
+         # # Change to location of the legend. 
+         # newX0 = 0
+         # newX1 = 10
+         # bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
+         # leg.set_bbox_to_anchor(bb)
 
-        #plt.show()
+         #plt.show()
 
-	fig = plt.gcf()
-	fig.set_size_inches(13, 8)
-	fig.subplots_adjust(bottom=0.2)
-	fig.savefig('lowestScore.pdf', edgecolor='none', format='pdf')
-	plt.close()
+         fig = plt.gcf()
+         fig.set_size_inches(13, 8)
+         fig.subplots_adjust(bottom=0.2)
+         fig.savefig('lowestScore.pdf', edgecolor='none', format='pdf')
+         plt.close()
 
-
+        
 
 
 makeTimeToReachLowestScore = True
@@ -400,55 +398,56 @@ if makeTimeToReachLowestScore:
         avgs = map(lambda ls: np.mean(ls), allBars)
         print ",".join(map(lambda x: str(x), avgs))
         
+        if makeGraphs:
 
-	x = np.array(range(len(strategyBenchmarks)))
-	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
-	locs, labels = plt.xticks(x, my_xticks)
-
-
-	ax = plt.subplot(111)
-
-	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
-	ax.bar(x, allBars[1],width=0.2,color='g',align='center', yerr=allBarErros[1], label=strategies[1], ecolor='k')
-	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', yerr=allBarErros[2], label=strategies[2], ecolor='k')
-
-	leg = plt.legend()
-	plt.setp(labels, rotation=90)
-	plt.gca().set_ylim(bottom=0)
-	plt.gca().set_ylim(top=yAxisMax)
-
-	plt.tick_params(
-	    axis='x',          # changes apply to the x-axis
-	    which='both',      # both major and minor ticks are affected
-	    bottom='off',      # ticks along the bottom edge are off
-	    top='off', labelsize=14) # labels along the bottom edge are off
-
-	plt.tick_params(
-	    axis='y',          # changes apply to the x-axis
-	    top='off', labelsize=16) # labels along the bottom edge are off
-
-	plt.draw()
-
-	# Get the bounding box of the original legend
-	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
-
-	plt.ylabel('Time in Seconds', size=18)
-
-	ax.legend(loc='upper left')
-
-	# # Change to location of the legend. 
-	# newX0 = 0
-	# newX1 = 10
-	# bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
-	# leg.set_bbox_to_anchor(bb)
-
-	fig = plt.gcf()
-	fig.set_size_inches(13, 8)
-	fig.subplots_adjust(bottom=0.2)
-	fig.savefig('timeToReachLowestScore_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
-	plt.close()
+         x = np.array(range(len(strategyBenchmarks)))
+         my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+         locs, labels = plt.xticks(x, my_xticks)
 
 
+         ax = plt.subplot(111)
+
+         ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', yerr=allBarErros[0], label=strategies[0], ecolor='k')
+         ax.bar(x, allBars[1],width=0.2,color='g',align='center', yerr=allBarErros[1], label=strategies[1], ecolor='k')
+         ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', yerr=allBarErros[2], label=strategies[2], ecolor='k')
+
+         leg = plt.legend()
+         plt.setp(labels, rotation=90)
+         plt.gca().set_ylim(bottom=0)
+         plt.gca().set_ylim(top=yAxisMax)
+
+         plt.tick_params(
+             axis='x',          # changes apply to the x-axis
+             which='both',      # both major and minor ticks are affected
+             bottom='off',      # ticks along the bottom edge are off
+             top='off', labelsize=14) # labels along the bottom edge are off
+
+         plt.tick_params(
+             axis='y',          # changes apply to the x-axis
+             top='off', labelsize=16) # labels along the bottom edge are off
+
+         plt.draw()
+
+         # Get the bounding box of the original legend
+         bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
+
+         plt.ylabel('Time in Seconds', size=18)
+
+         ax.legend(loc='upper left')
+
+         # # Change to location of the legend. 
+         # newX0 = 0
+         # newX1 = 10
+         # bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
+         # leg.set_bbox_to_anchor(bb)
+
+         fig = plt.gcf()
+         fig.set_size_inches(13, 8)
+         fig.subplots_adjust(bottom=0.2)
+         fig.savefig('timeToReachLowestScore_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
+         plt.close()
+
+         
 makeLowestScore2 = False
 if makeLowestScore2:
 	print "\n********************************"
@@ -500,56 +499,58 @@ if makeLowestScore2:
         avgs = map(lambda ls: np.mean(ls), allBars)
         print ",".join(map(lambda x: str(x), avgs))
 
-	x = np.array(range(len(strategyBenchmarks)))
-	my_xticks = sorted(strategyBenchmarks.keys()) # string labels
-	locs, labels = plt.xticks(x, my_xticks)
+        if makeGraphs:
 
-	strategies = orderedStrategyNames
+         x = np.array(range(len(strategyBenchmarks)))
+         my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+         locs, labels = plt.xticks(x, my_xticks)
 
-	ax = plt.subplot(111)
-	ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', label=strategies[0], ecolor='k', yerr=allBarErros[0])
-	ax.bar(x, allBars[1],width=0.2,color='g',align='center', label=strategies[1], ecolor='k', yerr=allBarErros[1])
-	ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', label=strategies[2], ecolor='k', yerr=allBarErros[2])
+         strategies = orderedStrategyNames
 
-	leg = plt.legend()
-	plt.setp(labels, rotation=90)
-	plt.gca().set_ylim(bottom=0)
+         ax = plt.subplot(111)
+         ax.bar(x-0.2, allBars[0],width=0.2,color='b',align='center', label=strategies[0], ecolor='k', yerr=allBarErros[0])
+         ax.bar(x, allBars[1],width=0.2,color='g',align='center', label=strategies[1], ecolor='k', yerr=allBarErros[1])
+         ax.bar(x+0.2, allBars[2],width=0.2,color='r',align='center', label=strategies[2], ecolor='k', yerr=allBarErros[2])
 
-        plt.plot([-.5, len(allBars[0])], [1, 1], color='k', linestyle='-', linewidth=1)
-        #hlines(1, 0, len(strategies))
+         leg = plt.legend()
+         plt.setp(labels, rotation=90)
+         plt.gca().set_ylim(bottom=0)
 
-	plt.tick_params(
-	    axis='x',          # changes apply to the x-axis
-	    which='both',      # both major and minor ticks are affected
-	    bottom='off',      # ticks along the bottom edge are off
-	    top='off', labelsize=14) # labels along the bottom edge are off
+         plt.plot([-.5, len(allBars[0])], [1, 1], color='k', linestyle='-', linewidth=1)
+         #hlines(1, 0, len(strategies))
 
-	plt.tick_params(
-	    axis='y',          # changes apply to the x-axis
-	    top='off', labelsize=16) # labels along the bottom edge are off
+         plt.tick_params(
+             axis='x',          # changes apply to the x-axis
+             which='both',      # both major and minor ticks are affected
+             bottom='off',      # ticks along the bottom edge are off
+             top='off', labelsize=14) # labels along the bottom edge are off
 
-	plt.draw()
+         plt.tick_params(
+             axis='y',          # changes apply to the x-axis
+             top='off', labelsize=16) # labels along the bottom edge are off
 
-	# Get the bounding box of the original legend
-	bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
+         plt.draw()
 
-	plt.ylabel('Final Score (Normalized to Ground Truth Score)', size=18)
+         # Get the bounding box of the original legend
+         bb = leg.legendPatch.get_bbox().inverse_transformed(ax.transAxes)
 
-	ax.legend(loc='upper left')
+         plt.ylabel('Final Score (Normalized to Ground Truth Score)', size=18)
 
-	# # Change to location of the legend. 
-	# newX0 = 0
-	# newX1 = 10
-	# bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
-	# leg.set_bbox_to_anchor(bb)
+         ax.legend(loc='upper left')
 
-        #plt.show()
+         # # Change to location of the legend. 
+         # newX0 = 0
+         # newX1 = 10
+         # bb.set_points([[newX0, bb.y0], [newX1, bb.y1]])
+         # leg.set_bbox_to_anchor(bb)
 
-	fig = plt.gcf()
-	fig.set_size_inches(13, 8)
-	fig.subplots_adjust(bottom=0.2)
-	fig.savefig('lowestScore2.pdf', edgecolor='none', format='pdf')
-	plt.close()
+         #plt.show()
+
+         fig = plt.gcf()
+         fig.set_size_inches(13, 8)
+         fig.subplots_adjust(bottom=0.2)
+         fig.savefig('lowestScore2.pdf', edgecolor='none', format='pdf')
+         plt.close()
 
 makeDataGuided = True
 if makeDataGuided:
