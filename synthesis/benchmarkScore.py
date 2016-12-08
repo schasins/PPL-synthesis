@@ -34,9 +34,9 @@ def run():
                 name = name.rstrip()
                 nameSuffix = name.split("/")[-1]
                 nameSuffix = nameSuffix.split("-")[0] # let's get rid of whatever extra stuff we've added on to the end (to distinguish btwn diff synthesized progs)
-                print dir + '/'+dataset_dir_name+'/' + nameSuffix + '.csv'
+                print dir + '/'+dataset_dir_name+'/' + nameSuffix + '_holdout.csv'
                 test(dir + "/" + name + '.blog', \
-                     dir + '/'+dataset_dir_name+'/' + nameSuffix + '.csv')
+                     dir + '/'+dataset_dir_name+'/' + nameSuffix + '_holdout.csv')
             test_list.close()
             return
         elif flag == "--mog":

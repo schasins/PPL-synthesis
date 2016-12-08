@@ -149,26 +149,48 @@ def distance(summary1, summary2):
 class PPLSynthesisProblem(Annealer):
 
 	def move(self):
+                global trainingTime
                 print self.counter,
                 self.counter += 1
+                startTime = time.clock()
 		self.state.mutate()
+                endTime = time.clock()
+                trainingTime += (endTime - startTime)
 
 	def energy(self):
-		global startTime, cleanTimingData, cleanTimingOutput
-		currTime = time.clock()
+		global trainingTime, cleanTimingData, cleanTimingOutput, cleanTimingDataHoldout, cleanTimingOutputHoldout
+		startTime = time.clock()
 		score = -1*estimateScore(self.state.root, self.estimator)
-		cleanTimingData.append([currTime, score])
-                cleanTimingOutput.write(",".join(map(str, [currTime, score]))+"\n")
-		return score
+                endTime = time.clock()
+		cleanTimingData.append([startTime, score]) # start time because by that point had already made it, though hadn't evaluated it with estimateScore
+                cleanTimingOutput.write(",".join(map(str, [startTime, score]))+"\n")
+                # but now need to add to the training time, since we do need to do the score estimation to do the SA
+                trainingTime += (endTime - startTime)
+                if self.holdoutDataset:
+                        # now if we're using a holdout set, we should figure out how we're doing on that
+                        # note that this doesn't add to our training time, since this is an evaluation that wouldn't be necessary in a real training, is just for eval
+                        holdoutSetScore = -1*estimateScore(self.state.root, self.holdoutEstimator)
+                        cleanTimingDataHoldout.append([startTime, holdoutSetScore]) # start time because by that point had already made it, though hadn't evaluated it with estimateScore
+                        cleanTimingOutputHoldout.write(",".join(map(str, [startTime, holdoutSetScore]))+"\n")
+		return score # remember, must return the score on the actual training data!  Not the holdout
 
 	@staticmethod
 	def makeInitialState(prog):
 		return prog
 
-	def setNeeded(self, dataset, dataGuided):
+	def setNeeded(self, dataset, dataGuided, holdoutDataset):
+                global trainingTime
                 self.counter = 0
                 self.dataset = dataset
+                self.holdoutDataset = holdoutDataset
+                # time to make the training data's scoreestimator should be counted towards training time
+                startTime = time.clock()
                 self.estimator = ScoreEstimator(dataset) # helpful to keep one estimator around the whole time, so we can just summarize the dataset once
+                endTime = time.clock()
+                trainingTime += (endTime - startTime)
+                # time to make the holdout data's scoreestimator (if there is a holdout set) should not count towards training time, since it's just for eval
+                if self.holdoutDataset != None:
+                        self.holdoutEstimator = ScoreEstimator(holdoutDataset)
                 self.dataGuided = dataGuided
 
 # **********************************************************************
@@ -302,15 +324,17 @@ def deepcopyNode(node):
 	newNode = deepcopy(node)
 	return newNode
 
-startTime = 0
+trainingTime = 0
 cleanTimingData = []
+cleanTimingDataHoldout = []
 cleanTimingOutput = None
+cleanTimingOutputHoldout = None
 
 
 dataset = None
 
 def main():
-	global startTime, cleanTimingData, dataset, cleanTimingOutput
+	global trainingTime, cleanTimingData, cleanTimingDataHoldout, dataset, cleanTimingOutput, cleanTimingOutputHoldout
 
 	debug = False
 
@@ -415,6 +439,8 @@ def main():
 		AST.fillHolesForConcretePathConditions(dataset)
         else:
                 AST.fillHolesRandomly()
+
+        trainingTime = time.clock() - startTime
                 
 	if mode == "reduction" or mode == "reductionProg":
 
@@ -465,26 +491,33 @@ def main():
 		# if debug: print AST.strings()
 
 		cleanTimingData = []
+                cleanTiimingDataHoldout = []
 
 		initState = PPLSynthesisProblem.makeInitialState(prog)
 		saObj = PPLSynthesisProblem(initState)
 		if (useHoldoutSet):
-			saObj.setNeeded(holdoutSetDataset, dataGuided)
+			saObj.setNeeded(dataset, dataGuided, holdoutSetDataset)
 		else:
-			saObj.setNeeded(dataset, dataGuided)
+			saObj.setNeeded(dataset, dataGuided, None)
 		saObj.steps = SAiterations # 100000 #how many iterations will we do?
 		saObj.updates = SAiterations # 100000 # how many times will we print current status
 		saObj.Tmax = 50000.0 #(len(scriptStrings)-1)*.1 # how big an increase in distance are we willing to accept at start?
 
 		saObj.Tmin = 1 # how big an increase in distance are we willing to accept at the end?
 
-		endTime = time.clock()
-		distanceFromDataset = -1 * estimateScore(prog.root, saObj.estimator)
-		
-                
-		cleanTimingOutput = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
-                cleanTimingData.append([endTime, distanceFromDataset])
-                cleanTimingOutput.write(",".join(map(str, [endTime, distanceFromDataset]))+"\n")
+                # ok, what's the score of our initial candidate, before we even do anything?
+                distanceFromDataset = -1 * estimateScore(prog.root, saObj.estimator)
+
+                cleanTimingOutput = open(outputDirectory+"/cleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+                cleanTimingData.append([trainingTime, distanceFromDataset])
+                cleanTimingOutput.write(",".join(map(str, [trainingTime, distanceFromDataset]))+"\n")
+
+                if useHoldoutSet:
+                        # if we're using a holdout set, let's also see how we're doing on that data
+                        distanceFromDatasetHoldout = -1 * estimateScore(prog.root, saObj.holdoutEstimator)
+                        cleanTimingOutputHoldout = open(outputDirectory+"/holdoutCleanTimingData/"+outputFilename+"_"+str(SAiterations)+"_"+str(structureGenerationStrategy)+"_.timing", "w")
+                        cleanTimingDataHoldout.append([trainingTime, distanceFromDatasetHoldout])
+                        cleanTimingOutputHoldout.write(",".join(map(str, [trainingTime, distanceFromDatasetHoldout]))+"\n")
 
 		annealingOutput = []
 		if debug: print "About to anneal."
