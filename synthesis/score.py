@@ -265,6 +265,7 @@ class ScoreEstimator(visitor):
         self.env = {}
         self.varcollector = VarCollector()
         self.lookup_freq = build_freq_table(dataset)
+        # print "made ScoreEstimator for", self.dataset
 
     def reset(self):
         self.env = {}
@@ -274,6 +275,7 @@ class ScoreEstimator(visitor):
             print v, "=", self.env[v]
 
     def evaluate(self, ast):
+        # print "evaluate", self.dataset
         # print "-------- AST---------"
         # print ast.strings()[0]
         self.reset()

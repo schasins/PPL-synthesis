@@ -61,16 +61,14 @@ def removeColumns(datasetLs, indexes):
 																raise Exception("gah")
 				return datasetLs
 
-dataset = None # deep evil; todo: fix this
+db = None
 
 class Dataset:
 	def __init__(self, filename):
-		global dataset 
-		dataset = self # deep evil
 
 		self.indexCount = 0
 
-		if debug: print "making dataset"
+		if debug: print "making dataset", filename
 
 		f = open(filename, "r")
 		lines = f.readlines()
@@ -178,7 +176,9 @@ class Dataset:
                 self.columnMins = columnMins
 
 		# going to use the table for score even if not for data guidance
-		self.db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
+		# it seems we're only allowed to keep around one connection to a given db (and we'll always be using the same database), so we'll use a global here
+                global db
+                db = MySQLdb.connect("localhost","ppluser","ppluserpasswordhere...","PPLDATASETS")
 		cursor = self.newCursor()
 		tableName = filename.split("/")[-1].split(".")[0]
 		self.tableName = tableName
@@ -217,16 +217,18 @@ class Dataset:
 
 		chunkSize = 10000
 		chunks = [valuesLists[x:x+chunkSize] for x in range(0, len(valuesLists), chunkSize)]
-		for chunk in chunks:
+		if debug: print "number of chunks:", len(chunks)
+                for chunk in chunks:
+                        if debug: print chunk[0]
 			sql = "INSERT INTO "+tableName+"("+",".join(cols)+") VALUES "+",".join(chunk)
 			try:
 				# Execute the SQL command
 				cursor.execute(sql)
 				# Commit your changes in the database
-				self.db.commit()
+				db.commit()
 			except:
 				# Rollback in case there is any error
-				self.db.rollback()
+				db.rollback()
 
 		sql = "SELECT COUNT(*) FROM "+tableName
 		cursor.execute(sql)
@@ -235,7 +237,7 @@ class Dataset:
 		cursor.close()
 
 	def newCursor(self):
-		return self.db.cursor()
+		return db.cursor()
 
 	def addIndex(self, colNames):
 		if len(colNames) < 1:
@@ -299,6 +301,7 @@ class Dataset:
 
 	def SQLFind(self, minmax, c):
 		sql = "SELECT " + minmax + "(" + c + ") FROM "+self.tableName
+                if debug: print sql
 		cursor = self.newCursor()
 		cursor.execute(sql)
 		results = cursor.fetchall()
@@ -316,7 +319,9 @@ class Dataset:
 			whereClause = self.makePathConditionFilter(pathCondition)
 			sql = "SELECT "+colName+" FROM "+self.tableName+" WHERE "+whereClause
 		cursor = self.newCursor()
-		cursor.execute(sql)
+                if debug: print "cursor", cursor
+		if debug: print sql
+                cursor.execute(sql)
 		results = cursor.fetchall()
 		cursor.close()
 		return results
@@ -343,7 +348,7 @@ class PathConditionComponent:
 # **********************************************************************
 
 class Program:
-	def __init__(self, dataGuided = True, thresholdMaker = 75):
+	def __init__(self, dataGuided = True, datasetObj = None, thresholdMaker = 75):
 		self.randomizeableNodes = {}
 		self.variables = []
 		self.root = None
@@ -352,13 +357,14 @@ class Program:
 		self.comparisonNodes = 0
 		self.distribNodes = 0
 		self.dataGuided = dataGuided
+                self.datasetObj = datasetObj
 
 	def setRoot(self, root):
 		self.root = root
 		root.setProgram(self)
 
 	def variableRange(self, variableName):
-		return (dataset.columnMins[variableName], dataset.columnMaxes[variableName])
+		return (self.datasetObj.columnMins[variableName], self.datasetObj.columnMaxes[variableName])
 
 	def instanceToKey(self, instance):
 		if isinstance(instance, CategoricalDistribNode) or isinstance(instance, BooleanDistribNode) or isinstance(instance, UniformRealDistribNode) or isinstance(instance, GaussianDistribNode) or isinstance(instance, BetaDistribNode):
@@ -1263,7 +1269,7 @@ class IfNode(ASTNode):
 		currentVariable = parent
 		return conditionSoFar, currentVariable
 
-	def fillHolesForConcretePathConditionsHelper(self):
+	def fillHolesForConcretePathConditionsHelper(self, dataset):
 		pathCondition, currentVariable = self.pathCondition()
 		self.fillHolesForConcretePathConditions(dataset, pathCondition, currentVariable)
 
@@ -1347,7 +1353,7 @@ class IfNode(ASTNode):
 
 		if self.program.dataGuided:
 			# we just changed the conditions, better recalculate
-			self.fillHolesForConcretePathConditionsHelper()
+			self.fillHolesForConcretePathConditionsHelper(self.program.datasetObj)
 
 def copyNode(node):
 	newNode = deepcopy(node)
@@ -1380,7 +1386,7 @@ class VariableUseNode(ASTNode):
 		return self.program.variableRange(self.name)
 
 	def lambdaToCalculate(self):
-		index = dataset.namesToIndexes[self.name]
+		index = self.program.datasetObj.namesToIndexes[self.name]
 		return lambda row: row[index]
 
 	def toSQLString(self):
@@ -1469,7 +1475,7 @@ class ComparisonNode(ASTNode):
 
 		# we've changed the conditions.  better recalculate the things that depend on path conditions
 		if self.program.dataGuided:
-			self.parent.fillHolesForConcretePathConditionsHelper()
+			self.parent.fillHolesForConcretePathConditionsHelper(self.program.datasetObj)
 
 	def mutate(self):
 
@@ -1548,7 +1554,7 @@ class ComparisonNode(ASTNode):
 		if self.program.dataGuided:
 			# ok we've made a mutation that works
 			# we've changed the conditions.  better recalculate the things that depend on path conditions
-			self.parent.fillHolesForConcretePathConditionsHelper()
+			self.parent.fillHolesForConcretePathConditionsHelper(self.program.datasetObj)
 
 		if mutationDebug: print "after"
 		if mutationDebug: print self.strings()

@@ -429,7 +429,7 @@ def main():
 		variableNode = VariableDeclNode(node.name, node.distribInfo.typeName, internal)
 		AST.addChild(variableNode)
 
-	prog = Program(dataGuided)
+	prog = Program(dataGuided, dataset)
 	prog.setRoot(AST)
 
 	

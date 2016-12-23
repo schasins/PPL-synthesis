@@ -25,13 +25,14 @@ groundTruthScores2 = {"biasedtugwar": -166329.566764, "burglary" : -4769.5590874
 
 # the scores below were calculated with the current score estimator
 groundTruthScoreEstimates = {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
+# {'biasedtugwar': 189783.6036644863, 'csi': 19255.445232561193, 'hurricanevariation': 16969.33744362955, 'students': 77602.55741867358, 'easytugwar': 55549.343874179234, 'healthiness': 48520.30263919617, 'uniform': 53189.88944984452, 'eyecolor': 24531.83317257066, 'icecream': 77940.73111092376, 'multiplebranches': 50331.30808150735, 'burglary': 3001.9392799884545, 'tugwaraddition': 82914.54836550112, 'grass': 31520.418707250712, 'mixedcondition': 44412.288626323476}
 # the scores below were calculated with another old score approach, before we fixed handling boolean distribs, and started using more estimation
 # groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 16969.33744363283, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48520.30263912328, 'uniform': 53189.889449844784, 'eyecolor': 24531.8331725655, 'icecream': 77940.73111092609, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 # the scores below were calculated with the old score approach, before we fixed it to handle ifs with more than 2 branches better
 #groundTruthScores = {'biasedtugwar': 195085.7403381909, 'csi': 36709.6095361359, 'hurricanevariation': 17043.29694642003, 'students': 77602.55741867474, 'easytugwar': 55549.3438741628, 'healthiness': 48001.39437425706, 'uniform': 53189.889449844784, 'eyecolor': 24542.81097722689, 'icecream': 79082.25931616548, 'multiplebranches': 50331.30808150756, 'burglary': 708.7526240629371, 'tugwaraddition': 81753.45016682695, 'grass': 41209.701189894804, 'mixedcondition': 41878.02072590537}
 
 dataSets = {}
-timingDataDir = "outputs/cleanTimingData"
+timingDataDir = "outputs/holdoutCleanTimingData"
 maxTime = 0
 for f in os.listdir(os.getcwd()+"/"+timingDataDir):
     if stringToSeek in f:
@@ -64,7 +65,7 @@ for f in os.listdir(os.getcwd()+"/"+scoreDataDir):
         scoreData[structureGenerationStrategy] = sData
 
 dataSetsDatablind = {}
-timingDataDir = "outputs/cleanTimingData"
+timingDataDir = "outputs/holdoutCleanTimingData"
 for f in os.listdir(os.getcwd()+"/"+timingDataDir):
     if "_1000_" in f:
         fl = open(timingDataDir+"/"+f, "r")
@@ -119,6 +120,7 @@ if makeMaxTimeToReachGroundtruth2:
 				timeLs.append(newTime)
 			avg = np.mean(timeLs)
 			#print avg
+                        #print benchmarkname, timeLs
 			stderr = np.std(timeLs)
 			if avg + stderr > maxTimeToReachScore:
 				maxTimeToReachScore = avg + stderr
@@ -336,7 +338,6 @@ if makeLowestScore:
          fig.savefig('lowestScore.pdf', edgecolor='none', format='pdf')
          plt.close()
 
-        
 
 
 makeTimeToReachLowestScore = True
@@ -447,11 +448,73 @@ if makeTimeToReachLowestScore:
          fig.savefig('timeToReachLowestScore_'+str(threshold)+'.pdf', edgecolor='none', format='pdf')
          plt.close()
 
-         
-makeLowestScore2 = False
-if makeLowestScore2:
+
+
+
+makeTimeToReachLowestScore = True
+if makeTimeToReachLowestScore:
 	print "\n********************************"
-	print "Estimated likelihood score: means and errors across all runs"
+	print "Estimated likelihood score: time to reach lowest"
+        print "Estimated with our likelihood estimation, reflects lowest score at any point during annealing"
+	print "********************************"
+	highestLowesScore = 0
+	allBars = []
+	allBarErros = []
+	for strategy in orderedStrategyNames:
+		if debug: print "********************************"
+		if debug: print "Strategy: "+ strategy
+		if debug: print "********************************"
+                if BLOGScores:
+                    strategyBenchmarks = scoreData[strategy]
+                else:
+                    strategyBenchmarks = dataSets[strategy]
+		bars = []
+		barErrors = []
+		for benchmarkname in sorted(groundTruthScores.keys()):
+                            benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+                            if benchmarkRuns == None:
+                                print "freak out freak out"
+                                exit()
+                            lowestScoreTimes = []
+                            for run in benchmarkRuns:
+                                lowestScore = run[0][1]
+                                lowestScoreTime = run[0][0]
+                                for i in range(len(run)):
+                                    if run[i][1] < lowestScore:
+                                        lowestScore = run[i][1]
+                                        lowestScoreTime = run[i][0]
+                                lowestScoreTimes.append(lowestScore)
+                            bars.append(np.mean(lowestScoreTimes))
+                            barErrors.append(np.std(lowestScoreTimes))
+		allBars.append(bars)
+		allBarErros.append(barErrors)
+
+
+
+	timeoutTime = maxTimeToReachScore + 20
+	yAxisMax = int(20 * math.floor(float(timeoutTime)/20)) # round to lower multiple of 20
+	for i in range(len(allBars)):
+			allBars[i] = [yAxisMax if x == -1 else x for x in allBars[i]] # thse were the timeouts
+
+	strategies = orderedStrategyNames
+	print ' "-" '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
+	for i in range(len(allBars[0])):
+		print sorted(groundTruthScores.keys())[i]," ",
+		for j in range(len(allBars)):
+			print allBars[j][i], " ", allBarErros[j][i], " ",
+		print
+
+	print 
+
+        print ",".join([""] + strategies)
+        avgs = map(lambda ls: np.mean(ls), allBars)
+        print ",".join(map(lambda x: str(x), avgs))
+
+         
+makeFinalScore = True
+if makeFinalScore:
+	print "\n********************************"
+	print "Estimated likelihood score at end of annealing: means and errors across all runs"
         if BLOGScores:
             print "Estimated with BLOG"
         else:
@@ -464,7 +527,7 @@ if makeLowestScore2:
 		if debug: print "********************************"
 		if debug: print "Strategy: "+ strategy
 		if debug: print "********************************"
-		strategyBenchmarks = scoreData[strategy]
+		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
 		for benchmarkname in sorted(groundTruthScores.keys()):
@@ -472,18 +535,17 @@ if makeLowestScore2:
 			lowestScores = []
 			for run in benchmarkRuns:
 				if debug: print run
+                                finalScore = run[-1][1]
                                 groundTruthScore = groundTruthScoreEstimates[benchmarkname]
                                 if BLOGScores:
                                     groundTruthScore = groundTruthScores[benchmarkname]
-				lowestScore = run / groundTruthScore # normalize
+				lowestScore = finalScore / groundTruthScore # normalize
 				lowestScores.append(lowestScore)
 			bars.append(np.mean(lowestScores))
 			barErrors.append(np.std(lowestScores))
 			if debug: print benchmarkname, ":", lowestScores
 		allBars.append(bars)
 		allBarErros.append(barErrors)
-
-
 
 	strategies = orderedStrategyNames
 	print ' "-" '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
