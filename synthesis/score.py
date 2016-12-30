@@ -558,13 +558,13 @@ class ScoreEstimator(visitor):
         mog2 = self.visit(ast.e2)
         if ast.op == '+':
             mu_op = lambda x,y,s1,s2: x+y
-            sig_op = lambda x,y: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
+            sig_op = lambda x,y,m1,m2: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
         elif ast.op == '-':
             mu_op = lambda x,y,s1,s2: x-y
-            sig_op = lambda x,y: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
+            sig_op = lambda x,y,m1,m2: math.sqrt(x**2 + y**2) # + 2*alpha*x*y
         elif ast.op == '*':
             mu_op = lambda m1,m2,s1,s2: mu_times(m1,m2,s1,s2)
-            sig_op = lambda x,y: sig_times(x,y)
+            sig_op = lambda x,y,m1,m2: sig_times(x,y,m1,m2)
         else:
             raise ScoreError("ScoreEstimator: BinExpNode: do not support " + ast.op)
 
@@ -575,7 +575,7 @@ class ScoreEstimator(visitor):
             for j in xrange(mog2.n):
                 w.append(mog1.w[i] * mog2.w[j])
                 mu.append(mu_op(mog1.mu[i], mog2.mu[j],mog1.sig[i], mog2.sig[j]))
-                sig.append(sig_op(mog1.sig[i], mog2.sig[j]))
+                sig.append(sig_op(mog1.sig[i], mog2.sig[j], mog1.mu[i], mog2.mu[j]))
 
         return MoG(mog1.n*mog2.n, np.array(w), np.array(mu), np.array(sig))
 
@@ -641,16 +641,26 @@ def erf(mu1,mu2,sig1,sig2):
     return scipy.special.erf(x)
 
 def mu_times(m1,m2,s1,s2):
-    if (s1**2 + s2**2) == 0:
+    #print "mu_times", m1, m2, s1, s2
+    if (s1**2 == 0 or s2**2 == 0):
+        #print m1 * m2
         return m1*m2
     else:
-        return (m1*(s2**1) + m2*(s1**2))/(s1**2 + s2**2)
+        #print (m1*(s2**2) + m2*(s1**2))/(s1**2 + s2**2)
+        return (m1*(s2**2) + m2*(s1**2))/(s1**2 + s2**2)
 
-def sig_times(x,y):
-    if (x**2 + y**2) == 0:
-        return 0
+def sig_times(x,y,m1,m2):
+    #print "sig_times", x, y, m1, m2
+    if (x**2 == 0 or  y**2 == 0):
+        if (x**2 == 0): # first var is a constant since x is 0, so m1 is a, should have a**2 * variance of the actual Guassian
+            #print math.sqrt(m1**2 * y**2)
+            return math.sqrt(m1**2 * y**2)
+        else: # y**2 is 0, so second var is a constant, so m2 (mean of second var) is a, should have a**2 * var ofhte actual Guassian
+            #print math.sqrt(m2**2 * x**2)
+            return math.sqrt(m2**2 * x**2)
     else:
-        return ((x**2) * (y**2))/(x**2 + y**2)
+        #print math.sqrt((x**2) * (y**2))/(x**2 + y**2)
+        return math.sqrt((x**2) * (y**2))/(x**2 + y**2)
 
 # **********************************************************************
 # AST Mutator

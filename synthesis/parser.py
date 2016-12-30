@@ -1,3 +1,6 @@
+import math
+
+
 class ParserError(Exception):
     def __init__(self, value):
         self.value = value
@@ -142,7 +145,7 @@ def p_expr_categorical(t):
 
 def p_expr_gauss(t):
     'expr : GAUSS LPAREN const COMMA const RPAREN'
-    t[0] = GaussianDistribNode(None,t[3],t[5])
+    t[0] = GaussianDistribNode(None,t[3],math.sqrt(t[5]))
 
 def p_expr_beta(t):
     'expr : BETA LPAREN const COMMA const RPAREN'
