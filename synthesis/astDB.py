@@ -358,7 +358,7 @@ class Program:
 		self.distribNodes = 0
 		self.dataGuided = dataGuided
                 self.datasetObj = datasetObj
-                self.score = None
+                self.score = {}
 
 	def setRoot(self, root):
 		self.root = root
@@ -388,7 +388,8 @@ class Program:
 		# TODO: adding too many ifs stop
 
                 # we're mutating, so must blow away any cached score
-                self.score = None
+                print "we're mutating.  throw away score."
+                self.score = {}
 
 		totalWeight = 0
 		thresholds = []

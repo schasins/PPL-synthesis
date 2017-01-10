@@ -752,10 +752,15 @@ class Mutator(visitor):
         return UnaryExpNode(ast.op, self.visit(ast.e))
 
 def estimateScore(prog, estimator):
-    if prog.score:
-        return prog.score
+    print "estimateScore", prog
+    # estimators are associated with different datasets
+    estKey = str(estimator) # bad key
+    if estKey in prog.score:
+        print "cached score:", prog.score[estKey]
+        return prog.score[estKey]
     score = estimator.evaluate(prog)
-    prog.score = score
+    prog.score[estKey] = score
+    print "recalculated score:", prog.score[estKey]
     return score
 
 def getMoG(ast):
