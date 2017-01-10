@@ -358,6 +358,7 @@ class Program:
 		self.distribNodes = 0
 		self.dataGuided = dataGuided
                 self.datasetObj = datasetObj
+                self.score = None
 
 	def setRoot(self, root):
 		self.root = root
@@ -385,6 +386,9 @@ class Program:
 
 	def mutate(self):
 		# TODO: adding too many ifs stop
+
+                # we're mutating, so must blow away any cached score
+                self.score = None
 
 		totalWeight = 0
 		thresholds = []

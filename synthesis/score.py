@@ -274,10 +274,11 @@ class ScoreEstimator(visitor):
         for v in self.env:
             print v, "=", self.env[v]
 
-    def evaluate(self, ast):
+    def evaluate(self, prog):
         # print "evaluate", self.dataset
         # print "-------- AST---------"
         # print ast.strings()[0]
+        ast = prog.root
         self.reset()
         self.visit(ast)
         # print "-------- ENV --------"
@@ -750,8 +751,12 @@ class Mutator(visitor):
     def visit_UnaryExpNode(self, ast):
         return UnaryExpNode(ast.op, self.visit(ast.e))
 
-def estimateScore(ast, estimator):
-    return estimator.evaluate(ast)
+def estimateScore(prog, estimator):
+    if prog.score:
+        return prog.score
+    score = estimator.evaluate(prog)
+    prog.score = score
+    return score
 
 def getMoG(ast):
     print ast.strings()[0]
