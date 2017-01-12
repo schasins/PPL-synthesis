@@ -358,7 +358,6 @@ class Program:
 		self.distribNodes = 0
 		self.dataGuided = dataGuided
                 self.datasetObj = datasetObj
-                self.score = {}
 
 	def setRoot(self, root):
 		self.root = root
@@ -386,10 +385,6 @@ class Program:
 
 	def mutate(self):
 		# TODO: adding too many ifs stop
-
-                # we're mutating, so must blow away any cached score
-                print "we're mutating.  throw away score."
-                self.score = {}
 
 		totalWeight = 0
 		thresholds = []
@@ -1360,8 +1355,9 @@ class IfNode(ASTNode):
 			# we just changed the conditions, better recalculate
 			self.fillHolesForConcretePathConditionsHelper(self.program.datasetObj)
 
+import cPickle
 def copyNode(node):
-	newNode = deepcopy(node)
+	newNode = cPickle.loads(cPickle.dumps(node))
 	newNode.setParent(node.parent)
 	newNode.setProgram(node.program)
 	return newNode

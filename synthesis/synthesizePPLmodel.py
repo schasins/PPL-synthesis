@@ -3,7 +3,7 @@ from astDB import *
 from score import *
 from BLOGScore import *
 from subprocess import call
-from copy import deepcopy
+from copy import *
 from scipy.stats.stats import pearsonr
 from itertools import combinations
 import sys
@@ -319,9 +319,9 @@ def generatePotentialStructuresFromDataset(dataset):
 # Consume the structure hints, generate a program
 # **********************************************************************
 
-
+import cPickle
 def deepcopyNode(node):
-	newNode = deepcopy(node)
+	newNode = cPickle.loads(cPickle.dumps(node)) # ujson supposed to be faster than copy.deepcopy
 	return newNode
 
 trainingTime = 0
