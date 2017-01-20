@@ -164,6 +164,7 @@ class PPLSynthesisProblem(Annealer):
                 endTime = time.clock()
 		cleanTimingData.append([startTime, score]) # start time because by that point had already made it, though hadn't evaluated it with estimateScore
                 cleanTimingOutput.write(",".join(map(str, [startTime, score]))+"\n")
+                cleanTimingOutput.flush()
                 # but now need to add to the training time, since we do need to do the score estimation to do the SA
                 trainingTime += (endTime - startTime)
                 if self.holdoutDataset:
@@ -172,6 +173,7 @@ class PPLSynthesisProblem(Annealer):
                         holdoutSetScore = -1*estimateScore(self.state, self.holdoutEstimator)
                         cleanTimingDataHoldout.append([startTime, holdoutSetScore]) # start time because by that point had already made it, though hadn't evaluated it with estimateScore
                         cleanTimingOutputHoldout.write(",".join(map(str, [startTime, holdoutSetScore]))+"\n")
+                        cleanTimingOutputHoldout.flush()
 		return score # remember, must return the score on the actual training data!  Not the holdout
 
 	@staticmethod

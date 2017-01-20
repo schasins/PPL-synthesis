@@ -1,3 +1,5 @@
+import matplotlib
+matplotlib.use('Agg')
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
@@ -5,9 +7,9 @@ import os
 import math
 import sys
 
-debug = False
+#Example usage: python graphs.py 1.1 _250_ f f
 
-#Example usage: python graphs.py 1.01 _250_ f f
+debug = False
 
 threshold = float(sys.argv[1])
 stringToSeek = sys.argv[2]
@@ -662,28 +664,41 @@ if makeFinalScore:
 
 makeDataGuided = True
 if makeDataGuided:
-	strategy = "Network Deconvolution" # only going to do deconv for this one, since the data-blind verison was done with deconv
+	strategy = "Complete" # only going to do naive for this one, since the data-blind verison was done with naive
 	strategyBenchmarks = dataSets[strategy]
 	strategyBenchmarksDataBlind = dataSetsDatablind[strategy]
 
-
 	numBenchmarks = len(groundTruthScores.keys())
-	height = 5
+	height = 2
 	width = numBenchmarks/height
-	if numBenchmarks % height > 0:
+	if numBenchmarks % height == 0:
 		width += 1
+        print "width", width
 	# row and column sharing
-	f, axarr = plt.subplots(height, width, sharey='row')
+	f, axarr = plt.subplots(height, width) # sharey='row')
 
-	benchmarkNamesSorted = sorted(groundTruthScores.keys())
-	redData = []
+	#benchmarkNamesSorted = sorted(groundTruthScores.keys())
+	benchmarkNamesSorted = sortedKeys
+        redData = []
 	blueData = []
         dataGuidedTimesToGetClose = []
         dataBlindTimesToGetClose = []
         dataGuidedLowestScores = []
         dataBlindLowestScores = []
+        
+        # something a little weird here, where we'll track the lowest score the data-blind approach ever reaches, 
+        # track how long it takes to get there, then track how long it takes the data-guided approach to reach the same level
+        # this is something where of course we want to average across all runs, so we'll pick the highest of the 
+        # data-blinds' best values, so that it's one that all data-blind runs will have reached
+        # so then we can find average time to reach that across all runs, and then average time to reach it for data-guided runs
+        dataBlindTimesToReachItsLowest = []
+        dataGuidedTimesToReachDataBlindsLowest = []
+
 	for i in range(len(benchmarkNamesSorted)):
 		benchmarkname = benchmarkNamesSorted[i]
+                if benchmarkname == "icecream":
+                    continue # currently some kind of issue with icecream.  not sure what it is.  will return to this
+
 		y = i/width
 		x = i%width
 		ax = axarr[y, x] # is this the element we want?
@@ -691,14 +706,20 @@ if makeDataGuided:
 		dataGuidedTimeLists = []
 		dataGuidedScoreLists = []
 
+                currentBenchmarkLowestScores = []
+
 		# data guided
 		benchmarkRuns = strategyBenchmarks[benchmarkname]
 		for run in benchmarkRuns:
 			dataGuidedTimeLists.append(map(lambda x: x[0], run))
-			dataGuidedScoreLists.append(map(lambda x: x[1], run))
+			#dataGuidedScoreLists.append(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run))
+                        dataGuidedScoreLists.append(map(lambda x: x[1], run))
                         timeToGetClose = timeToReachScore(run, groundTruthScoreEstimates[benchmarkname]*threshold)
                         dataGuidedTimesToGetClose.append(timeToGetClose)
-                        dataGuidedLowestScores.append(min(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run)))
+                        lowestScore = min(map(lambda x: x[1], run))
+                        lowestScoreNormalized = lowestScore/groundTruthScoreEstimates[benchmarkname]
+                        dataGuidedLowestScores.append(lowestScoreNormalized)
+                        currentBenchmarkLowestScores.append(lowestScore)
 
 		dataBlindTimeLists = []
 		dataBlindScoreLists = []
@@ -707,16 +728,42 @@ if makeDataGuided:
 		benchmarkRuns = strategyBenchmarksDataBlind[benchmarkname]
 		for run in benchmarkRuns:
 			dataBlindTimeLists.append(map(lambda x: x[0], run))
-			dataBlindScoreLists.append(map(lambda x: x[1], run))
+			#dataBlindScoreLists.append(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run))
+                        dataBlindScoreLists.append(map(lambda x: x[1], run))
+                        #print benchmarkname
+                        #print len(run)
                         timeToGetClose = timeToReachScore(run, groundTruthScoreEstimates[benchmarkname]*threshold)
                         dataBlindTimesToGetClose.append(timeToGetClose)
-                        dataBlindLowestScores.append(min(map(lambda x: x[1]/groundTruthScoreEstimates[benchmarkname], run)))
+                        lowestScore = min(map(lambda x: x[1], run))
+                        lowestScoreNormalized = lowestScore/groundTruthScoreEstimates[benchmarkname]
+                        dataBlindLowestScores.append(lowestScoreNormalized)
+                        currentBenchmarkLowestScores.append(lowestScore)
+                
+                print currentBenchmarkLowestScores
+                currentBenchmarkDataBlindEasiestLowestScore = max(currentBenchmarkLowestScores)
+                print benchmarkname, currentBenchmarkDataBlindEasiestLowestScore
+
+                dgruns = strategyBenchmarks[benchmarkname]
+                dbruns = strategyBenchmarksDataBlind[benchmarkname]
+                for i in range(len(dgruns)):
+                    dgrun = dgruns[i]
+                    dbrun = dbruns[i]
+                    dataBlindTimesToReachItsLowest.append(timeToReachScore(dbrun, currentBenchmarkDataBlindEasiestLowestScore))
+                    dataGuidedTimesToReachDataBlindsLowest.append(timeToReachScore(dgrun, currentBenchmarkDataBlindEasiestLowestScore))
 
 		maxTime = 0
 		for run in dataBlindTimeLists:
 			maxTimeForRun = run[-1]
 			if maxTimeForRun > maxTime:
 				maxTime = maxTimeForRun
+
+                maxScore = 0
+                for run in dataBlindScoreLists+dataGuidedScoreLists:
+                    maxScoreForRun = max(run)
+                    if maxScoreForRun > maxScore:
+                        maxScore = maxScoreForRun
+
+                print "maxScore, targetScore", maxScore, groundTruthScoreEstimates[benchmarkname]
 
 		for i in range(len(dataGuidedTimeLists)):
 			dataGuidedTimeLists[i].append(maxTime)
@@ -732,18 +779,29 @@ if makeDataGuided:
 			ax.plot(dataGuidedTimeLists[i], dataGuidedScoreLists[i], "blue")
 			blueData.append(dataGuidedScoreLists[i])
 
-		ax.set_title(benchmarkname)
+		ax.set_title(benchmarkname, size=10)
+
+                ylimVal = 6*groundTruthScoreEstimates[benchmarkname]
+                print "***", maxScore < ylimVal, benchmarkname, ylimVal, maxScore
+                if maxScore < ylimVal:
+                    ylimVal = maxScore
+                print "***", ylimVal
+
+                #ax.get_xaxis().get_major_formatter().set_scientific(False)
 
 		ax.set_ylim(bottom=0)
-		ax.set_ylim(top=200000)
+		ax.set_ylim(top=ylimVal)
 		ax.set_xlim(right=maxTime)
-		if x == 0: ax.set_ylabel('Score', size=10)
-		ax.set_xlabel('Time (in Seconds)', size=10)
+		if x == 0: ax.set_ylabel('Score', size=9)
+		ax.set_xlabel('Time (in Seconds)', size=9)
+                ax.tick_params(labelsize=6)
+                ax.axes.get_yaxis().set_ticklabels([])
+        
 
 	plt.subplots_adjust(hspace=.5, wspace=0.1)
 	plt.draw()
 	fig = plt.gcf()
-	fig.set_size_inches(13, 19)
+	fig.set_size_inches(13, 4)
 	#fig.subplots_adjust(bottom=0.2)
 
 	# we want to put the legend in the position of the last axarr item
@@ -756,7 +814,7 @@ if makeDataGuided:
 
 	red_patch = mpatches.Patch(color='red', label='Data-blind')
 	blue_patch = mpatches.Patch(color='blue', label='Data-guided')
-	fig.legend((red_patch,blue_patch), ('Data-blind', 'Data-guided'), bbox_to_anchor = pos1, fontsize = 20, loc='center')
+	fig.legend((red_patch,blue_patch), ('Data-blind', 'Data-guided'), bbox_to_anchor = pos1, fontsize = 17, loc='right')
 
 	fig.savefig('dataGuidedVsDataBlind.pdf', edgecolor='none', format='pdf')
 	plt.close()
@@ -786,8 +844,18 @@ if makeDataGuided:
         dbLowestScoreAvg = np.mean(dataBlindLowestScores)
         print "Average Normalized Best Score Per Run (data-guided):", dgLowestScoreAvg
         print "Average Normalized Best Score Per Run (data-blind):", dbLowestScoreAvg
+        print "ratio:", dbLowestScoreAvg/dgLowestScoreAvg
 
-makeDataGuidedNormalized = True
+        #print dataGuidedTimesToReachDataBlindsLowest
+        #print dataBlindTimesToReachItsLowest
+
+        dgTimeToReachDBLowestScoreAvg = np.mean(dataGuidedTimesToReachDataBlindsLowest)
+        dbTimeToReachDBLowestScoreAvg = np.mean(dataBlindTimesToReachItsLowest)
+        print "Average time to reach the best score reached by data-blind approach (data-guided):", dgTimeToReachDBLowestScoreAvg
+        print "Average time to reach the best score reached by data-blind approach (data-blind):", dbTimeToReachDBLowestScoreAvg
+        print "ratio: ", dbTimeToReachDBLowestScoreAvg/dgTimeToReachDBLowestScoreAvg
+
+makeDataGuidedNormalized = False # may want to do this one too, but skip for now.  if do remake, should change the benchmarkNamesSorted to match above
 if makeDataGuidedNormalized:
 	strategy = "Network Deconvolution" # only going to do deconv for this one, since the data-blind verison was done with deconv
 	strategyBenchmarks = dataSets[strategy]
