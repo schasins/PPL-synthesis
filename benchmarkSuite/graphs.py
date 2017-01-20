@@ -91,6 +91,37 @@ def timeToReachScore(timeScoreData, score):
 			return line[0]
 	return None
 
+def finalTime(timeScoreData):
+    return timeScoreData[-1][0]
+
+
+benchmarkToAvgTime = {}
+strategy = "Complete"
+strategyBenchmarks = dataSets[strategy]
+for benchmarkname in groundTruthScoreEstimates.keys():
+    benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
+    if benchmarkRuns == None:
+        print "freak out freak out, no benchmark runs for", benchmarkname, strategy
+        print strategyBenchmarks.keys()
+        exit()
+    timeLs = []
+    for run in benchmarkRuns:
+        limitScore = groundTruthScoreEstimates[benchmarkname]*threshold
+        newTime = timeToReachScore(run, limitScore) # for this one, we just want something close
+        #print "newTime", newTime
+        if (newTime == None):
+            newTime = finalTime(run)
+        timeLs.append(newTime)
+    avg = np.mean(timeLs)
+    benchmarkToAvgTime[benchmarkname] = avg
+
+import operator
+print benchmarkToAvgTime
+sortedTuples = sorted(benchmarkToAvgTime.items(), key=operator.itemgetter(1))
+print sortedTuples
+sortedKeys = [tuple[0] for tuple in sortedTuples]
+print sortedKeys
+
 
 makeMaxTimeToReachGroundtruth2 = True
 if makeMaxTimeToReachGroundtruth2:
@@ -102,6 +133,7 @@ if makeMaxTimeToReachGroundtruth2:
 	maxTimeToReachScore = 0
 	allBars = []
 	allBarErros = []
+        timeouts = []
 	for strategy in orderedStrategyNames:
 		if debug: print "********************************"
 		if debug: print "Strategy: "+ strategy
@@ -109,7 +141,7 @@ if makeMaxTimeToReachGroundtruth2:
 		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
-		for benchmarkname in sorted(groundTruthScoreEstimates.keys()):
+		for benchmarkname in sortedKeys:
 			benchmarkRuns = strategyBenchmarks.get(benchmarkname, None)
 			if benchmarkRuns == None:
 				print "freak out freak out, no benchmark runs for", benchmarkname, strategy
@@ -122,6 +154,10 @@ if makeMaxTimeToReachGroundtruth2:
                                 #print "newTime", newTime
 				if (newTime == None):
 					timeLs = [-1] * len(benchmarkRuns)
+                                        finalTimes = []
+                                        for run2 in benchmarkRuns:
+                                            finalTimes.append(finalTime(run2))
+                                        timeouts.append(min(finalTimes))
 					break
 				timeLs.append(newTime)
 			avg = np.mean(timeLs)
@@ -138,16 +174,20 @@ if makeMaxTimeToReachGroundtruth2:
 		if debug: print "mean: ", np.mean(bars)
 	if debug: print allBars
 
-
-	timeoutTime = maxTimeToReachScore + 20
-	yAxisMax = int(20 * math.floor(float(timeoutTime)/20)) # round to lower multiple of 20
-	for i in range(len(allBars)):
+        # changed my mind about how to decide the timeoutTime
+	#timeoutTime = maxTimeToReachScore + 20
+        timeoutTime = min(timeouts)
+	#yAxisMax = int(20 * math.floor(float(timeoutTime)/20)) # round to lower multiple of 20
+	yAxisMax = timeoutTime
+        for i in range(len(allBars)):
 			allBars[i] = [yAxisMax if x == -1 else x for x in allBars[i]] # thse were the timeouts
+
+        print timeouts
 
 	strategies = orderedStrategyNames
 	print ' "-" '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
 	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i]," ",
+		print sortedKeys[i]," ",
 		for j in range(len(allBars)):
 			print allBars[j][i], " ", allBarErros[j][i], " ",
 		print
@@ -161,7 +201,7 @@ if makeMaxTimeToReachGroundtruth2:
         if makeGraphs:
 
          x = np.array(range(len(strategyBenchmarks)))
-         my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+         my_xticks = sortedKeys # string labels
          locs, labels = plt.xticks(x, my_xticks)
 
 
@@ -536,7 +576,7 @@ if makeFinalScore:
 		strategyBenchmarks = dataSets[strategy]
 		bars = []
 		barErrors = []
-		for benchmarkname in sorted(groundTruthScores.keys()):
+		for benchmarkname in sortedKeys:
 			benchmarkRuns = strategyBenchmarks[benchmarkname]
 			lowestScores = []
 			for run in benchmarkRuns:
@@ -556,7 +596,7 @@ if makeFinalScore:
 	strategies = orderedStrategyNames
 	print ' "-" '.join(['"Benchmark"'] + map(lambda x: "\""+x+"\"", strategies))
 	for i in range(len(allBars[0])):
-		print sorted(groundTruthScores.keys())[i]," ",
+		print sortedKeys[i]," ",
 		for j in range(len(allBars)):
 			print allBars[j][i], " ", allBarErros[j][i], " ",
 		print
@@ -570,7 +610,7 @@ if makeFinalScore:
         if makeGraphs:
 
          x = np.array(range(len(strategyBenchmarks)))
-         my_xticks = sorted(strategyBenchmarks.keys()) # string labels
+         my_xticks = sortedKeys # string labels
          locs, labels = plt.xticks(x, my_xticks)
 
          strategies = orderedStrategyNames
